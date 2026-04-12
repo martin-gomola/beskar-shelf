@@ -9,6 +9,58 @@ fi
 
 LINKS_FILE="${1:-$REPO_ROOT/links.txt}"
 OUTPUT_DIR="${OUTPUT_DIR:?Set OUTPUT_DIR in .env}"
+SPLIT_THRESHOLD="${SPLIT_THRESHOLD:-3600}"
+SEGMENT_LENGTH="${SEGMENT_LENGTH:-1800}"
+
+# Resolve relative paths against repo root
+if [[ "$OUTPUT_DIR" != /* ]]; then
+    OUTPUT_DIR="$REPO_ROOT/$OUTPUT_DIR"
+fi
+
+parse_author_and_title() {
+    local raw="$1"
+    local fallback_author="$2"
+    parsed_author=""
+    parsed_title=""
+
+    # Strip noise suffixes: Audiokniha, Full Audiobook, Audiobook, etc.
+    local cleaned
+    cleaned=$(echo "$raw" | sed -E '
+        s/[,|] *(Full )?Audio(book|kniha)//gi
+        s/[,|] *Fantasy//gi
+        s/[,|] *Sci-?Fi//gi
+        s/ *[–—-] *(Full )?Audio(book|kniha)//gi
+        s/ *\| *(Full )?Audio(book|kniha)//gi
+        s/  */ /g
+        s/^ *//;s/ *$//
+    ')
+
+    # Pattern: "Title – Author" or "Title - Author" (after stripping noise)
+    if echo "$cleaned" | grep -qE ' [–—] [A-Z]'; then
+        parsed_title=$(echo "$cleaned" | sed -E 's/ [–—] ([^–—]+)$//')
+        parsed_author=$(echo "$cleaned" | sed -E 's/.* [–—] //')
+    # Pattern: "Title by Author"
+    elif echo "$cleaned" | grep -qiE ' by [A-Z]'; then
+        parsed_title=$(echo "$cleaned" | sed -E 's/ [bB]y ([A-Z].*)$//')
+        parsed_author=$(echo "$cleaned" | sed -E 's/.* [bB]y //')
+    # Pattern: "Author - Title" (author is short name before first dash)
+    elif echo "$cleaned" | grep -qE '^[A-Z][a-zA-ZáéíóúůžščřďťňěÁÉÍÓÚŮŽŠČŘĎŤŇĚ. ]{2,40} - '; then
+        parsed_author=$(echo "$cleaned" | sed -E 's/ - .*//')
+        parsed_title=$(echo "$cleaned" | sed -E 's/^[^-]+ - //')
+    fi
+
+    # Strip trailing separators from parsed values
+    parsed_author=$(echo "$parsed_author" | sed 's/[,;|. ]*$//' | sed 's/^ *//')
+    parsed_title=$(echo "$parsed_title" | sed 's/[,;|. ]*$//' | sed 's/^ *//')
+
+    # Fallbacks
+    if [ -z "$parsed_author" ]; then
+        parsed_author="$fallback_author"
+    fi
+    if [ -z "$parsed_title" ]; then
+        parsed_title="$cleaned"
+    fi
+}
 
 if [ ! -f "$LINKS_FILE" ]; then
     echo "Error: $LINKS_FILE not found"
@@ -24,27 +76,73 @@ while IFS= read -r url || [ -n "$url" ]; do
     count=$((count + 1))
 
     echo "[$count] Fetching metadata: $url"
-    title=$(yt-dlp --get-title --no-playlist "$url")
+    raw_title=$(yt-dlp --get-title --no-playlist "$url")
     uploader=$(yt-dlp --print "%(uploader)s" --no-playlist "$url")
+    chapters=$(yt-dlp --print "%(chapters)s" --no-playlist "$url")
+
+    parse_author_and_title "$raw_title" "$uploader"
 
     # Sanitize for filesystem
-    safe_title=$(echo "$title" | sed 's/[\/\\:*?"<>|]/-/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
-    safe_uploader=$(echo "$uploader" | sed 's/[\/\\:*?"<>|]/-/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
+    safe_title=$(echo "$parsed_title" | sed 's/[\/\\:*?"<>|]/-/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
+    safe_author=$(echo "$parsed_author" | sed 's/[\/\\:*?"<>|]/-/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
 
-    book_dir="$OUTPUT_DIR/$safe_uploader/$safe_title"
+    book_dir="$OUTPUT_DIR/$safe_author/$safe_title"
     mkdir -p "$book_dir"
 
-    echo "[$count] Downloading: $title"
-    echo "         Author: $uploader"
+    echo "[$count] Downloading: $raw_title"
+    echo "         Author: $parsed_author"
+    echo "         Title:  $parsed_title"
     echo "         -> $book_dir/"
 
-    yt-dlp \
-        --extract-audio \
-        --audio-format mp3 \
-        --audio-quality 0 \
-        --output "$book_dir/%(title)s.%(ext)s" \
-        --no-playlist \
-        "$url"
+    has_chapters=false
+    if [[ "$chapters" != "None" && "$chapters" != "NA" && "$chapters" != "" && "$chapters" != "[]" ]]; then
+        has_chapters=true
+    fi
+
+    if $has_chapters; then
+        echo "         Chapters detected, splitting by chapter..."
+        yt-dlp \
+            --extract-audio \
+            --audio-format mp3 \
+            --audio-quality 0 \
+            --write-thumbnail \
+            --split-chapters \
+            --output "chapter:$book_dir/%(section_number)03d - %(section_title)s.%(ext)s" \
+            --output "thumbnail:$book_dir/%(title)s.%(ext)s" \
+            --no-playlist \
+            "$url"
+    else
+        echo "         No chapters found, downloading as single file..."
+        yt-dlp \
+            --extract-audio \
+            --audio-format mp3 \
+            --audio-quality 0 \
+            --write-thumbnail \
+            --output "$book_dir/%(title)s.%(ext)s" \
+            --no-playlist \
+            "$url"
+
+        # Split long files by fixed duration
+        mp3_file=$(find "$book_dir" -maxdepth 1 -name '*.mp3' -print -quit)
+        if [ -n "$mp3_file" ]; then
+            duration=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 "$mp3_file" | cut -d. -f1)
+            if [ "${duration:-0}" -gt "$SPLIT_THRESHOLD" ]; then
+                echo "         Duration ${duration}s exceeds threshold ${SPLIT_THRESHOLD}s, splitting every ${SEGMENT_LENGTH}s..."
+                ffmpeg -y -i "$mp3_file" -f segment -segment_time "$SEGMENT_LENGTH" -c copy \
+                    "$book_dir/%03d - Part.mp3" 2>/dev/null
+                rm "$mp3_file"
+            fi
+        fi
+    fi
+
+    # Convert thumbnail to cover.jpg for Audiobookshelf
+    img=$(find "$book_dir" -maxdepth 1 \( -name '*.webp' -o -name '*.png' -o -name '*.jpg' \) ! -name 'cover.jpg' -print -quit)
+    if [ -n "$img" ]; then
+        ffmpeg -y -i "$img" "$book_dir/cover.jpg" 2>/dev/null && rm "$img"
+    fi
+
+    # Clean up leftover video files
+    find "$book_dir" -maxdepth 1 \( -name '*.webm' -o -name '*.m4a' -o -name '*.opus' \) -delete
 
 done < "$LINKS_FILE"
 
