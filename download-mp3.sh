@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    source "$SCRIPT_DIR/.env"
+fi
+
+LINKS_FILE="${1:-links.txt}"
+OUTPUT_DIR="${OUTPUT_DIR:?Set OUTPUT_DIR in .env}"
+
+if [ ! -f "$LINKS_FILE" ]; then
+    echo "Error: $LINKS_FILE not found"
+    exit 1
+fi
+
+mkdir -p "$OUTPUT_DIR"
+
+count=0
+while IFS= read -r url || [ -n "$url" ]; do
+    url=$(echo "$url" | xargs)
+    [[ -z "$url" || "$url" == \#* ]] && continue
+    count=$((count + 1))
+
+    echo "[$count] Fetching metadata: $url"
+    title=$(yt-dlp --get-title --no-playlist "$url")
+    uploader=$(yt-dlp --print "%(uploader)s" --no-playlist "$url")
+
+    # Sanitize for filesystem
+    safe_title=$(echo "$title" | sed 's/[\/\\:*?"<>|]/-/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
+    safe_uploader=$(echo "$uploader" | sed 's/[\/\\:*?"<>|]/-/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
+
+    book_dir="$OUTPUT_DIR/$safe_uploader/$safe_title"
+    mkdir -p "$book_dir"
+
+    echo "[$count] Downloading: $title"
+    echo "         Author: $uploader"
+    echo "         -> $book_dir/"
+
+    yt-dlp \
+        --extract-audio \
+        --audio-format mp3 \
+        --audio-quality 0 \
+        --output "$book_dir/%(title)s.%(ext)s" \
+        --no-playlist \
+        "$url"
+
+done < "$LINKS_FILE"
+
+echo "Done. $count file(s) downloaded to $OUTPUT_DIR/"
