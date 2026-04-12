@@ -1,0 +1,33 @@
+name: audiobookshelf
+
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:${ABS_VERSION:-latest}
+    container_name: audiobookshelf
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-UTC}
+    ports:
+      - "${ABS_PORT:-13378}:80"
+    volumes:
+      - ${DATA_DIR:-/srv/docker}/audiobookshelf/audiobooks:/audiobooks
+      - ${DATA_DIR:-/srv/docker}/audiobookshelf/ebooks:/ebooks
+      - ${DATA_DIR:-/srv/docker}/audiobookshelf/podcasts:/podcasts
+      - ${DATA_DIR:-/srv/docker}/audiobookshelf/metadata:/metadata
+      - ${DATA_DIR:-/srv/docker}/audiobookshelf/config:/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
