@@ -1,6 +1,6 @@
-# YT Grabber
+# beskar-shelf
 
-Download YouTube videos as MP3 files.
+Download YouTube audiobooks as MP3, organized for [Audiobookshelf](https://github.com/advplyr/audiobookshelf).
 
 ## Prerequisites
 
@@ -15,10 +15,9 @@ brew install yt-dlp ffmpeg
 
 ## Setup
 
-Copy the example env file and set your output directory:
-
 ```bash
 cp .env.example .env
+cp links.txt.example links.txt
 ```
 
 Edit `.env` to set your audiobook output path.
@@ -45,5 +44,5 @@ MP3 files are saved to the `OUTPUT_DIR` configured in `.env`, organized as `Auth
 ## Custom links file
 
 ```bash
-./download-mp3.sh my-links.txt
+./bin/grab my-links.txt
 ```
