@@ -1,15 +1,44 @@
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
+import { useTheme } from '../hooks/useTheme'
 import { APP_VERSION } from '../utils/version'
+
+const THEME_OPTIONS = [
+  { value: 'light' as const, label: 'Light' },
+  { value: 'dark' as const, label: 'Dark' },
+  { value: 'system' as const, label: 'System' },
+]
 
 function SettingsPage() {
   const { server, session, setSession, setServer, refreshOfflineBooks } = useAppContext()
+  const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
 
   return (
     <main className="screen settings-screen">
       <h1>Settings</h1>
+
+      {/* Appearance */}
+      <section className="settings-group">
+        <h3 className="settings-group-label">Appearance</h3>
+        <div className="settings-card">
+          <div className="settings-item">
+            <span className="settings-key">Theme</span>
+            <div className="theme-toggle">
+              {THEME_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={`theme-toggle-btn${theme === opt.value ? ' active' : ''}`}
+                  onClick={() => setTheme(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Connection */}
       <section className="settings-group">

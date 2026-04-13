@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAppContext } from '../contexts/AppContext'
 import { usePlayerContext } from '../contexts/PlayerContext'
 import { useServiceWorkerUpdate } from '../hooks/useServiceWorkerUpdate'
+import { useTheme } from '../hooks/useTheme'
 import { BottomNav } from './BottomNav'
 import { MiniPlayer } from './MiniPlayer'
 
@@ -41,6 +42,7 @@ export function Shell() {
   const { server, session } = useAppContext()
   const { activePlayback } = usePlayerContext()
   const { updateAvailable, reload } = useServiceWorkerUpdate()
+  useTheme()
   const location = useLocation()
 
   const needsSetup = !server?.baseUrl

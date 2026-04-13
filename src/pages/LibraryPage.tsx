@@ -7,6 +7,24 @@ import { useClient } from '../contexts/ClientContext'
 import { usePrimaryLibrary } from '../hooks/useLibraries'
 import { BookCard } from '../components/BookCard'
 
+function IconGrid() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+    </svg>
+  )
+}
+
+function IconList() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  )
+}
+
 const PAGE_SIZE = 40
 
 export function LibraryPage() {
@@ -75,14 +93,14 @@ export function LibraryPage() {
             onClick={() => setViewMode('grid')}
             aria-label="Grid view"
           >
-            ▦
+            <IconGrid />
           </button>
           <button
             className={clsx('icon-button', { active: viewMode === 'list' })}
             onClick={() => setViewMode('list')}
             aria-label="List view"
           >
-            ☰
+            <IconList />
           </button>
         </div>
       </section>
