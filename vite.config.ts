@@ -18,8 +18,8 @@ export default defineConfig(({ mode }) => {
           name: 'Beskar Shelf',
           short_name: 'Beskar',
           description: 'Mobile-first Audiobookshelf playback PWA.',
-          theme_color: '#08131b',
-          background_color: '#08131b',
+          theme_color: '#f2f2f7',
+          background_color: '#f2f2f7',
           display: 'standalone',
           start_url: '/',
           icons: [

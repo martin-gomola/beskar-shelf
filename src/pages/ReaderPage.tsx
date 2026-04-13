@@ -1,21 +1,37 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import ePub from 'epubjs'
 
 import { useAppContext } from '../contexts/AppContext'
 import { formatProgress } from '../lib/utils'
+
+type ReaderTheme = 'light' | 'sepia' | 'dark'
+
+const THEMES: Record<ReaderTheme, { bg: string; fg: string; label: string }> = {
+  light: { bg: '#ffffff', fg: '#1a1a1a', label: 'Light' },
+  sepia: { bg: '#f5efe4', fg: '#1f1a15', label: 'Sepia' },
+  dark:  { bg: '#1a1a1a', fg: '#d4d4d4', label: 'Dark' },
+}
+
+const FONT_SIZES = [14, 16, 18, 20, 22, 24]
+const DEFAULT_FONT_SIZE = 18
 
 function ReaderPage() {
   const { itemId } = useParams() as { itemId: string }
   const { client } = useAppContext()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+
   const containerRef = useRef<HTMLDivElement>(null)
-  const [locationLabel, setLocationLabel] = useState('')
+  const viewRef = useRef<InstanceType<typeof import('foliate-js/view.js').View> | null>(null)
+
   const [readerProgress, setReaderProgress] = useState(0)
-  const [isReady, setIsReady] = useState(false)
-  const [readerApi, setReaderApi] = useState<{ next: () => void; prev: () => void } | null>(null)
+  const [showUI, setShowUI] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [theme, setTheme] = useState<ReaderTheme>('sepia')
+  const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE)
+  const [ready, setReady] = useState(false)
+
   const query = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => client.getItem(itemId),
@@ -25,10 +41,10 @@ function ReaderPage() {
   const isPdf = item?.ebookFormat === 'pdf'
 
   const commitReaderProgress = useEffectEvent(async (payload: { cfi: string; progress: number }) => {
-    if (!item) {
-      return
-    }
-
+    if (!item) return
+    try {
+      localStorage.setItem(`beskar:reader:${item.id}`, payload.cfi)
+    } catch { /* quota */ }
     try {
       await client.updateProgress(item.id, {
         duration: item.duration,
@@ -40,81 +56,141 @@ function ReaderPage() {
         startedAt: Date.now(),
       })
       await queryClient.invalidateQueries({ queryKey: ['item', item.id] })
-    } catch (error) {
-      console.error(error)
+    } catch {
+      // offline — progress queued elsewhere
     }
   })
 
-  useEffect(() => {
-    const isPdfFormat = item?.ebookFormat === 'pdf'
-    if (!item || !containerRef.current || !item.ebookFormat || isPdfFormat) {
-      return
+  const applyTheme = useCallback((t: ReaderTheme, size: number) => {
+    const view = viewRef.current
+    if (!view?.renderer) return
+    const { bg, fg } = THEMES[t]
+
+    const renderer = view.renderer as HTMLElement & { setAttribute(n: string, v: string): void }
+    renderer.setAttribute('style', [
+      `--light-bg: ${bg}`,
+      `--light-fg: ${fg}`,
+      `--font-size: ${size}px`,
+    ].join('; '))
+
+    const filterPart = view.renderer as unknown as { style?: CSSStyleDeclaration }
+    if (filterPart.style) {
+      if (t === 'dark') {
+        filterPart.style.setProperty('filter', 'invert(1) hue-rotate(180deg)')
+      } else {
+        filterPart.style.removeProperty('filter')
+      }
     }
 
+    for (const content of (view.renderer as unknown as { getContents?(): Array<{ doc: Document }> })?.getContents?.() ?? []) {
+      const doc = content.doc
+      if (!doc) continue
+      let styleEl = doc.getElementById('beskar-reader-style')
+      if (!styleEl) {
+        styleEl = doc.createElement('style')
+        styleEl.id = 'beskar-reader-style'
+        doc.head.appendChild(styleEl)
+      }
+      styleEl.textContent = `
+        body {
+          background: ${bg} !important;
+          color: ${fg} !important;
+          font-family: Georgia, "Times New Roman", serif !important;
+          font-size: ${size}px !important;
+          line-height: 1.75 !important;
+        }
+      `
+    }
+  }, [])
+
+  useEffect(() => {
+    const isPdfFormat = item?.ebookFormat === 'pdf'
+    if (!item || !containerRef.current || !item.ebookFormat || isPdfFormat) return
+
     let cancelled = false
-    let book: ReturnType<typeof ePub> | null = null
-    let rendition: ReturnType<ReturnType<typeof ePub>['renderTo']> | null = null
+    const el = containerRef.current
 
     void (async () => {
+      await import('foliate-js/view.js')
+
+      if (cancelled) return
+
+      const view = document.createElement('foliate-view') as InstanceType<typeof import('foliate-js/view.js').View>
+      view.style.cssText = 'width: 100%; height: 100%; display: block;'
+      el.innerHTML = ''
+      el.appendChild(view)
+      viewRef.current = view
+
       const response = await fetch(client.ebookUrl(item.id))
-      const epubBuffer = await response.arrayBuffer()
-      if (cancelled) {
-        return
-      }
+      const blob = await response.blob()
+      if (cancelled) return
 
-      book = ePub(epubBuffer)
-      rendition = book.renderTo(containerRef.current!, {
-        width: '100%',
-        height: '100%',
-        flow: 'paginated',
-      })
-      const readyBook = book
-      const readyRendition = rendition
-
-      await readyBook.ready
-      await readyBook.locations.generate(1200)
-      if (cancelled) {
-        return
-      }
-
-      readyRendition.themes.default({
-        body: {
-          background: '#f5efe4',
-          color: '#1f1a15',
-          'font-family': 'Georgia, serif',
-          'line-height': '1.7',
-        },
+      const file = new File([blob], `${item.id}.${item.ebookFormat}`, {
+        type: response.headers.get('content-type') || 'application/epub+zip',
       })
 
-      readyRendition.on('relocated', (location: { start?: { cfi?: string; href?: string } }) => {
-        const cfi = location.start?.cfi ?? null
-        const href = location.start?.href ?? ''
-        const progress = cfi ? Number(readyBook.locations.percentageFromCfi(cfi) || 0) : 0
+      await view.open(file)
+      if (cancelled) return
+
+      if (view.renderer) {
+        view.renderer.setAttribute('flow', 'paginated')
+        view.renderer.setAttribute('gap', '5%')
+        view.renderer.setAttribute('max-inline-size', '720px')
+        view.renderer.setAttribute('max-column-count', '1')
+        view.renderer.setAttribute('animated', '')
+      }
+
+      view.addEventListener('relocate', ((e: CustomEvent) => {
+        const detail = e.detail as { fraction?: number; cfi?: string }
+        const progress = detail.fraction ?? 0
         setReaderProgress(progress)
-        setLocationLabel(href || cfi || 'Beginning')
-        if (cfi) {
-          void commitReaderProgress({ cfi, progress })
+        if (detail.cfi) {
+          void commitReaderProgress({ cfi: detail.cfi, progress })
         }
+      }) as EventListener)
+
+      view.addEventListener('load', (() => {
+        applyTheme(theme, fontSize)
+      }) as EventListener)
+
+      const savedCfi = item.ebookLocation || localStorage.getItem(`beskar:reader:${item.id}`) || null
+      await view.init({
+        lastLocation: savedCfi,
+        showTextStart: !savedCfi,
       })
 
-      await readyRendition.display(item.ebookLocation || undefined)
-      setReaderApi({
-        next: () => void readyRendition.next(),
-        prev: () => void readyRendition.prev(),
-      })
-      setIsReady(true)
+      setReady(true)
     })()
 
     return () => {
       cancelled = true
-      rendition?.destroy()
-      book?.destroy()
-      setReaderApi(null)
+      const view = viewRef.current
+      if (view) {
+        view.close()
+        view.remove()
+      }
+      viewRef.current = null
+      setReady(false)
     }
   }, [client, item])
 
+  useEffect(() => {
+    if (ready) applyTheme(theme, fontSize)
+  }, [theme, fontSize, applyTheme, ready])
+
+  const toggleUI = useCallback(() => {
+    setShowUI((prev) => {
+      if (prev) setShowSettings(false)
+      return !prev
+    })
+  }, [])
+
   if (query.isPending) {
-    return <main className="screen"><section className="card"><p className="muted">Loading reader…</p></section></main>
+    return (
+      <div className="reader-fullscreen" style={{ background: THEMES[theme].bg }}>
+        <p style={{ color: THEMES[theme].fg, textAlign: 'center', paddingTop: '40vh' }}>Loading…</p>
+      </div>
+    )
   }
 
   if (query.error || !item || !item.ebookFormat) {
@@ -128,48 +204,116 @@ function ReaderPage() {
     )
   }
 
+  const currentTheme = THEMES[theme]
+  const progressPct = Math.round((readerProgress || item.ebookProgress) * 100)
+
   return (
-    <main className="screen reader-screen">
-      <section className="reader-toolbar card">
-        <div>
-          <p className="eyebrow">Reading</p>
-          <h2>{item.title}</h2>
-          <p className="muted">{item.author}</p>
-        </div>
-        <div className="reader-actions">
-          <button className="ghost-button" onClick={() => navigate(`/book/${item.id}`)}>Details</button>
-          <a className="ghost-button" href={client.ebookUrl(item.id)} target="_blank" rel="noreferrer">Open file</a>
-        </div>
-      </section>
+    <div className="reader-fullscreen" style={{ background: currentTheme.bg }}>
+      {/* Floating toggle — only visible when chrome is hidden */}
+      {!showUI && (
+        <button
+          className="reader-fab"
+          style={{ color: currentTheme.fg }}
+          onClick={toggleUI}
+          aria-label="Show controls"
+        >
+          ☰
+        </button>
+      )}
 
-      <section className="reader-meta">
-        <div className="card reader-stat">
-          <span className="stat-label">Format</span>
-          <strong>{item.ebookFormat.toUpperCase()}</strong>
+      {/* Top bar — slides in when showUI is true */}
+      <header className={`reader-topbar ${showUI ? 'reader-topbar-visible' : ''}`}>
+        <button className="reader-back-btn" onClick={() => navigate(`/book/${item.id}`)}>
+          ←
+        </button>
+        <div className="reader-topbar-title">
+          <strong>{item.title}</strong>
         </div>
-        <div className="card reader-stat">
-          <span className="stat-label">Progress</span>
-          <strong>{formatProgress(readerProgress || item.ebookProgress)}</strong>
-        </div>
-        <div className="card reader-stat">
-          <span className="stat-label">Location</span>
-          <strong>{locationLabel || item.ebookLocation || 'Start'}</strong>
-        </div>
-      </section>
+        <button className="reader-settings-btn" onClick={() => setShowSettings(!showSettings)}>
+          Aa
+        </button>
+        <button className="reader-close-btn" onClick={toggleUI} aria-label="Hide controls">
+          ✕
+        </button>
+      </header>
 
-      <section className="reader-stage card">
-        {item.ebookFormat === 'pdf' ? (
-          <iframe className="reader-frame" src={client.ebookUrl(item.id)} title={item.title} />
-        ) : (
-          <div ref={containerRef} className="reader-frame" />
-        )}
-      </section>
+      {/* Reading area */}
+      {isPdf ? (
+        <iframe
+          className="reader-content-frame"
+          src={client.ebookUrl(item.id)}
+          title={item.title}
+          style={{ background: currentTheme.bg }}
+        />
+      ) : (
+        <div className="reader-content">
+          <div ref={containerRef} className="reader-epub-container" />
+          {/* Tap zones overlay — sit above the shadow DOM */}
+          <div
+            className="reader-tap-zone reader-tap-prev"
+            onClick={() => viewRef.current?.prev()}
+            aria-label="Previous page"
+          />
+          <div
+            className="reader-tap-zone reader-tap-next"
+            onClick={() => viewRef.current?.next()}
+            aria-label="Next page"
+          />
+        </div>
+      )}
 
-      <section className="reader-controls">
-        <button className="ghost-button" disabled={!(isPdf || isReady)} onClick={() => readerApi?.prev()}>Previous</button>
-        <button className="ghost-button" disabled={!(isPdf || isReady)} onClick={() => readerApi?.next()}>Next</button>
-      </section>
-    </main>
+      {/* Bottom bar — progress */}
+      <footer className={`reader-bottombar ${showUI ? 'reader-bottombar-visible' : ''}`}>
+        <div className="reader-progress-track">
+          <div className="reader-progress-fill" style={{ width: `${progressPct}%` }} />
+        </div>
+        <div className="reader-progress-label">
+          <span>{formatProgress(readerProgress || item.ebookProgress)}</span>
+          <span>{item.ebookFormat.toUpperCase()}</span>
+        </div>
+      </footer>
+
+      {/* Settings panel */}
+      {showSettings && (
+        <div className="reader-settings-panel">
+          <div className="reader-settings-row">
+            <span>Size</span>
+            <div className="reader-font-controls">
+              <button
+                className="icon-button"
+                disabled={fontSize <= FONT_SIZES[0]}
+                onClick={() => setFontSize((s) => Math.max(FONT_SIZES[0], s - 2))}
+              >
+                A−
+              </button>
+              <span>{fontSize}px</span>
+              <button
+                className="icon-button"
+                disabled={fontSize >= FONT_SIZES[FONT_SIZES.length - 1]}
+                onClick={() => setFontSize((s) => Math.min(FONT_SIZES[FONT_SIZES.length - 1], s + 2))}
+              >
+                A+
+              </button>
+            </div>
+          </div>
+          <div className="reader-settings-row">
+            <span>Theme</span>
+            <div className="reader-theme-buttons">
+              {(Object.keys(THEMES) as ReaderTheme[]).map((key) => (
+                <button
+                  key={key}
+                  className={`reader-theme-swatch ${theme === key ? 'active' : ''}`}
+                  style={{ background: THEMES[key].bg, color: THEMES[key].fg }}
+                  onClick={() => setTheme(key)}
+                >
+                  {THEMES[key].label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

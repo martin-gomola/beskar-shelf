@@ -14,16 +14,12 @@ export function SetupPage() {
     <main className="screen setup-screen">
       <section className="hero-panel">
         <p className="eyebrow">Beskar Shelf</p>
-        <h1>Spotify-style playback for your Audiobookshelf server.</h1>
-        <p className="lede">
-          Connect one self-hosted Audiobookshelf server, sync your position, and take books offline for flights,
-          trains, and dead zones.
-        </p>
+        <h1>Your audiobooks,<br />anywhere.</h1>
       </section>
 
-      <section className="card form-card">
+      <section className="card form-card" style={{ width: '100%' }}>
         <h2>Connect your server</h2>
-        <p className="muted">Enter the public URL that serves Audiobookshelf.</p>
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Enter the public URL that serves Audiobookshelf.</p>
         <label className="field">
           <span>Server URL</span>
           <input

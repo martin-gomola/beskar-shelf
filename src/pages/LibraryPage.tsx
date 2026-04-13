@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { useVirtualizer } from '@tanstack/react-virtual'
 import clsx from 'clsx'
 
 import { useAppContext } from '../contexts/AppContext'
@@ -9,16 +8,15 @@ import { usePrimaryLibrary } from '../hooks/useLibraries'
 import { BookCard } from '../components/BookCard'
 
 const PAGE_SIZE = 40
-const COLUMNS_ESTIMATE = 4
-const ROW_HEIGHT = 260
 
 export function LibraryPage() {
   const { libraryId } = useParams() as { libraryId: string }
   const { client } = useAppContext()
   const { librariesQuery } = usePrimaryLibrary()
   const [search, setSearch] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const deferredSearch = useDeferredValue(search)
-  const parentRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   const query = useInfiniteQuery({
     queryKey: ['library-paginated', libraryId],
@@ -37,30 +35,12 @@ export function LibraryPage() {
   )
 
   const filtered = useMemo(() => {
-    if (!deferredSearch) {
-      return allItems
-    }
+    if (!deferredSearch) return allItems
     const needle = deferredSearch.toLowerCase()
-    return allItems.filter((item) => {
-      const haystack = `${item.title} ${item.author}`.toLowerCase()
-      return haystack.includes(needle)
-    })
+    return allItems.filter((item) =>
+      `${item.title} ${item.author}`.toLowerCase().includes(needle),
+    )
   }, [allItems, deferredSearch])
-
-  const rows = useMemo(() => {
-    const result: (typeof filtered[number])[][] = []
-    for (let i = 0; i < filtered.length; i += COLUMNS_ESTIMATE) {
-      result.push(filtered.slice(i, i + COLUMNS_ESTIMATE))
-    }
-    return result
-  }, [filtered])
-
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 3,
-  })
 
   const fetchMore = useCallback(() => {
     if (query.hasNextPage && !query.isFetchingNextPage) {
@@ -69,23 +49,42 @@ export function LibraryPage() {
   }, [query])
 
   useEffect(() => {
-    const items = virtualizer.getVirtualItems()
-    const lastItem = items[items.length - 1]
-    if (lastItem && lastItem.index >= rows.length - 2) {
-      fetchMore()
-    }
-  }, [virtualizer.getVirtualItems(), rows.length, fetchMore])
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) fetchMore() },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [fetchMore])
 
   const libraryName = librariesQuery.data?.find((library) => library.id === libraryId)?.name ?? 'Library'
+  const totalLoaded = allItems.length
+  const totalAvailable = query.data?.pages[0]?.total ?? 0
 
   return (
     <main className="screen library-screen">
-      <section className="screen-header">
-        <div>
-          <p className="eyebrow">Library</p>
-          <h1>{libraryName}</h1>
+      <section className="screen-header" style={{ justifyContent: 'center', position: 'relative' }}>
+        <h2 style={{ textAlign: 'center' }}>{libraryName}</h2>
+        <div style={{ position: 'absolute', right: 0, display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button
+            className={clsx('icon-button', { active: viewMode === 'grid' })}
+            onClick={() => setViewMode('grid')}
+            aria-label="Grid view"
+          >
+            ▦
+          </button>
+          <button
+            className={clsx('icon-button', { active: viewMode === 'list' })}
+            onClick={() => setViewMode('list')}
+            aria-label="List view"
+          >
+            ☰
+          </button>
         </div>
       </section>
+
       <section className="library-pills">
         {(librariesQuery.data ?? []).map((library) => (
           <Link
@@ -97,50 +96,70 @@ export function LibraryPage() {
           </Link>
         ))}
       </section>
+
       <label className="field search-field">
-        <span>Search</span>
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Author or title" />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by author or title…" />
       </label>
 
       {query.isPending ? (
-        <section className="card"><p className="muted">Loading…</p></section>
+        <p className="muted" style={{ textAlign: 'center', padding: '40px 0' }}>Loading…</p>
       ) : query.error ? (
         <section className="card">
           <h2>Request failed</h2>
           <p className="muted">{(query.error as Error).message}</p>
         </section>
-      ) : (
-        <div ref={parentRef} className="library-scroll-container">
-          <div
-            style={{
-              height: virtualizer.getTotalSize(),
-              width: '100%',
-              position: 'relative',
-            }}
-          >
-            {virtualizer.getVirtualItems().map((virtualRow) => (
-              <div
-                key={virtualRow.key}
-                className="book-grid"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-              >
-                {rows[virtualRow.index].map((item) => (
-                  <BookCard key={item.id} item={item} />
-                ))}
-              </div>
+      ) : viewMode === 'grid' ? (
+        <>
+          <div className="book-grid">
+            {filtered.map((item) => (
+              <BookCard key={item.id} item={item} />
             ))}
           </div>
+          <div ref={sentinelRef} style={{ height: 1 }} />
           {query.isFetchingNextPage ? (
             <p className="muted" style={{ textAlign: 'center', padding: '16px' }}>Loading more…</p>
           ) : null}
-        </div>
+          {!query.hasNextPage && totalLoaded > 0 ? (
+            <p className="muted" style={{ textAlign: 'center', padding: '12px', fontSize: '0.8rem' }}>
+              {totalLoaded} of {totalAvailable} books
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <div className="book-list">
+            {filtered.map((item) => (
+              <BookListItem key={item.id} item={item} />
+            ))}
+          </div>
+          <div ref={sentinelRef} style={{ height: 1 }} />
+          {query.isFetchingNextPage ? (
+            <p className="muted" style={{ textAlign: 'center', padding: '16px' }}>Loading more…</p>
+          ) : null}
+          {!query.hasNextPage && totalLoaded > 0 ? (
+            <p className="muted" style={{ textAlign: 'center', padding: '12px', fontSize: '0.8rem' }}>
+              {totalLoaded} of {totalAvailable} books
+            </p>
+          ) : null}
+        </>
       )}
     </main>
+  )
+}
+
+function BookListItem({ item }: { item: { id: string; title: string; author: string; coverPath: string | null } }) {
+  const { client } = useAppContext()
+  const coverUrl = item.coverPath ? client.coverUrl(item.id) : null
+
+  return (
+    <Link className="book-list-item" to={`/book/${item.id}`}>
+      <div className="book-list-cover">
+        {coverUrl ? <img src={coverUrl} alt="" loading="lazy" /> : null}
+      </div>
+      <div className="book-list-info">
+        <strong>{item.title}</strong>
+        <span>{item.author}</span>
+      </div>
+    </Link>
   )
 }

@@ -9,6 +9,7 @@ export interface PlayerContextValue {
   playbackRate: number
   currentTrackDuration: number
   togglePlayback: () => Promise<void>
+  stopPlayback: () => void
   seekTo: (seconds: number) => void
   seekBy: (delta: number) => void
   setPlaybackRate: (rate: number) => void

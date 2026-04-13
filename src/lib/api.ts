@@ -93,7 +93,7 @@ function bookFromUnknown(value: unknown): BookItem {
     ? asRecord(item.media)
     : representativeMedia
   const metadata = asRecord(media.metadata)
-  const progress = asRecord(item.progress ?? item.mediaProgress)
+  const progress = asRecord(item.userMediaProgress ?? item.progress ?? item.mediaProgress)
   const chapters = Array.isArray(media.chapters)
     ? media.chapters.map(chapterFromUnknown)
     : []
@@ -197,6 +197,14 @@ export class AudiobookshelfClient {
 
     const base = this.requestBase()
     return `${base}${path.startsWith('/') ? '' : '/'}${path}`
+  }
+
+  coverUrl(itemId: string) {
+    const url = new URL(this.absoluteUrl(`/api/items/${itemId}/cover`))
+    if (this.session?.token) {
+      url.searchParams.set('token', this.session.token)
+    }
+    return url.toString()
   }
 
   assetUrl(path: string | null) {

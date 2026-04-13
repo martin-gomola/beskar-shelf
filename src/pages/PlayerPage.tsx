@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 
@@ -10,6 +11,7 @@ import { formatDuration, formatProgress } from '../lib/utils'
 function PlayerPage() {
   const { client } = useAppContext()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const {
     activePlayback,
     playbackTime,
@@ -17,6 +19,7 @@ function PlayerPage() {
     playbackRate,
     currentTrackDuration,
     togglePlayback,
+    stopPlayback,
     seekBy,
     seekTo,
     setPlaybackRate,
@@ -143,6 +146,15 @@ function PlayerPage() {
           <button className="ghost-button" onClick={() => setShowBookmarks(!showBookmarks)}>
             Bookmarks
           </button>
+          <button
+            className="ghost-button"
+            onClick={() => {
+              stopPlayback()
+              navigate('/')
+            }}
+          >
+            Stop &amp; close
+          </button>
         </div>
       </section>
 
@@ -151,24 +163,24 @@ function PlayerPage() {
           <div className="section-heading">
             <h2>Sleep timer</h2>
           </div>
-          <div className="button-row">
+          <div className="sleep-timer-row">
             {[5, 10, 15, 30, 60].map((min) => (
               <button
                 key={min}
-                className={clsx('ghost-button', { active: sleepTimer.mode === 'minutes' && sleepTimer.minutes === min })}
+                className={clsx('ghost-button sleep-timer-btn', { active: sleepTimer.mode === 'minutes' && sleepTimer.minutes === min })}
                 onClick={() => setSleepMinutes(min)}
               >
                 {min}m
               </button>
             ))}
             <button
-              className={clsx('ghost-button', { active: sleepTimer.mode === 'end-of-chapter' })}
+              className={clsx('ghost-button sleep-timer-btn', { active: sleepTimer.mode === 'end-of-chapter' })}
               onClick={setSleepEndOfChapter}
             >
               End of chapter
             </button>
             {sleepTimer.mode !== 'off' ? (
-              <button className="ghost-button" onClick={cancelSleepTimer}>Cancel</button>
+              <button className="ghost-button sleep-timer-btn" onClick={cancelSleepTimer}>Cancel</button>
             ) : null}
           </div>
         </section>
@@ -181,11 +193,10 @@ function PlayerPage() {
           </div>
           <div className="button-row">
             <input
-              className="field"
               value={bookmarkTitle}
               onChange={(event) => setBookmarkTitle(event.target.value)}
               placeholder="Bookmark title (optional)"
-              style={{ flex: 1, borderRadius: '16px', border: '1px solid var(--line)', background: 'rgba(255,255,255,0.04)', color: 'var(--text)', padding: '10px 14px' }}
+              style={{ flex: 1, borderRadius: 'var(--radius)', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text)', padding: 'var(--sp-3) var(--sp-4)', fontSize: 'var(--fs-base)', outline: 'none' }}
             />
             <button className="ghost-button" onClick={() => void addBookmark()}>Add</button>
           </div>

@@ -1,45 +1,48 @@
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
-import { formatDuration } from '../lib/utils'
 
 function SettingsPage() {
-  const { server, session, setSession, setServer, playbackState, refreshOfflineBooks } = useAppContext()
+  const { server, session, setSession, setServer, refreshOfflineBooks } = useAppContext()
   const navigate = useNavigate()
 
   return (
     <main className="screen settings-screen">
-      <section className="screen-header">
-        <div>
-          <p className="eyebrow">Settings</p>
-          <h1>Server and session</h1>
+      <h1>Settings</h1>
+
+      {/* Connection */}
+      <section className="settings-group">
+        <h3 className="settings-group-label">Connection</h3>
+        <div className="settings-card">
+          <div className="settings-item">
+            <span className="settings-key">Server</span>
+            <span className="settings-value">{server?.baseUrl}</span>
+          </div>
+          <div className="settings-divider" />
+          <div className="settings-item">
+            <span className="settings-key">User</span>
+            <span className="settings-value">{session?.user.username}</span>
+          </div>
         </div>
       </section>
-      <section className="card">
-        <div className="settings-row">
-          <span>Server</span>
-          <strong>{server?.baseUrl}</strong>
-        </div>
-        <div className="settings-row">
-          <span>User</span>
-          <strong>{session?.user.username}</strong>
-        </div>
-        <div className="settings-row">
-          <span>Resume point</span>
-          <strong>{playbackState ? formatDuration(playbackState.currentTime) : 'None'}</strong>
-        </div>
-        <div className="button-row">
+
+      {/* Account actions */}
+      <section className="settings-group">
+        <h3 className="settings-group-label">Account</h3>
+        <div className="settings-card">
           <button
-            className="ghost-button"
+            className="settings-action"
             onClick={() => {
               setSession(null)
               navigate('/login')
             }}
           >
-            Sign out
+            <span>Sign out</span>
+            <span className="settings-action-hint">Keep server, clear session</span>
           </button>
+          <div className="settings-divider" />
           <button
-            className="ghost-button"
+            className="settings-action settings-action-danger"
             onClick={() => {
               setSession(null)
               setServer(null)
@@ -47,18 +50,14 @@ function SettingsPage() {
               navigate('/')
             }}
           >
-            Forget server
+            <span>Forget server</span>
+            <span className="settings-action-hint">Remove all local data</span>
           </button>
         </div>
       </section>
-      <section className="card">
-        <p className="eyebrow">Reading</p>
-        <h2>Reader support is live.</h2>
-        <p className="muted">
-          Beskar Shelf now supports both audiobook playback and server-hosted EPUB/PDF reading through the same login,
-          library, and progress-sync model.
-        </p>
-      </section>
+
+      {/* About */}
+      <p className="settings-footer">Beskar Shelf · Audiobooks & ebooks</p>
     </main>
   )
 }

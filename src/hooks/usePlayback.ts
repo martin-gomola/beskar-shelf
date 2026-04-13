@@ -280,7 +280,7 @@ export function usePlayback(
       title: activePlayback.item.title,
       artist: activePlayback.item.author,
       artwork: activePlayback.item.coverPath
-        ? [{ src: client.assetUrl(activePlayback.item.coverPath) ?? '', sizes: '512x512', type: 'image/jpeg' }]
+        ? [{ src: client.coverUrl(activePlayback.item.id), sizes: '512x512', type: 'image/jpeg' }]
         : [],
     })
 
@@ -425,6 +425,28 @@ export function usePlayback(
     })
   }
 
+  function stopPlayback() {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.removeAttribute('src')
+      audioRef.current.load()
+    }
+    flushProgress(false)
+    setActivePlayback((current) => {
+      current?.sources.forEach((source) => {
+        if (source.startsWith('blob:')) {
+          URL.revokeObjectURL(source)
+        }
+      })
+      return null
+    })
+    setIsPlaying(false)
+    setPlaybackTime(0)
+    setCurrentTrackDuration(0)
+    setPlaybackState(null)
+    savePlaybackState(null)
+  }
+
   function jumpToTrack(index: number) {
     if (!activePlayback || !audioRef.current) {
       return
@@ -447,6 +469,7 @@ export function usePlayback(
     currentTrackDuration,
     startBook,
     togglePlayback,
+    stopPlayback,
     seekTo,
     seekBy,
     setPlaybackRate,

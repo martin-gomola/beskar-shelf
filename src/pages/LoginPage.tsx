@@ -43,9 +43,9 @@ export function LoginPage() {
 
   return (
     <main className="screen auth-screen">
-      <section className="card form-card">
+      <section className="card form-card" style={{ width: '100%' }}>
         <p className="eyebrow">Server</p>
-        <h1>{server?.baseUrl}</h1>
+        <h2>{server?.baseUrl}</h2>
         <p className="muted">Sign in with your Audiobookshelf account.</p>
         <label className="field">
           <span>Username</span>

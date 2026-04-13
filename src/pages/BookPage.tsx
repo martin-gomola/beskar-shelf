@@ -5,10 +5,6 @@ import clsx from 'clsx'
 import { useAppContext } from '../contexts/AppContext'
 import { formatDuration, formatProgress } from '../lib/utils'
 
-function compactDescription(text: string) {
-  return text.trim().replace(/\s+/g, ' ')
-}
-
 export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const { client, startBook, downloadCurrentBook, offlineBooks } = useAppContext()
@@ -23,7 +19,7 @@ export function BookPage() {
   const canRead = item ? Boolean(item.ebookFormat) : false
 
   if (query.isPending) {
-    return <main className="screen"><section className="card"><p className="muted">Loading…</p></section></main>
+    return <main className="screen"><p className="muted" style={{ textAlign: 'center', padding: '48px 0' }}>Loading…</p></main>
   }
 
   if (query.error || !item) {
@@ -37,72 +33,101 @@ export function BookPage() {
     )
   }
 
+  const progressPct = Math.round((item.progress ?? 0) * 100)
+  const hasProgress = progressPct > 0
+
   return (
-    <main className="screen book-screen">
-      <section className="book-hero">
+    <main className="screen book-detail">
+      {/* Cover hero — full-width, centered */}
+      <div className="bd-cover-wrap">
         <div
-          className="cover cover-large"
-          style={{ backgroundImage: item.coverPath ? `url(${client.assetUrl(item.coverPath)})` : undefined }}
+          className="bd-cover"
+          style={{ backgroundImage: item.coverPath ? `url(${client.coverUrl(item.id)})` : undefined }}
         />
-        <div className="book-meta">
-          <p className="eyebrow">Book</p>
-          <h1>{item.title}</h1>
-          <p className="author-line">{item.author}</p>
-          <p className="muted">
-            {canPlay ? `${formatDuration(item.duration)} total` : 'Reading item'}
-            {item.ebookFormat ? ` • ${item.ebookFormat.toUpperCase()} available on server` : ''}
-          </p>
-          <div className="button-row">
-            {canPlay ? (
-              <button className="primary-button" onClick={() => void startBook(item)}>
-                {item.currentTime > 0 ? `Resume from ${formatDuration(item.currentTime)}` : 'Play now'}
-              </button>
-            ) : null}
-            {canRead ? (
-              <Link className={clsx(canPlay ? 'ghost-button' : 'primary-button')} to={`/read/${item.id}`}>
-                {item.ebookLocation ? 'Resume reading' : 'Read now'}
-              </Link>
-            ) : null}
-            {canPlay ? (
-              <button className="ghost-button" onClick={() => void downloadCurrentBook(item)}>
-                {offline?.status === 'downloaded' ? 'Redownload' : 'Download offline'}
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </section>
+      </div>
 
-      <section className="card">
-        <div className="stats-row">
-          <div>
-            <span className="stat-label">Progress</span>
-            <strong>{formatProgress(item.progress)}</strong>
-          </div>
-          <div>
-            <span className="stat-label">{canPlay ? 'Chapters' : 'Reader'}</span>
-            <strong>{canPlay ? item.chapters.length : item.ebookFormat?.toUpperCase()}</strong>
-          </div>
-          <div>
-            <span className="stat-label">{canPlay ? 'Offline' : 'Reading progress'}</span>
-            <strong>{canPlay ? (offline?.status === 'downloaded' ? 'Ready' : 'Streaming') : formatProgress(item.ebookProgress)}</strong>
-          </div>
-        </div>
-        <p>{compactDescription(item.description) || 'No description from Audiobookshelf.'}</p>
-      </section>
+      {/* Title block */}
+      <div className="bd-title-block">
+        <h1 className="bd-title">{item.title}</h1>
+        <p className="bd-author">{item.author}</p>
+        <p className="bd-format">
+          {canPlay ? formatDuration(item.duration) : 'Ebook'}
+          {item.ebookFormat ? ` · ${item.ebookFormat.toUpperCase()}` : ''}
+        </p>
+      </div>
 
-      {canPlay ? <section className="card">
-        <div className="section-heading">
-          <h2>Chapters</h2>
+      {/* Actions */}
+      <div className="bd-actions">
+        {canPlay ? (
+          <button className="primary-button bd-action-main" onClick={() => void startBook(item)}>
+            {item.currentTime > 0 ? `Resume · ${formatDuration(item.currentTime)}` : 'Play'}
+          </button>
+        ) : null}
+        {canRead ? (
+          <Link className={clsx(canPlay ? 'ghost-button' : 'primary-button', 'bd-action-main')} to={`/read/${item.id}`}>
+            {item.ebookLocation ? 'Continue reading' : 'Read'}
+          </Link>
+        ) : null}
+        {canPlay ? (
+          <button className="ghost-button bd-action-secondary" onClick={() => void downloadCurrentBook(item)}>
+            {offline?.status === 'downloaded' ? '↻ Redownload' : '↓ Offline'}
+          </button>
+        ) : null}
+      </div>
+
+      {/* Progress bar (only if started) */}
+      {hasProgress ? (
+        <div className="bd-progress-section">
+          <div className="bd-progress-track">
+            <div className="bd-progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+          <span className="bd-progress-label">{progressPct}% complete</span>
         </div>
-        <div className="chapter-list">
-          {item.chapters.length > 0 ? item.chapters.map((chapter) => (
-            <div key={chapter.id} className="chapter-row">
-              <strong>{chapter.title}</strong>
-              <span>{formatDuration(chapter.start)}</span>
-            </div>
-          )) : <p className="muted">No chapter markers on this item.</p>}
+      ) : null}
+
+      {/* Stats strip */}
+      <div className="bd-stats">
+        <div className="bd-stat">
+          <span className="bd-stat-value">{formatProgress(item.progress)}</span>
+          <span className="bd-stat-label">Progress</span>
         </div>
-      </section> : null}
+        <div className="bd-stat-divider" />
+        <div className="bd-stat">
+          <span className="bd-stat-value">{canPlay ? item.chapters.length : item.ebookFormat?.toUpperCase()}</span>
+          <span className="bd-stat-label">{canPlay ? 'Chapters' : 'Format'}</span>
+        </div>
+        <div className="bd-stat-divider" />
+        <div className="bd-stat">
+          <span className="bd-stat-value">
+            {canPlay
+              ? (offline?.status === 'downloaded' ? '✓' : '—')
+              : formatProgress(item.ebookProgress)}
+          </span>
+          <span className="bd-stat-label">{canPlay ? 'Offline' : 'Read'}</span>
+        </div>
+      </div>
+
+      {/* Description */}
+      {item.description?.trim() ? (
+        <div className="bd-description">
+          <p>{item.description.trim().replace(/\s+/g, ' ')}</p>
+        </div>
+      ) : null}
+
+      {/* Chapters */}
+      {canPlay && item.chapters.length > 0 ? (
+        <div className="bd-chapters">
+          <h3 className="bd-section-title">Chapters</h3>
+          <div className="chapter-list">
+            {item.chapters.map((chapter) => (
+              <div key={chapter.id} className="chapter-row">
+                <strong>{chapter.title}</strong>
+                <span>{formatDuration(chapter.start)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

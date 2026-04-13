@@ -1,10 +1,11 @@
-.PHONY: help setup doctor download download-dry-run install dev build test lint
+.PHONY: help setup doctor download download-dry-run install dev down build test lint
 
 help:
 	@echo "beskar-shelf commands"
 	@echo "  make setup            Create .env files and links.txt from examples when missing"
 	@echo "  make install          Install frontend dependencies"
 	@echo "  make dev              Run the PWA dev server"
+	@echo "  make down             Stop the PWA dev server"
 	@echo "  make build            Build the PWA production bundle"
 	@echo "  make test             Run tests"
 	@echo "  make lint             Run linter"
@@ -22,6 +23,11 @@ install:
 
 dev:
 	@set -a && [ -f .env ] && . ./.env; export VITE_ABS_PROXY_BASE="$${VITE_ABS_PROXY_BASE:-/abs}" && set +a && npm run dev
+
+down:
+	@pid=$$(lsof -ti :5173 2>/dev/null) && \
+		if [ -n "$$pid" ]; then kill $$pid && echo "Dev server stopped (pid $$pid)"; \
+		else echo "No dev server running on port 5173"; fi
 
 build:
 	@npm run build

@@ -7,7 +7,7 @@ import type { BookItem } from '../lib/types'
 export const BookCard = memo(function BookCard({ item }: { item: BookItem }) {
   const { client } = useAppContext()
   const [loaded, setLoaded] = useState(false)
-  const coverUrl = item.coverPath ? client.assetUrl(item.coverPath) : null
+  const coverUrl = item.coverPath ? client.coverUrl(item.id) : null
 
   return (
     <Link className="book-card" to={`/book/${item.id}`}>
