@@ -4,12 +4,14 @@ import clsx from 'clsx'
 
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
+import { usePlayerContext } from '../contexts/PlayerContext'
 import { formatDuration, formatProgress } from '../lib/utils'
 
 export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
   const { startBook, downloadCurrentBook, offlineBooks } = useAppContext()
+  const { activePlayback, seekTo } = usePlayerContext()
   const query = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => client.getItem(itemId),
@@ -122,10 +124,20 @@ export function BookPage() {
           <h3 className="bd-section-title">Chapters</h3>
           <div className="chapter-list">
             {item.chapters.map((chapter) => (
-              <div key={chapter.id} className="chapter-row">
+              <button
+                key={chapter.id}
+                className="chapter-row"
+                onClick={() => {
+                  if (activePlayback?.item.id === item.id) {
+                    seekTo(chapter.start)
+                  } else {
+                    void startBook(item, chapter.start)
+                  }
+                }}
+              >
                 <strong>{chapter.title}</strong>
                 <span>{formatDuration(chapter.start)}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>

@@ -393,15 +393,17 @@ export function usePlayback(
     void restorePlayback()
   }, [activePlayback, client, playbackState])
 
-  async function startBook(item: BookItem) {
+  async function startBook(item: BookItem, startTime?: number) {
     const playbackSession = await client.startPlayback(item.id)
     if (playbackSession.audioTracks.length === 0) {
       return
     }
     const sources = await createSourcesForItem(item.id, playbackSession)
-    const initialTime = item.currentTime || playbackState?.itemId === item.id
-      ? playbackState?.currentTime ?? item.currentTime
-      : item.currentTime
+    const initialTime = startTime != null
+      ? startTime
+      : item.currentTime || playbackState?.itemId === item.id
+        ? playbackState?.currentTime ?? item.currentTime
+        : item.currentTime
     const initialTrackIndex = trackForTime(playbackSession.audioTracks, initialTime)
     const nextPlayback: ActivePlayback = {
       item,

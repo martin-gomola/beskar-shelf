@@ -922,6 +922,7 @@ h3 {
   width: 100%;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: var(--sp-3);
   text-align: left;
   border-radius: var(--radius-sm);
@@ -929,12 +930,18 @@ h3 {
   border: 1px solid var(--glass-border);
   padding: var(--sp-3);
   color: inherit;
-  transition: background 150ms ease;
+  font: inherit;
   font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
 .chapter-row:hover {
   background: var(--hover-bg);
+}
+
+.chapter-row:active {
+  background: var(--hover-bg-strong);
 }
 
 .chapter-row.active {

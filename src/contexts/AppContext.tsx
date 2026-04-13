@@ -10,7 +10,7 @@ export interface AppContextValue {
   offlineBooks: OfflineBook[]
   refreshOfflineBooks: () => Promise<void>
   playbackState: PersistedPlaybackState | null
-  startBook: (item: BookItem) => Promise<void>
+  startBook: (item: BookItem, startTime?: number) => Promise<void>
   downloadCurrentBook: (item: BookItem) => Promise<void>
   removeOfflineBook: (itemId: string) => Promise<void>
 }
