@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { useAppContext } from '../contexts/AppContext'
+import { useClient } from '../contexts/ClientContext'
 import { usePrimaryLibrary } from '../hooks/useLibraries'
 import { BookCard } from '../components/BookCard'
 import { QueryState } from '../components/QueryState'
@@ -29,7 +30,8 @@ function ShelfSection({ shelves }: { shelves: { id: string; label: string; entit
 
 export function HomePage() {
   const { librariesQuery, primary } = usePrimaryLibrary()
-  const { client, playbackState } = useAppContext()
+  const client = useClient()
+  const { playbackState } = useAppContext()
   const personalizedQuery = useQuery({
     queryKey: ['personalized', primary?.id],
     queryFn: () => client.getPersonalized(primary!.id),

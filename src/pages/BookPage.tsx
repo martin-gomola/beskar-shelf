@@ -3,11 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 
 import { useAppContext } from '../contexts/AppContext'
+import { useClient } from '../contexts/ClientContext'
 import { formatDuration, formatProgress } from '../lib/utils'
 
 export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
-  const { client, startBook, downloadCurrentBook, offlineBooks } = useAppContext()
+  const client = useClient()
+  const { startBook, downloadCurrentBook, offlineBooks } = useAppContext()
   const query = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => client.getItem(itemId),

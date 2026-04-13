@@ -1,6 +1,5 @@
 import { createContext, useContext } from 'react'
 
-import type { AudiobookshelfClient } from '../lib/api'
 import type { BookItem, OfflineBook, PersistedPlaybackState, ServerConfig, UserSession } from '../lib/types'
 
 export interface AppContextValue {
@@ -8,7 +7,6 @@ export interface AppContextValue {
   setServer: (server: ServerConfig | null) => void
   session: UserSession | null
   setSession: (session: UserSession | null) => void
-  client: AudiobookshelfClient
   offlineBooks: OfflineBook[]
   refreshOfflineBooks: () => Promise<void>
   playbackState: PersistedPlaybackState | null

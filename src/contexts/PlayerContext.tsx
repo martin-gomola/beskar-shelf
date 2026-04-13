@@ -4,10 +4,8 @@ import type { ActivePlayback } from '../hooks/usePlayback'
 
 export interface PlayerContextValue {
   activePlayback: ActivePlayback | null
-  playbackTime: number
   isPlaying: boolean
   playbackRate: number
-  currentTrackDuration: number
   togglePlayback: () => Promise<void>
   stopPlayback: () => void
   seekTo: (seconds: number) => void
@@ -17,7 +15,13 @@ export interface PlayerContextValue {
   audioRef: React.RefObject<HTMLAudioElement | null>
 }
 
+export interface PlayerTimeContextValue {
+  playbackTime: number
+  currentTrackDuration: number
+}
+
 export const PlayerContext = createContext<PlayerContextValue | null>(null)
+export const PlayerTimeContext = createContext<PlayerTimeContextValue>({ playbackTime: 0, currentTrackDuration: 0 })
 
 export function usePlayerContext() {
   const context = useContext(PlayerContext)
@@ -25,4 +29,8 @@ export function usePlayerContext() {
     throw new Error('Player context is not available.')
   }
   return context
+}
+
+export function usePlayerTime() {
+  return useContext(PlayerTimeContext)
 }

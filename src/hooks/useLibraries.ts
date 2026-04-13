@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { useAppContext } from '../contexts/AppContext'
+import { useClient } from '../contexts/ClientContext'
 
 export function useLibraries() {
-  const { client, session } = useAppContext()
+  const client = useClient()
+  const { session } = useAppContext()
   return useQuery({
     queryKey: ['libraries', session?.user.id, client.hasServer()],
     queryFn: () => client.getLibraries(),

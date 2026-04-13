@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 
-import { usePlayerContext } from '../contexts/PlayerContext'
+import { usePlayerContext, usePlayerTime } from '../contexts/PlayerContext'
 import { formatDuration } from '../lib/utils'
 
 export function MiniPlayer() {
-  const { activePlayback, playbackTime, isPlaying, togglePlayback, stopPlayback } = usePlayerContext()
+  const { activePlayback, isPlaying, togglePlayback, stopPlayback } = usePlayerContext()
+  const { playbackTime } = usePlayerTime()
   if (!activePlayback) {
     return null
   }
@@ -15,7 +16,7 @@ export function MiniPlayer() {
         <strong>{activePlayback.item.title}</strong>
         <span>{formatDuration(playbackTime)} listened</span>
       </div>
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <div className="mini-player-controls">
         <button
           className="icon-button"
           onClick={(event) => {

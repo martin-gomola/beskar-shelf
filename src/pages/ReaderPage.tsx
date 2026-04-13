@@ -2,7 +2,7 @@ import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { useAppContext } from '../contexts/AppContext'
+import { useClient } from '../contexts/ClientContext'
 import { formatProgress } from '../lib/utils'
 
 type ReaderTheme = 'light' | 'sepia' | 'dark'
@@ -18,12 +18,13 @@ const DEFAULT_FONT_SIZE = 18
 
 function ReaderPage() {
   const { itemId } = useParams() as { itemId: string }
-  const { client } = useAppContext()
+  const client = useClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<InstanceType<typeof import('foliate-js/view.js').View> | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [readerProgress, setReaderProgress] = useState(0)
   const [showUI, setShowUI] = useState(false)
@@ -60,6 +61,14 @@ function ReaderPage() {
       // offline — progress queued elsewhere
     }
   })
+
+  const debouncedCommit = useCallback((payload: { cfi: string; progress: number }) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null
+      void commitReaderProgress(payload)
+    }, 3000)
+  }, [commitReaderProgress])
 
   const applyTheme = useCallback((t: ReaderTheme, size: number) => {
     const view = viewRef.current
@@ -145,7 +154,7 @@ function ReaderPage() {
         const progress = detail.fraction ?? 0
         setReaderProgress(progress)
         if (detail.cfi) {
-          void commitReaderProgress({ cfi: detail.cfi, progress })
+          debouncedCommit({ cfi: detail.cfi, progress })
         }
       }) as EventListener)
 
@@ -164,6 +173,10 @@ function ReaderPage() {
 
     return () => {
       cancelled = true
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
       const view = viewRef.current
       if (view) {
         view.close()

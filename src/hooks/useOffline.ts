@@ -11,6 +11,7 @@ export function useOffline(client: AudiobookshelfClient) {
   const offlineBooksQuery = useQuery({
     queryKey: ['offline-books'],
     queryFn: listOfflineBooks,
+    staleTime: Infinity,
   })
 
   const offlineBooks: OfflineBook[] = offlineBooksQuery.data ?? []

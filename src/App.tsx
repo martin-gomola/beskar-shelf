@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 import { AudiobookshelfClient } from './lib/api'
 import {
@@ -12,7 +11,8 @@ import {
 import type { PersistedPlaybackState, ServerConfig, UserSession } from './lib/types'
 
 import { AppContext } from './contexts/AppContext'
-import { PlayerContext } from './contexts/PlayerContext'
+import { ClientContext } from './contexts/ClientContext'
+import { PlayerContext, PlayerTimeContext } from './contexts/PlayerContext'
 import { usePlayback } from './hooks/usePlayback'
 import { useOffline } from './hooks/useOffline'
 import { Shell } from './components/Shell'
@@ -22,7 +22,6 @@ function App() {
   const [session, setSessionState] = useState<UserSession | null>(() => loadUserSession())
   const [playbackState, setPlaybackState] = useState<PersistedPlaybackState | null>(() => loadPlaybackState())
   const client = useMemo(() => new AudiobookshelfClient(server, session), [server, session])
-  useNavigate()
 
   function setServer(next: ServerConfig | null) {
     setServerState(next)
@@ -62,7 +61,6 @@ function App() {
     setServer,
     session,
     setSession,
-    client,
     offlineBooks,
     refreshOfflineBooks,
     playbackState,
@@ -70,14 +68,12 @@ function App() {
     downloadCurrentBook,
     removeOfflineBook,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [server, session, client, offlineBooks, playbackState])
+  }), [server, session, offlineBooks, playbackState])
 
   const playerContextValue = useMemo(() => ({
     activePlayback,
-    playbackTime,
     isPlaying,
     playbackRate,
-    currentTrackDuration,
     togglePlayback,
     stopPlayback,
     seekTo,
@@ -86,15 +82,24 @@ function App() {
     jumpToTrack,
     audioRef,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [activePlayback, playbackTime, isPlaying, playbackRate, currentTrackDuration])
+  }), [activePlayback, isPlaying, playbackRate])
+
+  const playerTimeValue = useMemo(() => ({
+    playbackTime,
+    currentTrackDuration,
+  }), [playbackTime, currentTrackDuration])
 
   return (
-    <AppContext.Provider value={appContextValue}>
-      <PlayerContext.Provider value={playerContextValue}>
-        <audio ref={audioRef} preload="metadata" />
-        <Shell />
-      </PlayerContext.Provider>
-    </AppContext.Provider>
+    <ClientContext.Provider value={client}>
+      <AppContext.Provider value={appContextValue}>
+        <PlayerContext.Provider value={playerContextValue}>
+          <PlayerTimeContext.Provider value={playerTimeValue}>
+            <audio ref={audioRef} preload="metadata" />
+            <Shell />
+          </PlayerTimeContext.Provider>
+        </PlayerContext.Provider>
+      </AppContext.Provider>
+    </ClientContext.Provider>
   )
 }
 

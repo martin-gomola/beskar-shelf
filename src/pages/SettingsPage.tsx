@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
+import { APP_VERSION } from '../utils/version'
 
 function SettingsPage() {
   const { server, session, setSession, setServer, refreshOfflineBooks } = useAppContext()
@@ -56,8 +57,7 @@ function SettingsPage() {
         </div>
       </section>
 
-      {/* About */}
-      <p className="settings-footer">Beskar Shelf · Audiobooks & ebooks</p>
+      <p className="settings-footer">Beskar Shelf v{APP_VERSION}</p>
     </main>
   )
 }

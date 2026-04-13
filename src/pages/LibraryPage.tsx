@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 
-import { useAppContext } from '../contexts/AppContext'
+import { useClient } from '../contexts/ClientContext'
 import { usePrimaryLibrary } from '../hooks/useLibraries'
 import { BookCard } from '../components/BookCard'
 
@@ -11,7 +11,7 @@ const PAGE_SIZE = 40
 
 export function LibraryPage() {
   const { libraryId } = useParams() as { libraryId: string }
-  const { client } = useAppContext()
+  const client = useClient()
   const { librariesQuery } = usePrimaryLibrary()
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -42,11 +42,13 @@ export function LibraryPage() {
     )
   }, [allItems, deferredSearch])
 
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
+
   const fetchMore = useCallback(() => {
-    if (query.hasNextPage && !query.isFetchingNextPage) {
-      void query.fetchNextPage()
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage()
     }
-  }, [query])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   useEffect(() => {
     const el = sentinelRef.current
@@ -148,7 +150,7 @@ export function LibraryPage() {
 }
 
 function BookListItem({ item }: { item: { id: string; title: string; author: string; coverPath: string | null } }) {
-  const { client } = useAppContext()
+  const client = useClient()
   const coverUrl = item.coverPath ? client.coverUrl(item.id) : null
 
   return (

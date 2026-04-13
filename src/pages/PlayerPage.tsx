@@ -3,21 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 
-import { useAppContext } from '../contexts/AppContext'
-import { usePlayerContext } from '../contexts/PlayerContext'
+import { useClient } from '../contexts/ClientContext'
+import { usePlayerContext, usePlayerTime } from '../contexts/PlayerContext'
 import { useSleepTimer } from '../hooks/useSleepTimer'
 import { formatDuration, formatProgress } from '../lib/utils'
 
 function PlayerPage() {
-  const { client } = useAppContext()
+  const client = useClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const {
     activePlayback,
-    playbackTime,
     isPlaying,
     playbackRate,
-    currentTrackDuration,
     togglePlayback,
     stopPlayback,
     seekBy,
@@ -25,10 +23,12 @@ function PlayerPage() {
     setPlaybackRate,
     jumpToTrack,
   } = usePlayerContext()
+  const { playbackTime, currentTrackDuration } = usePlayerTime()
 
   const [bookmarkTitle, setBookmarkTitle] = useState('')
   const [showBookmarks, setShowBookmarks] = useState(false)
   const [showSleepTimer, setShowSleepTimer] = useState(false)
+  const [seekPreview, setSeekPreview] = useState<number | null>(null)
 
   const currentChapterEnd = useMemo(() => {
     if (!activePlayback) {
@@ -99,11 +99,16 @@ function PlayerPage() {
             type="range"
             min={0}
             max={Math.max(activePlayback.duration, 1)}
-            value={playbackTime}
-            onChange={(event) => seekTo(Number(event.target.value))}
+            value={seekPreview ?? playbackTime}
+            onInput={(event) => setSeekPreview(Number((event.target as HTMLInputElement).value))}
+            onChange={(event) => {
+              const value = Number(event.target.value)
+              seekTo(value)
+              setSeekPreview(null)
+            }}
           />
           <div className="time-row">
-            <span>{formatDuration(playbackTime)}</span>
+            <span>{formatDuration(seekPreview ?? playbackTime)}</span>
             <span>{formatDuration(activePlayback.duration)}</span>
           </div>
         </label>

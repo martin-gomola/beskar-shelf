@@ -53,6 +53,10 @@ export function usePlayback(
   const [playbackRate, setPlaybackRateState] = useState(() => playbackState?.rate ?? 1)
   const [currentTrackDuration, setCurrentTrackDuration] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
+  const activePlaybackRef = useRef(activePlayback)
+  activePlaybackRef.current = activePlayback
+  const playbackTimeRef = useRef(playbackTime)
+  playbackTimeRef.current = playbackTime
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -104,8 +108,13 @@ export function usePlayback(
 
     try {
       await client.updateProgress(activePlayback.item.id, payload)
-      await queryClient.invalidateQueries({ queryKey: ['item', activePlayback.item.id] })
-      await queryClient.invalidateQueries({ queryKey: ['personalized'] })
+      queryClient.setQueryData(['item', activePlayback.item.id], (old: unknown) => {
+        if (!old || typeof old !== 'object') return old
+        return { ...(old as Record<string, unknown>), currentTime: payload.currentTime, progress: payload.progress }
+      })
+      if (isFinished) {
+        void queryClient.invalidateQueries({ queryKey: ['personalized'] })
+      }
       void drainProgressQueue()
     } catch (error) {
       enqueueProgress(activePlayback.item.id, payload as unknown as Record<string, unknown>)
@@ -244,7 +253,7 @@ export function usePlayback(
         void (async () => {
           try {
             const fresh = await client.getItem(activePlayback.item.id)
-            if (fresh.currentTime > playbackTime + 5) {
+            if (fresh.currentTime > playbackTimeRef.current + 5) {
               setPlaybackState((prev) => prev ? {
                 ...prev,
                 currentTime: fresh.currentTime,
@@ -268,7 +277,40 @@ export function usePlayback(
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
     }
-  }, [activePlayback, flushProgress, client, playbackTime, setPlaybackState])
+  }, [activePlayback, flushProgress, client, setPlaybackState])
+
+  const togglePlayback = useCallback(async () => {
+    if (!audioRef.current) {
+      return
+    }
+    if (audioRef.current.paused) {
+      try {
+        await audioRef.current.play()
+      } catch {
+        // Browser blocked autoplay
+      }
+      return
+    }
+    audioRef.current.pause()
+  }, [])
+
+  const seekTo = useCallback((seconds: number) => {
+    const ap = activePlaybackRef.current
+    if (!ap || !audioRef.current) {
+      return
+    }
+    const clamped = clamp(seconds, 0, ap.duration)
+    const nextTrackIndex = trackForTime(ap.session.audioTracks, clamped)
+    const track = ap.session.audioTracks[nextTrackIndex]
+    setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
+    audioRef.current.src = ap.sources[nextTrackIndex]
+    audioRef.current.currentTime = clamped - track.startOffset
+  }, [])
+
+  const seekBy = useCallback((delta: number) => {
+    const currentTime = playbackTimeRef.current
+    seekTo(currentTime + delta)
+  }, [seekTo])
 
   // MediaSession API for lock screen / notification controls
   useEffect(() => {
@@ -308,7 +350,7 @@ export function usePlayback(
         }
       }
     }
-  }, [activePlayback, client])
+  }, [activePlayback, client, togglePlayback, seekBy])
 
   // Revoke blob URLs on cleanup
   useEffect(() => {
@@ -377,37 +419,6 @@ export function usePlayback(
       updatedAt: Date.now(),
     })
     startTransition(() => navigate('/player'))
-  }
-
-  async function togglePlayback() {
-    if (!audioRef.current) {
-      return
-    }
-    if (audioRef.current.paused) {
-      try {
-        await audioRef.current.play()
-      } catch {
-        // Browser blocked autoplay
-      }
-      return
-    }
-    audioRef.current.pause()
-  }
-
-  function seekTo(seconds: number) {
-    if (!activePlayback || !audioRef.current) {
-      return
-    }
-    const clamped = clamp(seconds, 0, activePlayback.duration)
-    const nextTrackIndex = trackForTime(activePlayback.session.audioTracks, clamped)
-    const track = activePlayback.session.audioTracks[nextTrackIndex]
-    setActivePlayback({ ...activePlayback, trackIndex: nextTrackIndex })
-    audioRef.current.src = activePlayback.sources[nextTrackIndex]
-    audioRef.current.currentTime = clamped - track.startOffset
-  }
-
-  function seekBy(delta: number) {
-    seekTo(playbackTime + delta)
   }
 
   function setPlaybackRate(rate: number) {

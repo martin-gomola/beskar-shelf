@@ -1,7 +1,22 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, type Plugin } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
 import { loadEnv } from 'vite'
+import fs from 'node:fs'
+import path from 'node:path'
+
+function swVersionPlugin(): Plugin {
+  return {
+    name: 'sw-version',
+    writeBundle(options) {
+      const outDir = options.dir || 'dist'
+      const swPath = path.resolve(outDir, 'sw.js')
+      if (fs.existsSync(swPath)) {
+        const content = fs.readFileSync(swPath, 'utf-8')
+        fs.writeFileSync(swPath, content.replaceAll('__BUILD_VERSION__', Date.now().toString()))
+      }
+    },
+  }
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -11,67 +26,36 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        includeAssets: ['pwa-icon.svg'],
-        manifest: {
-          name: 'Beskar Shelf',
-          short_name: 'Beskar',
-          description: 'Mobile-first Audiobookshelf playback PWA.',
-          theme_color: '#f2f2f7',
-          background_color: '#f2f2f7',
-          display: 'standalone',
-          start_url: '/',
-          icons: [
-            {
-              src: '/pwa-icon.svg',
-              sizes: 'any',
-              type: 'image/svg+xml',
-              purpose: 'any maskable',
-            },
-          ],
-        },
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,svg,png}'],
-          runtimeCaching: [
-            {
-              urlPattern: /\/api\/items\/[^/]+\/cover/,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'abs-covers',
-                expiration: {
-                  maxEntries: 200,
-                  maxAgeSeconds: 7 * 24 * 60 * 60,
-                },
-              },
-            },
-            {
-              urlPattern: /\/api\/(libraries|me|items)/,
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'abs-api',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 5 * 60,
-                },
-              },
-            },
-          ],
-        },
-      }),
+      swVersionPlugin(),
     ],
-    server: proxyBase && proxyTarget
-      ? {
-          proxy: {
-            [proxyBase]: {
-              target: proxyTarget,
-              changeOrigin: true,
-              secure: true,
-              rewrite: (path) => path.replace(new RegExp(`^${proxyBase}`), ''),
+    define: {
+      __APP_VERSION__: JSON.stringify(process.env.APP_VERSION || '0.1.0'),
+    },
+    build: {
+      target: 'es2020',
+      minify: 'esbuild',
+      cssMinify: true,
+    },
+    server: {
+      headers: {
+        'X-Robots-Tag': 'noindex, nofollow',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'no-referrer',
+      },
+      ...(proxyBase && proxyTarget
+        ? {
+            proxy: {
+              [proxyBase]: {
+                target: proxyTarget,
+                changeOrigin: true,
+                secure: true,
+                rewrite: (p) => p.replace(new RegExp(`^${proxyBase}`), ''),
+              },
             },
-          },
-        }
-      : undefined,
+          }
+        : {}),
+    },
     test: {
       environment: 'jsdom',
       setupFiles: './src/test/setup.ts',

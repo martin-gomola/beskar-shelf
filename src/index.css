@@ -241,13 +241,11 @@ h3 {
   border-radius: var(--radius);
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   color: var(--text);
   padding: var(--sp-3) var(--sp-3);
   font-size: var(--fs-base);
   outline: none;
-  transition: all 180ms ease;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
 .field input:focus-visible,
@@ -282,7 +280,7 @@ h3 {
   padding: var(--sp-3) var(--sp-4);
   font-size: var(--fs-base);
   font-weight: 600;
-  transition: all 180ms ease;
+  transition: background 180ms ease, color 180ms ease, opacity 180ms ease;
   outline: none;
   border: none;
 }
@@ -723,14 +721,12 @@ h3 {
   border-radius: var(--radius-pill);
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   padding: var(--sp-2) var(--sp-4);
   text-align: center;
   font-size: var(--fs-base);
   font-weight: 500;
   color: var(--text-secondary);
-  transition: all 150ms ease;
+  transition: background 150ms ease, color 150ms ease;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -819,8 +815,6 @@ h3 {
 .search-field input {
   border-radius: var(--radius);
   background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
 }
 
@@ -1226,6 +1220,12 @@ h3 {
   color: var(--text-muted);
 }
 
+.mini-player-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .nav-link {
   flex: 1;
   text-align: center;
@@ -1234,7 +1234,7 @@ h3 {
   font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-muted);
-  transition: all 180ms ease;
+  transition: background 180ms ease, color 180ms ease;
 }
 
 .nav-link:hover {
@@ -1279,6 +1279,89 @@ h3 {
   gap: 12px;
 }
 
+/* ─── Update banner ─── */
+
+.update-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--accent-500);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  animation: slide-down 300ms ease-out both;
+}
+
+.update-banner button {
+  padding: var(--sp-1) var(--sp-3);
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.update-banner button:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* ─── Toast stack ─── */
+
+.toast-stack {
+  position: fixed;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 130px);
+  right: var(--sp-4);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+
+.toast {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: #fff;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow-lg);
+  animation: slide-in 250ms ease-out both;
+  pointer-events: auto;
+}
+
+.toast-success { background: rgba(52, 199, 89, 0.9); }
+.toast-error   { background: rgba(255, 59, 48, 0.9); }
+.toast-info    { background: rgba(0, 0, 0, 0.75); }
+
+/* ─── Error screen ─── */
+
+.error-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+}
+
+.error-card {
+  max-width: 320px;
+  text-align: center;
+  display: grid;
+  gap: var(--sp-4);
+}
+
 /* ─── Animations ─── */
 
 @keyframes fade-in {
@@ -1289,6 +1372,16 @@ h3 {
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .animate-fade-in {
