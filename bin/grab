@@ -1,29 +1,55 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -f "$REPO_ROOT/.env" ]; then
-    source "$REPO_ROOT/.env"
-fi
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib.sh"
 
-LINKS_FILE="${1:-$REPO_ROOT/links.txt}"
-OUTPUT_DIR="${OUTPUT_DIR:?Set OUTPUT_DIR in .env}"
-SPLIT_THRESHOLD="${SPLIT_THRESHOLD:-3600}"
-SEGMENT_LENGTH="${SEGMENT_LENGTH:-1800}"
+ENV_FILE="$BESKAR_REPO_ROOT/.env"
+beskar_load_env
 
-# Resolve relative paths against repo root
-if [[ "$OUTPUT_DIR" != /* ]]; then
-    OUTPUT_DIR="$REPO_ROOT/$OUTPUT_DIR"
-fi
+LINKS_FILE="${BESKAR_REPO_ROOT}/links.txt"
+OUTPUT_DIR_VALUE="${OUTPUT_DIR:-}"
+SPLIT_THRESHOLD_VALUE="${SPLIT_THRESHOLD:-3600}"
+SEGMENT_LENGTH_VALUE="${SEGMENT_LENGTH:-1800}"
+DRY_RUN=false
+DOCTOR_ONLY=false
+ITEM_LIMIT=""
+POSITIONAL_LINKS_FILE=""
+
+usage() {
+    cat <<EOF
+Usage:
+  ./bin/grab [links-file]
+  ./bin/grab [options]
+
+Options:
+  --help                    Show this help text and exit
+  --doctor                  Run preflight checks and exit
+  --dry-run                 Validate config, fetch metadata, and print the plan without downloading
+  --links-file PATH         Read YouTube URLs from PATH
+  --output-dir PATH         Override OUTPUT_DIR for this run
+  --split-threshold SEC     Split files longer than SEC seconds
+  --segment-length SEC      Use SEC seconds for fixed-length splitting
+  --limit N                 Process only the first N valid URLs
+
+Config precedence:
+  CLI flags > .env > built-in defaults
+
+Default files:
+  links file:  ./links.txt
+  env file:    ./.env
+EOF
+}
 
 parse_author_and_title() {
     local raw="$1"
     local fallback_author="$2"
     parsed_author=""
     parsed_title=""
+    parse_used_fallback=false
 
-    # Strip noise suffixes: Audiokniha, Full Audiobook, Audiobook, etc.
     local cleaned
     cleaned=$(echo "$raw" | sed -E '
         s/[,|] *(Full )?Audio(book|kniha)//gi
@@ -35,72 +61,212 @@ parse_author_and_title() {
         s/^ *//;s/ *$//
     ')
 
-    # Pattern: "Title – Author" or "Title - Author" (after stripping noise)
     if echo "$cleaned" | grep -qE ' [–—] [A-Z]'; then
         parsed_title=$(echo "$cleaned" | sed -E 's/ [–—] ([^–—]+)$//')
         parsed_author=$(echo "$cleaned" | sed -E 's/.* [–—] //')
-    # Pattern: "Title by Author"
     elif echo "$cleaned" | grep -qiE ' by [A-Z]'; then
         parsed_title=$(echo "$cleaned" | sed -E 's/ [bB]y ([A-Z].*)$//')
         parsed_author=$(echo "$cleaned" | sed -E 's/.* [bB]y //')
-    # Pattern: "Author - Title" (author is short name before first dash)
     elif echo "$cleaned" | grep -qE '^[A-Z][a-zA-ZáéíóúůžščřďťňěÁÉÍÓÚŮŽŠČŘĎŤŇĚ. ]{2,40} - '; then
         parsed_author=$(echo "$cleaned" | sed -E 's/ - .*//')
         parsed_title=$(echo "$cleaned" | sed -E 's/^[^-]+ - //')
     fi
 
-    # Strip trailing separators from parsed values
     parsed_author=$(echo "$parsed_author" | sed 's/[,;|. ]*$//' | sed 's/^ *//')
     parsed_title=$(echo "$parsed_title" | sed 's/[,;|. ]*$//' | sed 's/^ *//')
 
-    # Fallbacks
     if [ -z "$parsed_author" ]; then
         parsed_author="$fallback_author"
+        parse_used_fallback=true
     fi
     if [ -z "$parsed_title" ]; then
         parsed_title="$cleaned"
+        parse_used_fallback=true
     fi
 }
 
-if [ ! -f "$LINKS_FILE" ]; then
-    echo "Error: $LINKS_FILE not found"
+print_summary() {
+    local valid_count="$1"
+
+    echo "Run summary"
+    echo "  Links file:       $LINKS_FILE"
+    echo "  Output directory: $OUTPUT_DIR"
+    echo "  Split threshold:  ${SPLIT_THRESHOLD_VALUE}s"
+    echo "  Segment length:   ${SEGMENT_LENGTH_VALUE}s"
+    echo "  Dry run:          $DRY_RUN"
+    if [ -n "$ITEM_LIMIT" ]; then
+        echo "  Limit:            $ITEM_LIMIT"
+    else
+        echo "  Limit:            none"
+    fi
+    echo "  Valid URLs:       $valid_count"
+}
+
+run_doctor() {
+    beskar_run_preflight "$ENV_FILE" "$LINKS_FILE" "$OUTPUT_DIR"
+    local valid_count
+    valid_count=$(beskar_count_valid_urls "$LINKS_FILE")
+    print_summary "$valid_count"
+    echo "Preflight checks passed."
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --help)
+            usage
+            exit 0
+            ;;
+        --doctor)
+            DOCTOR_ONLY=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --links-file)
+            LINKS_FILE="$2"
+            shift 2
+            ;;
+        --output-dir)
+            OUTPUT_DIR_VALUE="$2"
+            shift 2
+            ;;
+        --split-threshold)
+            SPLIT_THRESHOLD_VALUE="$2"
+            shift 2
+            ;;
+        --segment-length)
+            SEGMENT_LENGTH_VALUE="$2"
+            shift 2
+            ;;
+        --limit)
+            ITEM_LIMIT="$2"
+            shift 2
+            ;;
+        --*)
+            echo "Unknown option: $1"
+            echo "Run ./bin/grab --help for usage."
+            exit 1
+            ;;
+        *)
+            if [ -n "$POSITIONAL_LINKS_FILE" ]; then
+                echo "Unexpected extra argument: $1"
+                echo "Run ./bin/grab --help for usage."
+                exit 1
+            fi
+            POSITIONAL_LINKS_FILE="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ -n "$POSITIONAL_LINKS_FILE" ]; then
+    LINKS_FILE="$POSITIONAL_LINKS_FILE"
+fi
+
+if ! [[ "$SPLIT_THRESHOLD_VALUE" =~ ^[0-9]+$ ]]; then
+    echo "Invalid --split-threshold value: $SPLIT_THRESHOLD_VALUE"
+    echo "Use a whole number of seconds."
     exit 1
 fi
 
-mkdir -p "$OUTPUT_DIR"
+if ! [[ "$SEGMENT_LENGTH_VALUE" =~ ^[0-9]+$ ]]; then
+    echo "Invalid --segment-length value: $SEGMENT_LENGTH_VALUE"
+    echo "Use a whole number of seconds."
+    exit 1
+fi
 
-count=0
+if [ -n "$ITEM_LIMIT" ] && ! [[ "$ITEM_LIMIT" =~ ^[0-9]+$ ]]; then
+    echo "Invalid --limit value: $ITEM_LIMIT"
+    echo "Use a whole number."
+    exit 1
+fi
+
+LINKS_FILE="$(beskar_resolve_path "$LINKS_FILE")"
+
+if [ -z "$OUTPUT_DIR_VALUE" ]; then
+    if [ ! -f "$ENV_FILE" ]; then
+        echo "Missing .env file: $ENV_FILE"
+        echo "Create it first, then rerun the command."
+    else
+        echo "Missing OUTPUT_DIR. Set it in .env or pass --output-dir."
+    fi
+    exit 1
+fi
+
+OUTPUT_DIR="$(beskar_resolve_path "$OUTPUT_DIR_VALUE")"
+
+if $DOCTOR_ONLY; then
+    run_doctor
+    exit 0
+fi
+
+run_doctor
+
+processed=0
+handled=0
+
 while IFS= read -r url || [ -n "$url" ]; do
     url=$(echo "$url" | xargs)
     [[ -z "$url" || "$url" == \#* ]] && continue
-    count=$((count + 1))
 
-    echo "[$count] Fetching metadata: $url"
-    raw_title=$(yt-dlp --get-title --no-playlist "$url")
-    uploader=$(yt-dlp --print "%(uploader)s" --no-playlist "$url")
-    chapters=$(yt-dlp --print "%(chapters)s" --no-playlist "$url")
+    if [ -n "$ITEM_LIMIT" ] && [ "$processed" -ge "$ITEM_LIMIT" ]; then
+        break
+    fi
+
+    processed=$((processed + 1))
+
+    echo "[$processed] Fetching metadata: $url"
+    if ! raw_title=$(yt-dlp --get-title --no-playlist "$url"); then
+        echo "[$processed] Metadata fetch failed for title. Skipping this URL."
+        continue
+    fi
+    if ! uploader=$(yt-dlp --print "%(uploader)s" --no-playlist "$url"); then
+        echo "[$processed] Metadata fetch failed for uploader. Skipping this URL."
+        continue
+    fi
+    if ! chapters=$(yt-dlp --print "%(chapters)s" --no-playlist "$url"); then
+        echo "[$processed] Metadata fetch failed for chapters. Skipping this URL."
+        continue
+    fi
 
     parse_author_and_title "$raw_title" "$uploader"
 
-    # Sanitize for filesystem
     safe_title=$(echo "$parsed_title" | sed 's/[\/\\:*?"<>|]/-/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
     safe_author=$(echo "$parsed_author" | sed 's/[\/\\:*?"<>|]/-/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
-
     book_dir="$OUTPUT_DIR/$safe_author/$safe_title"
-    mkdir -p "$book_dir"
-
-    echo "[$count] Downloading: $raw_title"
-    echo "         Author: $parsed_author"
-    echo "         Title:  $parsed_title"
-    echo "         -> $book_dir/"
 
     has_chapters=false
     if [[ "$chapters" != "None" && "$chapters" != "NA" && "$chapters" != "" && "$chapters" != "[]" ]]; then
         has_chapters=true
     fi
 
+    echo "[$processed] Title:  $parsed_title"
+    echo "[$processed] Author: $parsed_author"
+    echo "[$processed] Target: $book_dir"
+    if $parse_used_fallback; then
+        echo "[$processed] Parsing: fallback metadata used; review in Audiobookshelf after import."
+    else
+        echo "[$processed] Parsing: matched expected title/author pattern."
+    fi
+
     if $has_chapters; then
-        echo "         Chapters detected, splitting by chapter..."
+        echo "[$processed] Split mode: chapter split"
+    else
+        echo "[$processed] Split mode: inspect duration after download"
+    fi
+
+    if $DRY_RUN; then
+        echo "[$processed] Dry run: metadata validated, no files written."
+        handled=$((handled + 1))
+        continue
+    fi
+
+    mkdir -p "$book_dir"
+
+    echo "[$processed] Downloading audio..."
+    if $has_chapters; then
         yt-dlp \
             --extract-audio \
             --audio-format mp3 \
@@ -112,7 +278,6 @@ while IFS= read -r url || [ -n "$url" ]; do
             --no-playlist \
             "$url"
     else
-        echo "         No chapters found, downloading as single file..."
         yt-dlp \
             --extract-audio \
             --audio-format mp3 \
@@ -122,28 +287,31 @@ while IFS= read -r url || [ -n "$url" ]; do
             --no-playlist \
             "$url"
 
-        # Split long files by fixed duration
         mp3_file=$(find "$book_dir" -maxdepth 1 -name '*.mp3' -print -quit)
         if [ -n "$mp3_file" ]; then
             duration=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 "$mp3_file" | cut -d. -f1)
-            if [ "${duration:-0}" -gt "$SPLIT_THRESHOLD" ]; then
-                echo "         Duration ${duration}s exceeds threshold ${SPLIT_THRESHOLD}s, splitting every ${SEGMENT_LENGTH}s..."
-                ffmpeg -y -i "$mp3_file" -f segment -segment_time "$SEGMENT_LENGTH" -c copy \
+            if [ "${duration:-0}" -gt "$SPLIT_THRESHOLD_VALUE" ]; then
+                echo "[$processed] Split mode: fixed-length split every ${SEGMENT_LENGTH_VALUE}s"
+                ffmpeg -y -i "$mp3_file" -f segment -segment_time "$SEGMENT_LENGTH_VALUE" -c copy \
                     "$book_dir/%03d - Part.mp3" 2>/dev/null
                 rm "$mp3_file"
+            else
+                echo "[$processed] Split mode: single file, duration ${duration}s"
             fi
         fi
     fi
 
-    # Convert thumbnail to cover.jpg for Audiobookshelf
     img=$(find "$book_dir" -maxdepth 1 \( -name '*.webp' -o -name '*.png' -o -name '*.jpg' \) ! -name 'cover.jpg' -print -quit)
     if [ -n "$img" ]; then
         ffmpeg -y -i "$img" "$book_dir/cover.jpg" 2>/dev/null && rm "$img"
     fi
 
-    # Clean up leftover video files
     find "$book_dir" -maxdepth 1 \( -name '*.webm' -o -name '*.m4a' -o -name '*.opus' \) -delete
-
+    handled=$((handled + 1))
 done < "$LINKS_FILE"
 
-echo "Done. $count file(s) downloaded to $OUTPUT_DIR/"
+if $DRY_RUN; then
+    echo "Dry run complete. $handled item(s) inspected."
+else
+    echo "Done. $handled file(s) downloaded to $OUTPUT_DIR/"
+fi

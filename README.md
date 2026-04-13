@@ -1,91 +1,140 @@
 # beskar-shelf
 
-Forge YouTube audiobooks into beskar-grade MP3s, ready for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) vault. This is the Way.
+Forge YouTube audiobooks into beskar-grade MP3s, run your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) server, and ship a custom listening client on top. This is the Way.
 
-## The Armoury
+## Project Layout
 
-```
+```text
 beskar-shelf/
-├── bin/grab                  # The foundry — downloads & splits audio
-├── infra/                    # Audiobookshelf deployment (Docker)
-│   ├── docker-compose.yml
-│   ├── .env.example
-│   ├── bootstrap-email-settings.sh
-│   └── README.md
-├── .cursor/skills/
-│   └── abs-library-manager/  # Agent skill for ABS metadata management
-├── links.txt                 # Your bounty list (YouTube URLs)
-├── downloads/                # The vault (downloaded audiobooks)
+├── bin/grab                  # The foundry: validates inputs, fetches metadata, downloads audio
+├── bin/fix-ebooks            # Reorganizes ebook files into per-book folders
+├── apps/pwa/                 # Beskar Shelf PWA client for playback and offline listening
+├── docker/                   # Audiobookshelf deployment files
+├── links.txt                 # YouTube URLs, one per line
+├── downloads/                # Default output location from .env.example
 ├── Makefile
-└── .env                      # Clan secrets (not tracked)
+└── .env                      # Local settings, not tracked
 ```
 
 ## Prerequisites
 
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — the bounty hunter
-- [ffmpeg](https://ffmpeg.org/) — the beskar smelter
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- [ffmpeg](https://ffmpeg.org/)
 
 ```bash
 brew install yt-dlp ffmpeg
 ```
 
-## Setup
+## Happy Path
+
+```bash
+make setup
+$EDITOR .env
+$EDITOR links.txt
+make doctor
+make download
+```
+
+`make setup` only creates missing files, so it is safe to rerun.
+
+## Configuration
+
+Start from `.env.example`:
 
 ```bash
 cp .env.example .env
 cp links.txt.example links.txt
 ```
 
-Edit `.env` — set `OUTPUT_DIR` and optionally `SPLIT_THRESHOLD`, `SEGMENT_LENGTH`, and Audiobookshelf API credentials.
+Required:
 
-## The Hunt
+- `OUTPUT_DIR`: where generated audiobook folders will be written
 
-1. Add YouTube URLs to `links.txt` (one bounty per line):
+Optional:
 
-```
-https://www.youtube.com/watch?v=VIDEO_ID_1
-https://youtu.be/VIDEO_ID_2
-```
+- `SPLIT_THRESHOLD`: split files longer than this many seconds
+- `SEGMENT_LENGTH`: segment size in seconds when fixed-length splitting is needed
+- `ABS_URL`, `ABS_TOKEN`, `ABS_LIBRARY_ID`: used by the separate Audiobookshelf metadata-management skill
 
-Lines starting with `#` are skipped.
+Relative paths in `OUTPUT_DIR` are resolved against the repo root.
 
-2. Forge:
+## Commands
 
 ```bash
+make help
+make setup
+make doctor
 make download
+make download-dry-run
+make pwa-install
+make pwa-dev
+make pwa-build
+make pwa-test
 ```
 
-Or bring your own bounty list:
+You can also call the script directly:
 
 ```bash
-./bin/grab my-targets.txt
+./bin/grab --help
+./bin/grab --dry-run
+./bin/grab --links-file my-targets.txt --limit 1
 ```
 
-MP3s land in `OUTPUT_DIR`, organized as `Author/Title/` — ready for Audiobookshelf to scan.
+CLI flag precedence is:
 
-## What the Foundry Does
+1. command-line flags
+2. `.env`
+3. built-in defaults
 
-- Extracts author and title from the video name (regex parsing with channel name fallback)
-- Splits by YouTube chapters when available
-- Falls back to fixed-duration segments for long files (configurable via `SPLIT_THRESHOLD` / `SEGMENT_LENGTH`)
-- Converts thumbnails to `cover.jpg` for Audiobookshelf
-- Cleans up leftover artifacts
+## Download Behavior
+
+For each valid URL in `links.txt`, `bin/grab`:
+
+- fetches video metadata and derives `Author/Title/`
+- splits by YouTube chapters when available
+- otherwise downloads a single MP3 and splits it by fixed length only when it exceeds `SPLIT_THRESHOLD`
+- converts the downloaded thumbnail into `cover.jpg` for Audiobookshelf
+- removes leftover source audio artifacts
+
+`make download-dry-run` performs the same validation and metadata fetch, then prints the planned target folder and split mode without writing files.
+
+Generated media lands in `OUTPUT_DIR/Author/Title/`. Point your Audiobookshelf library at that root and trigger a library scan after new downloads complete.
 
 ## Audiobookshelf Deployment
 
-The `infra/` directory contains everything to run Audiobookshelf via Docker:
+The `docker/README.md` guide covers Docker setup, storage layout, reverse proxy requirements, and the optional email bootstrap helper.
+
+## Beskar Shelf PWA
+
+The repo now includes a standalone frontend app in `apps/pwa` for a mobile-first Audiobookshelf experience.
+
+Current scope:
+
+- server URL onboarding and username/password login
+- home shelves and library browsing
+- item detail with chapter list and resume state
+- global player with rate control, seek, queue, and progress sync
+- EPUB/PDF reader route backed by the Audiobookshelf ebook endpoint
+- explicit offline downloads backed by IndexedDB
+
+Run it locally:
 
 ```bash
-cd infra
-cp .env.example .env
-# Fill in your values
-docker compose up -d
+make pwa-install
+make pwa-dev
 ```
 
-See `infra/README.md` for storage layout, reverse proxy notes, and email bootstrap.
+`make pwa-dev` sources the repo `.env` and proxies browser API/media requests to `ABS_URL` under `/abs` so local development can work even when your Audiobookshelf server does not allow cross-origin browser access.
+
+Validate it:
+
+```bash
+make pwa-test
+make pwa-build
+```
+
+The app now supports both listening and reading. Audiobook playback, ebook reading, and progress sync all run against the same Audiobookshelf account and server.
 
 ## Library Management
 
-The `abs-library-manager` agent skill (in `.cursor/skills/`) lets you manage your Audiobookshelf library via its REST API — fix titles, update authors, assign collections (genres), and organize series. Just ask your AI agent to handle it.
-
-Requires `ABS_URL`, `ABS_TOKEN`, and `ABS_LIBRARY_ID` in `.env`.
+The included `abs-library-manager` skill can fix titles, authors, collections, and series metadata through the Audiobookshelf API after your library has been scanned.

@@ -31,3 +31,14 @@ services:
     security_opt:
       - no-new-privileges:true
     stop_grace_period: 30s
+
+  beskar-shelf-pwa:
+    build:
+      context: ..
+      dockerfile: apps/pwa/Dockerfile
+    container_name: beskar-shelf-pwa
+    ports:
+      - "${PWA_PORT:-4173}:4173"
+    restart: unless-stopped
+    depends_on:
+      - audiobookshelf
