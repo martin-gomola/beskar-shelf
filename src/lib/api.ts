@@ -35,6 +35,13 @@ const loginSchema = z.object({
     .optional(),
 })
 
+export class SessionExpiredError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'SessionExpiredError'
+  }
+}
+
 function asRecord(value: unknown) {
   return typeof value === 'object' && value !== null
     ? (value as Record<string, unknown>)
@@ -216,7 +223,7 @@ export class AudiobookshelfClient {
     return this.streamUrl(`/api/items/${itemId}/ebook`)
   }
 
-  private async request<T>(path: string, init: RequestInit = {}) {
+  private async request<T>(path: string, init: RequestInit = {}, retries = 2): Promise<T> {
     if (!this.requestBase()) {
       throw new Error('Server URL is not configured.')
     }
@@ -229,24 +236,37 @@ export class AudiobookshelfClient {
       headers.set('Authorization', `Bearer ${this.session.token}`)
     }
 
-    const response = await fetch(this.absoluteUrl(path), {
-      ...init,
-      headers,
-    })
+    let lastError: Error | null = null
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(this.absoluteUrl(path), {
+          ...init,
+          headers,
+        })
 
-    if (!response.ok) {
-      const message = await response.text()
-      if (response.status === 401) {
-        throw new Error('Your Audiobookshelf session is invalid or expired.')
+        if (!response.ok) {
+          const message = await response.text()
+          if (response.status === 401) {
+            throw new SessionExpiredError('Your Audiobookshelf session is invalid or expired.')
+          }
+          throw new Error(message || `Audiobookshelf request failed (${response.status})`)
+        }
+
+        if (response.status === 204) {
+          return null as T
+        }
+
+        return response.json() as Promise<T>
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        if (error instanceof SessionExpiredError || attempt === retries) {
+          throw lastError
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))
       }
-      throw new Error(message || `Audiobookshelf request failed (${response.status})`)
     }
 
-    if (response.status === 204) {
-      return null as T
-    }
-
-    return response.json() as Promise<T>
+    throw lastError!
   }
 
   async login(username: string, password: string) {
@@ -339,6 +359,17 @@ export class AudiobookshelfClient {
     return results.map(bookFromUnknown)
   }
 
+  async getLibraryItemsPaginated(libraryId: string, page: number, limit = 20) {
+    const response = asRecord(
+      await this.request(
+        `/api/libraries/${libraryId}/items?minified=0&collapseseries=0&sort=media.metadata.title&limit=${limit}&page=${page}`,
+      ),
+    )
+    const results = Array.isArray(response.results) ? response.results : []
+    const total = Number(response.total ?? 0)
+    return { results: results.map(bookFromUnknown), total }
+  }
+
   async getItem(itemId: string) {
     return bookFromUnknown(
       await this.request(`/api/items/${itemId}?expanded=1&include=progress,authors,series`),
@@ -363,6 +394,33 @@ export class AudiobookshelfClient {
         }),
       }),
     )
+  }
+
+  async getBookmarks(itemId: string) {
+    const response = asRecord(await this.request(`/api/items/${itemId}?expanded=1&include=progress`))
+    const media = asRecord(response.media)
+    const bookmarks = Array.isArray(media.bookmarks) ? media.bookmarks : []
+    return bookmarks.map((bm) => {
+      const bookmark = asRecord(bm)
+      return {
+        title: String(bookmark.title ?? ''),
+        time: Number(bookmark.time ?? 0),
+        createdAt: Number(bookmark.createdAt ?? 0),
+      }
+    })
+  }
+
+  async createBookmark(itemId: string, time: number, title: string) {
+    await this.request(`/api/me/item/${itemId}/bookmark`, {
+      method: 'POST',
+      body: JSON.stringify({ time, title }),
+    })
+  }
+
+  async deleteBookmark(itemId: string, time: number) {
+    await this.request(`/api/me/item/${itemId}/bookmark/${time}`, {
+      method: 'DELETE',
+    })
   }
 
   async updateProgress(itemId: string, payload: ProgressPayload) {

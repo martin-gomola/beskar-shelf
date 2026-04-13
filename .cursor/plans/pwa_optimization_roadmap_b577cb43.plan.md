@@ -4,64 +4,64 @@ overview: "Systematic optimization of the Beskar Shelf PWA, inspired by patterns
 todos:
   - id: phase1a
     content: Split AppContext into AppContext + PlayerContext with memoized provider values
-    status: pending
+    status: completed
   - id: phase1b
     content: Throttle playbackTime updates to 1s interval instead of raw timeupdate
-    status: pending
+    status: completed
   - id: phase1c
     content: Debounce commitProgress (5s trailing while playing, immediate on pause/seek/hide)
-    status: pending
+    status: completed
   - id: phase2a
     content: Add React.lazy code splitting for ReaderPage, PlayerPage, DownloadsPage, SettingsPage
-    status: pending
+    status: completed
   - id: phase2b
     content: Extract page components from App.tsx into src/pages/ and src/components/
-    status: pending
+    status: completed
   - id: phase2c
     content: "Extract hooks: usePlayback, useLibraries, useOffline"
-    status: pending
+    status: completed
   - id: phase3a
     content: Paginate library API calls with useInfiniteQuery
-    status: pending
+    status: completed
   - id: phase3b
     content: Add @tanstack/react-virtual for library grid virtualization
-    status: pending
+    status: completed
   - id: phase3c
     content: "Optimize cover images: lazy loading, cache-bust param, fade-in, React.memo BookCard"
-    status: pending
+    status: completed
   - id: phase3d
     content: Tune React Query staleTime/gcTime/retry for mobile networks
-    status: pending
+    status: completed
   - id: phase4a
     content: Add visibilitychange handler for background resume and progress refresh
-    status: pending
+    status: completed
   - id: phase4b
     content: Implement offline progress queue with localStorage drain on reconnect
-    status: pending
+    status: completed
   - id: phase4c
     content: Add retry and 401 handling to API client
-    status: pending
+    status: completed
   - id: phase5a
     content: Implement sleep timer (fixed durations + end-of-chapter)
-    status: pending
+    status: completed
   - id: phase5b
     content: Add bookmarks via ABS API with tap-to-seek UI
-    status: pending
+    status: completed
   - id: phase5c
     content: Integrate MediaSession API for lock screen controls
-    status: pending
+    status: completed
   - id: phase5d
     content: Ensure playback rate persists across reloads and new books
-    status: pending
+    status: completed
   - id: phase6a
     content: Add offline ebook support (EPUB blob in IndexedDB)
-    status: pending
+    status: completed
   - id: phase6b
     content: "Improve downloads: parallel tracks, per-track progress, quota handling"
-    status: pending
+    status: completed
   - id: phase6c
     content: Add Workbox runtime caching for covers and API metadata
-    status: pending
+    status: completed
 isProject: false
 ---
 

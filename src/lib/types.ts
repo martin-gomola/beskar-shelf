@@ -97,6 +97,8 @@ export interface OfflineBook {
   totalBytes: number
   updatedAt: number
   tracks: OfflineTrack[]
+  ebookBlob?: Blob | null
+  ebookFormat?: string | null
 }
 
 export interface ProgressPayload {

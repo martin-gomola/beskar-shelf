@@ -7,7 +7,14 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 60 * 1000,
+    },
+  },
+})
 
 registerSW({ immediate: true })
 

@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   server: 'beskar:pwa:server',
   session: 'beskar:pwa:session',
   playback: 'beskar:pwa:playback',
+  progressQueue: 'beskar:pwa:progress-queue',
 } as const
 
 const DB_NAME = 'beskar-shelf'
@@ -61,6 +62,26 @@ export function loadPlaybackState() {
 
 export function savePlaybackState(state: PersistedPlaybackState | null) {
   writeJson(STORAGE_KEYS.playback, state)
+}
+
+interface QueuedProgress {
+  itemId: string
+  payload: Record<string, unknown>
+  queuedAt: number
+}
+
+export function loadProgressQueue(): QueuedProgress[] {
+  return readJson<QueuedProgress[]>(STORAGE_KEYS.progressQueue) ?? []
+}
+
+export function saveProgressQueue(queue: QueuedProgress[]) {
+  writeJson(STORAGE_KEYS.progressQueue, queue.length > 0 ? queue : null)
+}
+
+export function enqueueProgress(itemId: string, payload: Record<string, unknown>) {
+  const queue = loadProgressQueue().filter((entry) => entry.itemId !== itemId)
+  queue.push({ itemId, payload, queuedAt: Date.now() })
+  saveProgressQueue(queue)
 }
 
 async function openOfflineDb() {

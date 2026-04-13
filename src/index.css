@@ -237,6 +237,12 @@ h3 {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 
+.library-scroll-container {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .library-pills {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
@@ -276,6 +282,19 @@ h3 {
   width: min(72vw, 340px);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.cover-img-loaded {
+  opacity: 1;
 }
 
 .book-card span {

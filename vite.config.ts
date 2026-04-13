@@ -33,6 +33,30 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png}'],
+          runtimeCaching: [
+            {
+              urlPattern: /\/api\/items\/[^/]+\/cover/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'abs-covers',
+                expiration: {
+                  maxEntries: 200,
+                  maxAgeSeconds: 7 * 24 * 60 * 60,
+                },
+              },
+            },
+            {
+              urlPattern: /\/api\/(libraries|me|items)/,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'abs-api',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 5 * 60,
+                },
+              },
+            },
+          ],
         },
       }),
     ],

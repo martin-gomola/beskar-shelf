@@ -1,0 +1,28 @@
+import { createContext, useContext } from 'react'
+
+import type { AudiobookshelfClient } from '../lib/api'
+import type { BookItem, OfflineBook, PersistedPlaybackState, ServerConfig, UserSession } from '../lib/types'
+
+export interface AppContextValue {
+  server: ServerConfig | null
+  setServer: (server: ServerConfig | null) => void
+  session: UserSession | null
+  setSession: (session: UserSession | null) => void
+  client: AudiobookshelfClient
+  offlineBooks: OfflineBook[]
+  refreshOfflineBooks: () => Promise<void>
+  playbackState: PersistedPlaybackState | null
+  startBook: (item: BookItem) => Promise<void>
+  downloadCurrentBook: (item: BookItem) => Promise<void>
+  removeOfflineBook: (itemId: string) => Promise<void>
+}
+
+export const AppContext = createContext<AppContextValue | null>(null)
+
+export function useAppContext() {
+  const context = useContext(AppContext)
+  if (!context) {
+    throw new Error('App context is not available.')
+  }
+  return context
+}
