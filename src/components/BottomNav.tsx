@@ -1,3 +1,4 @@
+import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 
@@ -37,7 +38,7 @@ function IconSettings() {
   )
 }
 
-const NAV_ITEMS: { href: string; label: string; icon: () => JSX.Element }[] = [
+const NAV_ITEMS: { href: string; label: string; icon: () => React.ReactNode }[] = [
   { href: '/home', label: 'Home', icon: IconHome },
   { href: '/downloads', label: 'Library', icon: IconLibrary },
   { href: '/player', label: 'Player', icon: IconPlay },
