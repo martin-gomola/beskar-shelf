@@ -19,7 +19,7 @@ function ShelfSection({ shelves }: { shelves: { id: string; label: string; entit
           </div>
           <div className="cover-row">
             {shelf.entities.slice(0, 12).map((item) => (
-              <BookCard key={item.id} item={item} />
+              <BookCard key={item.id} item={item} eager />
             ))}
           </div>
         </section>

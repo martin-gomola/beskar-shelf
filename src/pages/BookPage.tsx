@@ -66,7 +66,7 @@ export function BookPage() {
           </button>
         ) : null}
         {canRead ? (
-          <Link className={clsx(canPlay ? 'ghost-button' : 'primary-button', 'bd-action-main')} to={`/read/${item.id}`}>
+          <Link className={clsx(canPlay ? 'ghost-button' : 'primary-button', 'bd-action-main')} to={`/read/${item.id}`} replace>
             {item.ebookLocation ? 'Continue reading' : 'Read'}
           </Link>
         ) : null}

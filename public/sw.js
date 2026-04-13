@@ -39,14 +39,17 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return
 
   // Cover images: cache-first (rarely change)
-  if (/\/api\/items\/[^/]+\/cover/.test(url.pathname)) {
+  // Strip query params (token) from cache key so covers survive token rotation
+  if (/\/(?:abs\/)?api\/items\/[^/]+\/cover/.test(url.pathname)) {
+    const cacheKey = new Request(url.origin + url.pathname, { method: 'GET' })
     event.respondWith(
-      caches.match(request).then((cached) => {
+      caches.match(cacheKey).then((cached) => {
         if (cached) return cached
         return fetch(request).then((response) => {
-          if (response.ok) event.waitUntil(cachePutSafe(request, response))
+          if (response.ok) event.waitUntil(cachePutSafe(cacheKey, response))
           return response
-        }).catch(() => new Response('', { status: 404 }))
+        }).catch(() => caches.match(cacheKey)
+          .then((fallback) => fallback || new Response('', { status: 404 })))
       })
     )
     return

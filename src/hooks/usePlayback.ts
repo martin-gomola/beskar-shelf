@@ -370,11 +370,18 @@ export function usePlayback(
     }
     try {
       const item = await client.getItem(playbackState.itemId)
+      if (item.audioTracks.length === 0) {
+        savePlaybackState(null)
+        setPlaybackState(null)
+        return
+      }
       await startBook(item)
       if (audioRef.current) {
         audioRef.current.currentTime = playbackState.currentTime
       }
     } catch (error) {
+      savePlaybackState(null)
+      setPlaybackState(null)
       console.error(error)
     }
   })
@@ -388,6 +395,9 @@ export function usePlayback(
 
   async function startBook(item: BookItem) {
     const playbackSession = await client.startPlayback(item.id)
+    if (playbackSession.audioTracks.length === 0) {
+      return
+    }
     const sources = await createSourcesForItem(item.id, playbackSession)
     const initialTime = item.currentTime || playbackState?.itemId === item.id
       ? playbackState?.currentTime ?? item.currentTime

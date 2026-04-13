@@ -239,8 +239,8 @@ h3 {
 .stats-row select {
   width: 100%;
   border-radius: var(--radius);
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
   color: var(--text);
   padding: var(--sp-3) var(--sp-3);
   font-size: var(--fs-base);
@@ -253,7 +253,7 @@ h3 {
 .stats-row select:focus-visible {
   border-color: var(--accent-500);
   box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--surface-solid);
 }
 
 .field input::placeholder,
@@ -1268,7 +1268,7 @@ h3 {
 
 .token-divider span {
   position: relative;
-  background: var(--surface);
+  background: var(--glass-bg-heavy);
   padding: 0 var(--sp-3);
 }
 

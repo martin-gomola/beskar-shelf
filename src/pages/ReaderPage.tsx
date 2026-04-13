@@ -62,10 +62,14 @@ function ReaderPage() {
     }
   })
 
+  const pendingPayloadRef = useRef<{ cfi: string; progress: number } | null>(null)
+
   const debouncedCommit = useCallback((payload: { cfi: string; progress: number }) => {
+    pendingPayloadRef.current = payload
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null
+      pendingPayloadRef.current = null
       void commitReaderProgress(payload)
     }, 3000)
   }, [commitReaderProgress])
@@ -177,6 +181,10 @@ function ReaderPage() {
         clearTimeout(debounceRef.current)
         debounceRef.current = null
       }
+      if (pendingPayloadRef.current) {
+        void commitReaderProgress(pendingPayloadRef.current)
+        pendingPayloadRef.current = null
+      }
       const view = viewRef.current
       if (view) {
         view.close()
@@ -236,7 +244,7 @@ function ReaderPage() {
 
       {/* Top bar — slides in when showUI is true */}
       <header className={`reader-topbar ${showUI ? 'reader-topbar-visible' : ''}`}>
-        <button className="reader-back-btn" onClick={() => navigate(`/book/${item.id}`)}>
+        <button className="reader-back-btn" onClick={() => navigate(`/book/${item.id}`, { replace: true })}>
           ←
         </button>
         <div className="reader-topbar-title">

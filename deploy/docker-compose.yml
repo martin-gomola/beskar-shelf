@@ -4,8 +4,6 @@ services:
   audiobookshelf:
     image: ghcr.io/advplyr/audiobookshelf:${ABS_VERSION:-latest}
     container_name: audiobookshelf
-    env_file:
-      - .env
     environment:
       TZ: ${TZ:-UTC}
     ports:
