@@ -1,140 +1,95 @@
 # beskar-shelf
 
-Forge YouTube audiobooks into beskar-grade MP3s, run your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) server, and ship a custom listening client on top. This is the Way.
+A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) armory. Browse libraries, play audiobooks, read ebooks, sync progress, stash content offline. This is the Way.
 
-## Project Layout
+## The Armory
+
+- Login and server onboarding
+- Library browsing with home shelves
+- Chapter list, resume state, item detail
+- Player with rate control, seek, queue, progress sync
+- EPUB/PDF reader via the Audiobookshelf ebook endpoint
+- Offline downloads stored in IndexedDB
+
+## Layout
 
 ```text
 beskar-shelf/
-├── bin/grab                  # The foundry: validates inputs, fetches metadata, downloads audio
-├── bin/fix-ebooks            # Reorganizes ebook files into per-book folders
-├── apps/pwa/                 # Beskar Shelf PWA client for playback and offline listening
-├── docker/                   # Audiobookshelf deployment files
-├── links.txt                 # YouTube URLs, one per line
-├── downloads/                # Default output location from .env.example
+├── src/                     # React + TypeScript source
+├── public/                  # Icons, favicon
+├── index.html
+├── package.json
+├── vite.config.ts           # Vite + PWA + proxy
+├── Dockerfile               # Multi-stage build → nginx
+├── nginx.conf
+├── deploy/                  # Audiobookshelf + PWA compose stack
+├── tools/grab/              # YouTube → MP3 pipeline (self-contained)
+├── bin/fix-ebooks           # Reorganize ebook folders for ABS
 ├── Makefile
-└── .env                      # Local settings, not tracked
+└── .env.example
 ```
 
-## Prerequisites
-
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- [ffmpeg](https://ffmpeg.org/)
+## Quick Start
 
 ```bash
-brew install yt-dlp ffmpeg
+make install
+make dev
 ```
-
-## Happy Path
-
-```bash
-make setup
-$EDITOR .env
-$EDITOR links.txt
-make doctor
-make download
-```
-
-`make setup` only creates missing files, so it is safe to rerun.
 
 ## Configuration
 
-Start from `.env.example`:
+Copy `.env.example` to `.env`:
+
+| Variable | Purpose |
+|---|---|
+| `VITE_APP_NAME` | Display name |
+| `VITE_DEFAULT_SERVER_URL` | Pre-filled server URL on first launch |
+| `VITE_ABS_PROXY_BASE` | Dev proxy prefix (default `/abs`) |
+| `ABS_URL` | Audiobookshelf server URL, doubles as dev proxy target |
+| `ABS_TOKEN` | API token for metadata management |
+| `ABS_LIBRARY_ID` | Target library for metadata management |
+
+## Development
 
 ```bash
+make install    # dependencies
+make dev        # Vite dev server + ABS proxy
+make lint       # linter
+make test       # tests
+make build      # production bundle
+```
+
+`make dev` proxies browser requests to `ABS_URL` under `/abs`, sidestepping CORS when your Audiobookshelf server sits on a different origin.
+
+## Deploy
+
+Full stack guide in `deploy/README.md`.
+
+```bash
+cd deploy
 cp .env.example .env
-cp links.txt.example links.txt
+$EDITOR .env
+docker compose up -d
 ```
 
-Required:
+## Grab: YouTube → MP3
 
-- `OUTPUT_DIR`: where generated audiobook folders will be written
-
-Optional:
-
-- `SPLIT_THRESHOLD`: split files longer than this many seconds
-- `SEGMENT_LENGTH`: segment size in seconds when fixed-length splitting is needed
-- `ABS_URL`, `ABS_TOKEN`, `ABS_LIBRARY_ID`: used by the separate Audiobookshelf metadata-management skill
-
-Relative paths in `OUTPUT_DIR` are resolved against the repo root.
-
-## Commands
+Self-contained pipeline in `tools/grab/`. Details in `tools/grab/README.md`.
 
 ```bash
-make help
-make setup
-make doctor
-make download
-make download-dry-run
-make pwa-install
-make pwa-dev
-make pwa-build
-make pwa-test
+make doctor           # preflight checks
+make download-dry-run # validate + print plan
+make download         # forge the audiobooks
 ```
 
-You can also call the script directly:
+## Ebook Utilities
+
+`bin/fix-ebooks` moves flat ebook files into per-book subdirectories so Audiobookshelf can scan them:
 
 ```bash
-./bin/grab --help
-./bin/grab --dry-run
-./bin/grab --links-file my-targets.txt --limit 1
+./bin/fix-ebooks /path/to/author-directory
 ```
-
-CLI flag precedence is:
-
-1. command-line flags
-2. `.env`
-3. built-in defaults
-
-## Download Behavior
-
-For each valid URL in `links.txt`, `bin/grab`:
-
-- fetches video metadata and derives `Author/Title/`
-- splits by YouTube chapters when available
-- otherwise downloads a single MP3 and splits it by fixed length only when it exceeds `SPLIT_THRESHOLD`
-- converts the downloaded thumbnail into `cover.jpg` for Audiobookshelf
-- removes leftover source audio artifacts
-
-`make download-dry-run` performs the same validation and metadata fetch, then prints the planned target folder and split mode without writing files.
-
-Generated media lands in `OUTPUT_DIR/Author/Title/`. Point your Audiobookshelf library at that root and trigger a library scan after new downloads complete.
-
-## Audiobookshelf Deployment
-
-The `docker/README.md` guide covers Docker setup, storage layout, reverse proxy requirements, and the optional email bootstrap helper.
-
-## Beskar Shelf PWA
-
-The repo now includes a standalone frontend app in `apps/pwa` for a mobile-first Audiobookshelf experience.
-
-Current scope:
-
-- server URL onboarding and username/password login
-- home shelves and library browsing
-- item detail with chapter list and resume state
-- global player with rate control, seek, queue, and progress sync
-- EPUB/PDF reader route backed by the Audiobookshelf ebook endpoint
-- explicit offline downloads backed by IndexedDB
-
-Run it locally:
-
-```bash
-make pwa-install
-make pwa-dev
-```
-
-`make pwa-dev` sources the repo `.env` and proxies browser API/media requests to `ABS_URL` under `/abs` so local development can work even when your Audiobookshelf server does not allow cross-origin browser access.
-
-Validate it:
-
-```bash
-make pwa-test
-make pwa-build
-```
-
-The app now supports both listening and reading. Audiobook playback, ebook reading, and progress sync all run against the same Audiobookshelf account and server.
 
 ## Library Management
 
-The included `abs-library-manager` skill can fix titles, authors, collections, and series metadata through the Audiobookshelf API after your library has been scanned.
+The `abs-library-manager` skill fixes titles, authors, collections, and series metadata through the Audiobookshelf API after a library scan.

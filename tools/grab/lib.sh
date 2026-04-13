@@ -2,12 +2,13 @@
 
 set -euo pipefail
 
-BESKAR_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+GRAB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BESKAR_REPO_ROOT="$(cd "$GRAB_DIR/../.." && pwd)"
 
 beskar_load_env() {
-    if [ -f "$BESKAR_REPO_ROOT/.env" ]; then
+    if [ -f "$GRAB_DIR/.env" ]; then
         # shellcheck disable=SC1091
-        source "$BESKAR_REPO_ROOT/.env"
+        source "$GRAB_DIR/.env"
     fi
 }
 

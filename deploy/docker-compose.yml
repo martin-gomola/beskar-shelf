@@ -35,7 +35,7 @@ services:
   beskar-shelf-pwa:
     build:
       context: ..
-      dockerfile: apps/pwa/Dockerfile
+      dockerfile: Dockerfile
     container_name: beskar-shelf-pwa
     ports:
       - "${PWA_PORT:-4173}:4173"

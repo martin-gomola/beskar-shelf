@@ -227,7 +227,11 @@ function App() {
     }
 
     if (audioRef.current.paused) {
-      await audioRef.current.play()
+      try {
+        await audioRef.current.play()
+      } catch {
+        // Browser blocked autoplay — state stays paused via the 'play' event listener
+      }
       return
     }
 
@@ -384,7 +388,11 @@ function App() {
       audio.removeEventListener('timeupdate', onTimeUpdate)
       audio.removeEventListener('ended', onEnded)
     }
-  }, [activePlayback, playbackRate, playbackState])
+  // playbackState intentionally excluded — it is only read for the initial
+  // currentTime when src changes.  Including it would re-run the effect
+  // (and call audio.play()) every time commitProgress updates the state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePlayback, playbackRate])
 
   useEffect(() => {
     if (!activePlayback) {

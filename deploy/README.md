@@ -26,7 +26,7 @@ Then open `http://localhost:13378` and create the admin account in the web UI.
 - `/metadata` -> `${DATA_DIR}/audiobookshelf/metadata`
 - `/config` -> `${DATA_DIR}/audiobookshelf/config`
 
-Point your `beskar-shelf` `OUTPUT_DIR` at the same host directory you want Audiobookshelf to scan for audiobooks, then trigger a library scan after new downloads are created.
+Point the `OUTPUT_DIR` in `tools/grab/.env` at the same host directory you want Audiobookshelf to scan for audiobooks, then trigger a library scan after new downloads are created.
 
 ## Reverse Proxy
 
@@ -40,13 +40,13 @@ Point your `beskar-shelf` `OUTPUT_DIR` at the same host directory you want Audio
 
 ## Beskar Shelf PWA
 
-The repo now includes a separate PWA client in `apps/pwa`. It is a custom mobile web app for browsing Audiobookshelf libraries, starting playback sessions, reading EPUB/PDF items, syncing progress, and downloading audiobooks for offline listening.
+The repo root is the PWA client — a custom mobile web app for browsing Audiobookshelf libraries, starting playback sessions, reading EPUB/PDF items, syncing progress, and downloading audiobooks for offline listening.
 
 ### Local Development
 
 ```bash
-make pwa-install
-make pwa-dev
+make install
+make dev
 ```
 
 The dev server reads `ABS_URL` from the repo root `.env` and mounts a local `/abs` proxy to avoid browser CORS failures against a remote Audiobookshelf host.
@@ -54,8 +54,8 @@ The dev server reads `ABS_URL` from the repo root `.env` and mounts a local `/ab
 ### Validation
 
 ```bash
-make pwa-test
-make pwa-build
+make test
+make build
 ```
 
 ### Docker

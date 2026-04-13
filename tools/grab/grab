@@ -6,10 +6,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib.sh"
 
-ENV_FILE="$BESKAR_REPO_ROOT/.env"
+ENV_FILE="$GRAB_DIR/.env"
 beskar_load_env
 
-LINKS_FILE="${BESKAR_REPO_ROOT}/links.txt"
+LINKS_FILE="${GRAB_DIR}/links.txt"
 OUTPUT_DIR_VALUE="${OUTPUT_DIR:-}"
 SPLIT_THRESHOLD_VALUE="${SPLIT_THRESHOLD:-3600}"
 SEGMENT_LENGTH_VALUE="${SEGMENT_LENGTH:-1800}"
@@ -38,8 +38,8 @@ Config precedence:
   CLI flags > .env > built-in defaults
 
 Default files:
-  links file:  ./links.txt
-  env file:    ./.env
+  links file:  tools/grab/links.txt
+  env file:    tools/grab/.env
 EOF
 }
 
