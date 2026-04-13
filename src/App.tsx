@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { AudiobookshelfClient } from './lib/api'
 import {
@@ -32,6 +32,12 @@ function App() {
     setSessionState(next)
     saveUserSession(next)
   }
+
+  useEffect(() => {
+    const handleExpired = () => setSession(null)
+    window.addEventListener('session-expired', handleExpired)
+    return () => window.removeEventListener('session-expired', handleExpired)
+  }, [])
 
   const {
     offlineBooks,

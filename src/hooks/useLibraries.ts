@@ -7,9 +7,9 @@ export function useLibraries() {
   const client = useClient()
   const { session } = useAppContext()
   return useQuery({
-    queryKey: ['libraries', session?.user.id, client.hasServer()],
+    queryKey: ['libraries', session?.token],
     queryFn: () => client.getLibraries(),
-    enabled: client.hasServer() && client.hasSession(),
+    enabled: Boolean(session?.token) && client.hasServer(),
     staleTime: 5 * 60 * 1000,
   })
 }

@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import type {
   AudioTrack,
   BookItem,
@@ -12,30 +14,26 @@ import { normalizeBaseUrl, sumDurations } from './utils'
 
 const proxyBase = normalizeBaseUrl(import.meta.env.VITE_ABS_PROXY_BASE ?? '')
 
-async function parseLoginResponse(raw: unknown) {
-  const { z } = await import('zod')
-  const loginSchema = z.object({
-    user: z
-      .object({
+const loginSchema = z.object({
+  user: z
+    .object({
+      id: z.string(),
+      username: z.string(),
+      token: z.string(),
+      type: z.string().optional(),
+    })
+    .optional(),
+  response: z
+    .object({
+      user: z.object({
         id: z.string(),
         username: z.string(),
         token: z.string(),
         type: z.string().optional(),
-      })
-      .optional(),
-    response: z
-      .object({
-        user: z.object({
-          id: z.string(),
-          username: z.string(),
-          token: z.string(),
-          type: z.string().optional(),
-        }),
-      })
-      .optional(),
-  })
-  return loginSchema.parse(raw)
-}
+      }),
+    })
+    .optional(),
+})
 
 export class SessionExpiredError extends Error {
   constructor(message: string) {
@@ -280,7 +278,7 @@ export class AudiobookshelfClient {
   }
 
   async login(username: string, password: string) {
-    const payload = await parseLoginResponse(
+    const payload = loginSchema.parse(
       await this.request('/login', {
         method: 'POST',
         body: JSON.stringify({ username, password }),

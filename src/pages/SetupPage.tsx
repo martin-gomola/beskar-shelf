@@ -8,7 +8,7 @@ const proxyBase = import.meta.env.VITE_ABS_PROXY_BASE?.trim() ?? ''
 export function SetupPage() {
   const { setServer } = useAppContext()
   const navigate = useNavigate()
-  const [baseUrl, setBaseUrl] = useState('')
+  const [baseUrl, setBaseUrl] = useState(import.meta.env.VITE_DEFAULT_SERVER_URL?.trim() ?? '')
 
   return (
     <main className="screen setup-screen">

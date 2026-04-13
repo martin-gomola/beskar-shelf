@@ -67,10 +67,13 @@ export function HomePage() {
       ) : null}
 
       <QueryState
-        isPending={personalizedQuery.isPending}
-        error={personalizedQuery.error as Error | null}
+        isPending={librariesQuery.isPending || personalizedQuery.isPending && !personalizedQuery.isError}
+        error={librariesQuery.error ?? personalizedQuery.error as Error | null}
       >
-        <ShelfSection shelves={personalizedQuery.data ?? []} />
+        {personalizedQuery.data?.length
+          ? <ShelfSection shelves={personalizedQuery.data} />
+          : <section className="card"><p className="muted">No books found. Add some to your Audiobookshelf library.</p></section>
+        }
       </QueryState>
     </main>
   )

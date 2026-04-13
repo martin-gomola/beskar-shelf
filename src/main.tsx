@@ -7,11 +7,23 @@ import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
+import { QueryCache } from '@tanstack/react-query'
+import { SessionExpiredError } from './lib/api'
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (error instanceof SessionExpiredError) {
+        window.dispatchEvent(new CustomEvent('session-expired'))
+      }
+    },
+  }),
   defaultOptions: {
     queries: {
-      retry: 2,
+      retry: (failureCount, error) => {
+        if (error instanceof SessionExpiredError) return false
+        return failureCount < 2
+      },
       staleTime: 60 * 1000,
     },
   },
