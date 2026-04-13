@@ -399,10 +399,11 @@ export function usePlayback(
       return
     }
     const sources = await createSourcesForItem(item.id, playbackSession)
+    const hasSavedPosition = playbackState?.itemId === item.id && playbackState.currentTime > 0
     const initialTime = startTime != null
       ? startTime
-      : item.currentTime || playbackState?.itemId === item.id
-        ? playbackState?.currentTime ?? item.currentTime
+      : hasSavedPosition
+        ? playbackState.currentTime
         : item.currentTime
     const initialTrackIndex = trackForTime(playbackSession.audioTracks, initialTime)
     const nextPlayback: ActivePlayback = {
