@@ -1,11 +1,12 @@
 const BUILD_VERSION = '__BUILD_VERSION__'
 const CACHE_NAME = `beskar-shelf-${BUILD_VERSION}`
+const COVER_CACHE = 'beskar-covers'
 
-const cachePutSafe = async (request, response) => {
+const cachePutSafe = async (cacheName, request, response) => {
   if (!response || response.bodyUsed) return
   if (response.status === 206) return
   try {
-    const cache = await caches.open(CACHE_NAME)
+    const cache = await caches.open(cacheName)
     await cache.put(request, response.clone())
   } catch (_) {}
 }
@@ -24,7 +25,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key.startsWith('beskar-shelf-') && key !== CACHE_NAME)
+          .filter((key) => key !== CACHE_NAME && key !== COVER_CACHE && key.startsWith('beskar-'))
           .map((key) => caches.delete(key))
       )
     )
@@ -38,19 +39,21 @@ self.addEventListener('fetch', (event) => {
 
   if (request.method !== 'GET') return
 
-  // Cover images: cache-first (rarely change)
+  // Cover images: cache-first in a long-lived cache (survives app updates)
   // Strip query params (token) from cache key so covers survive token rotation
   if (/\/(?:abs\/)?api\/items\/[^/]+\/cover/.test(url.pathname)) {
     const cacheKey = new Request(url.origin + url.pathname, { method: 'GET' })
     event.respondWith(
-      caches.match(cacheKey).then((cached) => {
-        if (cached) return cached
-        return fetch(request).then((response) => {
-          if (response.ok) event.waitUntil(cachePutSafe(cacheKey, response))
-          return response
-        }).catch(() => caches.match(cacheKey)
-          .then((fallback) => fallback || new Response('', { status: 404 })))
-      })
+      caches.open(COVER_CACHE).then((cache) =>
+        cache.match(cacheKey).then((cached) => {
+          if (cached) return cached
+          return fetch(request).then((response) => {
+            if (response.ok) event.waitUntil(cachePutSafe(COVER_CACHE, cacheKey, response))
+            return response
+          }).catch(() => cache.match(cacheKey)
+            .then((fallback) => fallback || new Response('', { status: 404 })))
+        })
+      )
     )
     return
   }
@@ -69,7 +72,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          event.waitUntil(cachePutSafe(request, response))
+          event.waitUntil(cachePutSafe(CACHE_NAME, request, response))
           return response
         })
         .catch(() =>
@@ -86,7 +89,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => {
       const networkFetch = fetch(request)
         .then((response) => {
-          if (response.ok) event.waitUntil(cachePutSafe(request, response))
+          if (response.ok) event.waitUntil(cachePutSafe(CACHE_NAME, request, response))
           return response
         })
         .catch(() => cached)

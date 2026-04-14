@@ -113,6 +113,7 @@ function bookFromUnknown(value: unknown): BookItem {
     libraryId: String(item.libraryId ?? representativeBook?.libraryId ?? ''),
     title: String(metadata.title ?? item.title ?? item.name ?? 'Untitled'),
     author: String(metadata.author || metadata.authorName || item.author || pathAuthor || 'Unknown author'),
+    narrator: String(metadata.narratorName ?? metadata.narrator ?? '') || null,
     description: String(metadata.description ?? ''),
     coverPath: typeof item.coverPath === 'string'
       ? item.coverPath
@@ -120,6 +121,7 @@ function bookFromUnknown(value: unknown): BookItem {
         ? media.coverPath
         : null,
     duration: Number(media.duration ?? sumDurations(tracks.map((track) => track.duration))),
+    size: Number(media.size ?? 0),
     genres: Array.isArray(metadata.genres)
       ? metadata.genres.map((genre) => String(genre))
       : [],

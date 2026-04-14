@@ -1,17 +1,47 @@
-import { useParams, Link } from 'react-router-dom'
+import { useState } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext } from '../contexts/PlayerContext'
-import { formatDuration, formatProgress } from '../lib/utils'
+import { formatDuration, formatProgress, formatBytes } from '../lib/utils'
+
+function IconChevronLeft() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  )
+}
+
+function IconDownload() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  )
+}
+
+function IconRefresh() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </svg>
+  )
+}
 
 export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
+  const navigate = useNavigate()
   const { startBook, downloadCurrentBook, offlineBooks } = useAppContext()
   const { activePlayback, seekTo } = usePlayerContext()
+  const [descExpanded, setDescExpanded] = useState(false)
   const query = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => client.getItem(itemId),
@@ -42,6 +72,11 @@ export function BookPage() {
 
   return (
     <main className="screen book-detail">
+      <button className="bd-back" onClick={() => navigate(-1)}>
+        <IconChevronLeft />
+        Back
+      </button>
+
       {/* Cover hero — full-width, centered */}
       <div className="bd-cover-wrap">
         <div
@@ -74,7 +109,9 @@ export function BookPage() {
         ) : null}
         {canPlay ? (
           <button className="ghost-button bd-action-secondary" onClick={() => void downloadCurrentBook(item)}>
-            {offline?.status === 'downloaded' ? '↻ Redownload' : '↓ Offline'}
+            {offline?.status === 'downloaded'
+              ? <><IconRefresh /> Redownload</>
+              : <><IconDownload /> Download</>}
           </button>
         ) : null}
       </div>
@@ -111,10 +148,39 @@ export function BookPage() {
         </div>
       </div>
 
-      {/* Description */}
+      {/* Synopsis */}
       {item.description?.trim() ? (
-        <div className="bd-description">
+        <div className={clsx('bd-description', { expanded: descExpanded })}>
+          <h3 className="bd-section-title">Synopsis</h3>
           <p>{item.description.trim().replace(/\s+/g, ' ')}</p>
+          <button className="bd-description-toggle" onClick={() => setDescExpanded(!descExpanded)}>
+            {descExpanded ? 'Show less' : '... more'}
+          </button>
+        </div>
+      ) : null}
+
+      {/* Narration & Media */}
+      {canPlay ? (
+        <div className="bd-info-section">
+          <h3 className="bd-section-title">Narration &amp; Media</h3>
+          <dl className="bd-info-grid">
+            {item.narrator ? (
+              <div className="bd-info-row">
+                <dt>Narrator</dt>
+                <dd>{item.narrator}</dd>
+              </div>
+            ) : null}
+            <div className="bd-info-row">
+              <dt>Duration</dt>
+              <dd>{formatDuration(item.duration)}</dd>
+            </div>
+            {item.size ? (
+              <div className="bd-info-row">
+                <dt>Size</dt>
+                <dd>{formatBytes(item.size)}</dd>
+              </div>
+            ) : null}
+          </dl>
         </div>
       ) : null}
 

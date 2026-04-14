@@ -42,18 +42,18 @@ export function HomePage() {
   return (
     <main className="screen home-screen">
       <section className="screen-header">
-        <div>
-          <h1>Discovery</h1>
-        </div>
-        {primary ? <Link className="ghost-button" to={`/library/${primary.id}`}>Browse all</Link> : null}
+        <h1>Discovery</h1>
       </section>
 
-      <section className="library-pills">
-        {(librariesQuery.data ?? []).map((library) => (
-          <Link key={library.id} className="pill-link" to={`/library/${library.id}`}>
-            {library.name}
-          </Link>
-        ))}
+      <section className="library-toolbar">
+        <div className="library-pills">
+          {(librariesQuery.data ?? []).map((library) => (
+            <Link key={library.id} className="pill-link" to={`/library/${library.id}`}>
+              {library.name}
+            </Link>
+          ))}
+        </div>
+        {primary ? <Link className="text-link" to={`/library/${primary.id}`}>Browse all</Link> : null}
       </section>
 
       {playbackState ? (

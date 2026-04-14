@@ -40,9 +40,11 @@ export interface BookItem {
   libraryId: string
   title: string
   author: string
+  narrator: string | null
   description: string
   coverPath: string | null
   duration: number
+  size: number
   genres: string[]
   progress: number
   currentTime: number
