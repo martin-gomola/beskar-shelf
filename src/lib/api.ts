@@ -267,7 +267,17 @@ export class AudiobookshelfClient {
           return null as T
         }
 
-        return response.json() as Promise<T>
+        const contentType = response.headers?.get('content-type') ?? ''
+        if (contentType.includes('application/json') || typeof response.text !== 'function') {
+          return response.json() as Promise<T>
+        }
+
+        const text = await response.text()
+        if (!text || text.trim() === '' || text.trim().toUpperCase() === 'OK') {
+          return null as T
+        }
+
+        return text as T
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))
         if (error instanceof SessionExpiredError || attempt === retries) {

@@ -71,6 +71,25 @@ describe('AudiobookshelfClient', () => {
     })
   })
 
+  it('treats plain-text OK mutation responses as success', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'text/plain; charset=utf-8' }),
+        text: async () => 'OK',
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const client = new AudiobookshelfClient(server, session)
+    await expect(client.updateProgress('book_1', {
+      duration: 100,
+      progress: 0.5,
+      currentTime: 50,
+      isFinished: false,
+    })).resolves.toBeUndefined()
+  })
+
   it('maps item metadata and progress into the client book shape', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
