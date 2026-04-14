@@ -38,7 +38,3 @@ export function formatBytes(bytes: number) {
   const value = bytes / Math.pow(1024, i)
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
 }
-
-export function sleep(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}

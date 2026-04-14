@@ -6,6 +6,17 @@
 tools/grab/.env
 tools/grab/links.txt
 
+# Local AI/editor/runtime state
+.claude/
+.cursor/
+.code-review-graph/
+.cursorrules
+.windsurfrules
+.mcp.json
+.opencode.json
+CLAUDE.md
+GEMINI.md
+
 # OMX runtime state
 .omx/
 

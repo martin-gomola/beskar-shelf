@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Reorganize flat ebook files into per-book subdirectories for Audiobookshelf.
-# Usage: ./bin/fix-ebooks /path/to/author-dir
+# Usage: ./tools/fix-ebooks /path/to/author-dir
 #
 # Before: Author/01 - Title.epub
 # After:  Author/01 - Title/01 - Title.epub

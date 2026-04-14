@@ -23,7 +23,7 @@ beskar-shelf/
 ├── Dockerfile               # Multi-stage build → nginx
 ├── nginx.conf               # PWA container nginx template
 ├── tools/grab/              # YouTube → MP3 pipeline (self-contained)
-├── bin/fix-ebooks           # Reorganize ebook folders for ABS
+├── tools/fix-ebooks         # Reorganize ebook folders for ABS
 ├── Makefile
 └── .env.example
 ```
@@ -89,10 +89,10 @@ make download         # forge the audiobooks
 
 ## Ebook Utilities
 
-`bin/fix-ebooks` moves flat ebook files into per-book subdirectories so Audiobookshelf can scan them:
+`tools/fix-ebooks` moves flat ebook files into per-book subdirectories so Audiobookshelf can scan them:
 
 ```bash
-./bin/fix-ebooks /path/to/author-directory
+./tools/fix-ebooks /path/to/author-directory
 ```
 
 ## Library Management
