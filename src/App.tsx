@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { AudiobookshelfClient } from './lib/api'
 import {
@@ -18,6 +19,7 @@ import { useOffline } from './hooks/useOffline'
 import { Shell } from './components/Shell'
 
 function App() {
+  const queryClient = useQueryClient()
   const [server, setServerState] = useState<ServerConfig | null>(() => loadServerConfig())
   const [session, setSessionState] = useState<UserSession | null>(() => loadUserSession())
   const [playbackState, setPlaybackState] = useState<PersistedPlaybackState | null>(() => loadPlaybackState())
@@ -46,6 +48,15 @@ function App() {
     removeOfflineBook,
   } = useOffline(client)
 
+  async function refreshBooks() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['libraries'] }),
+      queryClient.invalidateQueries({ queryKey: ['personalized'] }),
+      queryClient.invalidateQueries({ queryKey: ['library-paginated'] }),
+      queryClient.invalidateQueries({ queryKey: ['item'] }),
+    ])
+  }
+
   const {
     activePlayback,
     playbackTime,
@@ -68,6 +79,7 @@ function App() {
     session,
     setSession,
     offlineBooks,
+    refreshBooks,
     refreshOfflineBooks,
     playbackState,
     startBook,

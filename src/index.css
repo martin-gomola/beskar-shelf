@@ -510,6 +510,11 @@ h3 {
   background: var(--hover-bg);
 }
 
+.settings-action:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
 .settings-action > span:first-child {
   font-size: var(--fs-base);
   color: var(--text);
@@ -1605,6 +1610,10 @@ h3 {
   background: var(--accent-500);
   border-radius: 2px;
   transition: width 300ms ease;
+}
+
+.reader-progress-fill-loading {
+  background: linear-gradient(90deg, var(--accent-400), var(--accent-500));
 }
 
 .reader-progress-label {

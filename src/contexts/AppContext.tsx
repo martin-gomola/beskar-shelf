@@ -8,6 +8,7 @@ export interface AppContextValue {
   session: UserSession | null
   setSession: (session: UserSession | null) => void
   offlineBooks: OfflineBook[]
+  refreshBooks: () => Promise<void>
   refreshOfflineBooks: () => Promise<void>
   playbackState: PersistedPlaybackState | null
   startBook: (item: BookItem, startTime?: number) => Promise<void>

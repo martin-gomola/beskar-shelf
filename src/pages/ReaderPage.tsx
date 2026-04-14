@@ -33,6 +33,7 @@ function ReaderPage() {
   const [theme, setTheme] = useState<ReaderTheme>('sepia')
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE)
   const [ready, setReady] = useState(false)
+  const [bootProgress, setBootProgress] = useState(0)
   const [pdfSrc, setPdfSrc] = useState<string | null>(null)
 
   const query = useQuery({
@@ -121,11 +122,14 @@ function ReaderPage() {
 
     let cancelled = false
     const el = containerRef.current
+    setReady(false)
+    setBootProgress(8)
 
     void (async () => {
       await import('foliate-js/view.js')
 
       if (cancelled) return
+      setBootProgress(22)
 
       const view = document.createElement('foliate-view') as InstanceType<typeof import('foliate-js/view.js').View>
       view.style.cssText = 'width: 100%; height: 100%; display: block;'
@@ -138,6 +142,7 @@ function ReaderPage() {
         ? offline.ebookBlob
         : await client.downloadEbook(item.id)
       if (cancelled) return
+      setBootProgress(55)
 
       const file = new File([blob], `${item.id}.${item.ebookFormat}`, {
         type: blob.type || 'application/epub+zip',
@@ -145,6 +150,7 @@ function ReaderPage() {
 
       await view.open(file)
       if (cancelled) return
+      setBootProgress(78)
 
       if (view.renderer) {
         view.renderer.setAttribute('flow', 'paginated')
@@ -180,6 +186,7 @@ function ReaderPage() {
         showTextStart: !savedCfi,
       })
 
+      setBootProgress(100)
       setReady(true)
     })()
 
@@ -200,6 +207,7 @@ function ReaderPage() {
       }
       viewRef.current = null
       setReady(false)
+      setBootProgress(0)
     }
   }, [applyTheme, client, commitReaderProgress, item])
 
@@ -264,7 +272,8 @@ function ReaderPage() {
   }
 
   const currentTheme = THEMES[theme]
-  const progressPct = Math.round((readerProgress || item.ebookProgress) * 100)
+  const isBootingEpub = !isPdf && !ready
+  const footerProgressPct = isBootingEpub ? bootProgress : Math.round((readerProgress || item.ebookProgress) * 100)
 
   return (
     <div className="reader-fullscreen" style={{ background: currentTheme.bg }}>
@@ -322,13 +331,13 @@ function ReaderPage() {
       )}
 
       {/* Bottom bar — progress */}
-      <footer className={`reader-bottombar ${showUI ? 'reader-bottombar-visible' : ''}`}>
+      <footer className={`reader-bottombar ${(showUI || isBootingEpub) ? 'reader-bottombar-visible' : ''}`}>
         <div className="reader-progress-track">
-          <div className="reader-progress-fill" style={{ width: `${progressPct}%` }} />
+          <div className={`reader-progress-fill ${isBootingEpub ? 'reader-progress-fill-loading' : ''}`} style={{ width: `${footerProgressPct}%` }} />
         </div>
         <div className="reader-progress-label">
-          <span>{formatProgress(readerProgress || item.ebookProgress)}</span>
-          <span>{item.ebookFormat.toUpperCase()}</span>
+          <span>{isBootingEpub ? 'Opening book…' : formatProgress(readerProgress || item.ebookProgress)}</span>
+          <span>{isBootingEpub ? `${footerProgressPct}%` : item.ebookFormat.toUpperCase()}</span>
         </div>
       </footer>
 

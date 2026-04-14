@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
@@ -11,9 +12,19 @@ const THEME_OPTIONS = [
 ]
 
 function SettingsPage() {
-  const { server, session, setSession, setServer, refreshOfflineBooks } = useAppContext()
+  const { server, session, setSession, setServer, refreshBooks, refreshOfflineBooks } = useAppContext()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
+  const [refreshingBooks, setRefreshingBooks] = useState(false)
+
+  async function handleRefreshBooks() {
+    setRefreshingBooks(true)
+    try {
+      await refreshBooks()
+    } finally {
+      setRefreshingBooks(false)
+    }
+  }
 
   return (
     <main className="screen settings-screen">
@@ -53,6 +64,15 @@ function SettingsPage() {
             <span className="settings-key">User</span>
             <span className="settings-value">{session?.user.username}</span>
           </div>
+          <div className="settings-divider" />
+          <button
+            className="settings-action"
+            onClick={() => void handleRefreshBooks()}
+            disabled={refreshingBooks}
+          >
+            <span>{refreshingBooks ? 'Refreshing books…' : 'Refresh books'}</span>
+            <span className="settings-action-hint">Refetch your libraries and titles</span>
+          </button>
         </div>
       </section>
 

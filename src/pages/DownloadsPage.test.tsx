@@ -13,6 +13,7 @@ function renderDownloadsPage(offlineBooks: OfflineBook[]) {
     session: null,
     setSession: vi.fn(),
     offlineBooks,
+    refreshBooks: vi.fn().mockResolvedValue(undefined),
     refreshOfflineBooks: vi.fn().mockResolvedValue(undefined),
     playbackState: null,
     startBook: vi.fn().mockResolvedValue(undefined),
