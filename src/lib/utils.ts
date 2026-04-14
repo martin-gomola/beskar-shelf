@@ -1,3 +1,5 @@
+import type { OfflineBook } from './types'
+
 export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
@@ -37,4 +39,12 @@ export function formatBytes(bytes: number) {
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
   const value = bytes / Math.pow(1024, i)
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+export function getOfflineBookBytes(book: Pick<OfflineBook, 'tracks' | 'ebookBlob' | 'totalBytes'>) {
+  const trackBytes = book.tracks.reduce((total, track) => total + track.blob.size, 0)
+  const ebookBytes = book.ebookBlob?.size ?? 0
+  const derivedBytes = trackBytes + ebookBytes
+
+  return derivedBytes > 0 ? derivedBytes : book.totalBytes
 }

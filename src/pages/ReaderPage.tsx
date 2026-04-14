@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { useClient } from '../contexts/ClientContext'
+import { getOfflineBook } from '../lib/storage'
 import { formatProgress } from '../lib/utils'
 
 type ReaderTheme = 'light' | 'sepia' | 'dark'
@@ -32,6 +33,7 @@ function ReaderPage() {
   const [theme, setTheme] = useState<ReaderTheme>('sepia')
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE)
   const [ready, setReady] = useState(false)
+  const [pdfSrc, setPdfSrc] = useState<string | null>(null)
 
   const query = useQuery({
     queryKey: ['item', itemId],
@@ -131,12 +133,14 @@ function ReaderPage() {
       el.appendChild(view)
       viewRef.current = view
 
-      const response = await fetch(client.ebookUrl(item.id))
-      const blob = await response.blob()
+      const offline = await getOfflineBook(item.id)
+      const blob = offline?.status === 'downloaded' && offline.ebookBlob
+        ? offline.ebookBlob
+        : await client.downloadEbook(item.id)
       if (cancelled) return
 
       const file = new File([blob], `${item.id}.${item.ebookFormat}`, {
-        type: response.headers.get('content-type') || 'application/epub+zip',
+        type: blob.type || 'application/epub+zip',
       })
 
       await view.open(file)
@@ -203,6 +207,36 @@ function ReaderPage() {
     if (ready) applyTheme(theme, fontSize)
   }, [theme, fontSize, applyTheme, ready])
 
+  useEffect(() => {
+    if (!item || item.ebookFormat !== 'pdf') {
+      setPdfSrc(null)
+      return
+    }
+
+    let cancelled = false
+    let objectUrl: string | null = null
+
+    void (async () => {
+      const offline = await getOfflineBook(item.id)
+      if (cancelled) return
+
+      if (offline?.status === 'downloaded' && offline.ebookBlob) {
+        objectUrl = URL.createObjectURL(offline.ebookBlob)
+        setPdfSrc(objectUrl)
+        return
+      }
+
+      setPdfSrc(client.ebookUrl(item.id))
+    })()
+
+    return () => {
+      cancelled = true
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl)
+      }
+    }
+  }, [client, item])
+
   const toggleUI = useCallback(() => {
     setShowUI((prev) => {
       if (prev) setShowSettings(false)
@@ -266,7 +300,7 @@ function ReaderPage() {
       {isPdf ? (
         <iframe
           className="reader-content-frame"
-          src={client.ebookUrl(item.id)}
+          src={pdfSrc ?? client.ebookUrl(item.id)}
           title={item.title}
           style={{ background: currentTheme.bg }}
         />

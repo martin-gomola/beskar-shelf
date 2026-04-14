@@ -107,7 +107,7 @@ export function BookPage() {
             {item.ebookLocation ? 'Continue reading' : 'Read'}
           </Link>
         ) : null}
-        {canPlay ? (
+        {canPlay || canRead ? (
           <button className="ghost-button bd-action-secondary" onClick={() => void downloadCurrentBook(item)}>
             {offline?.status === 'downloaded'
               ? <><IconRefresh /> Redownload</>

@@ -32,7 +32,10 @@ export async function downloadBook(
   await putOfflineBook(shell)
   onProgress?.({ completedTracks: 0, totalTracks: 0, completedBytes: 0, totalBytes: shell.totalBytes })
 
-  const playback = await client.startPlayback(item.id)
+  const shouldDownloadAudio = item.audioTracks.length > 0 || !item.ebookFormat
+  const playback = shouldDownloadAudio
+    ? await client.startPlayback(item.id)
+    : { audioTracks: [] }
   const totalTracks = playback.audioTracks.length
   const results: OfflineTrack[] = new Array(totalTracks)
   let completedBytes = 0
@@ -88,11 +91,8 @@ export async function downloadBook(
   let ebookBlob: Blob | null = null
   if (item.ebookFormat) {
     try {
-      const response = await fetch(client.ebookUrl(item.id))
-      if (response.ok) {
-        ebookBlob = await response.blob()
-        completedBytes += ebookBlob.size
-      }
+      ebookBlob = await client.downloadEbook(item.id)
+      completedBytes += ebookBlob.size
     } catch {
       // ebook download is best-effort
     }

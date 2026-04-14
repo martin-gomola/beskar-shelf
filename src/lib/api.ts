@@ -234,6 +234,15 @@ export class AudiobookshelfClient {
     return this.streamUrl(`/api/items/${itemId}/ebook`)
   }
 
+  async downloadEbook(itemId: string) {
+    const response = await fetch(this.ebookUrl(itemId))
+    if (!response.ok) {
+      const message = await response.text().catch(() => '')
+      throw new Error(message || `Failed downloading ebook (${response.status})`)
+    }
+    return response.blob()
+  }
+
   private async request<T>(path: string, init: RequestInit = {}, retries = 2): Promise<T> {
     if (!this.requestBase()) {
       throw new Error('Server URL is not configured.')

@@ -1910,6 +1910,31 @@ h3 {
   gap: 12px;
 }
 
+.download-link {
+  display: grid;
+  gap: 4px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.download-link strong {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 150ms ease;
+}
+
+.download-link:hover strong,
+.download-link:focus-visible strong {
+  text-decoration-color: currentColor;
+}
+
+.download-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* ─── Update banner ─── */
 
 .update-banner {
