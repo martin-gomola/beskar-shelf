@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install dev down build test lint deploy deploy-down deploy-logs
+.PHONY: help setup doctor download download-dry-run install dev down build test lint
 
 help:
 	@echo "beskar-shelf commands"
@@ -11,11 +11,6 @@ help:
 	@echo "  make build            Build the PWA production bundle"
 	@echo "  make test             Run tests"
 	@echo "  make lint             Run linter"
-	@echo ""
-	@echo "  Deploy:"
-	@echo "  make deploy           Build and start PWA + Audiobookshelf via Docker Compose"
-	@echo "  make deploy-down      Stop and remove deployed containers (data is preserved)"
-	@echo "  make deploy-logs      Tail logs from deployed containers"
 	@echo ""
 	@echo "  Tools:"
 	@echo "  make doctor           Validate grab tools, config, links file, and output directory"
@@ -55,36 +50,3 @@ download:
 
 download-dry-run:
 	@./tools/grab/grab --dry-run
-
-deploy:
-	@if [ ! -f deploy/.env ]; then \
-		echo "No deploy/.env found — copying from deploy/.env.example"; \
-		cp deploy/.env.example deploy/.env; \
-		echo "Edit deploy/.env with your settings, then run make deploy again."; \
-		exit 1; \
-	fi
-	@set -a && . deploy/.env && set +a && \
-		data_dir="$${DATA_DIR:-/srv/docker}" && \
-		for sub in audiobooks ebooks podcasts metadata config; do \
-			mkdir -p "$$data_dir/audiobookshelf/$$sub"; \
-		done && \
-		echo "Data directories verified at $$data_dir/audiobookshelf/" && \
-		db="$$data_dir/audiobookshelf/config/absdatabase.sqlite" && \
-		if [ -f "$$db" ]; then \
-			sz=$$(wc -c < "$$db" | tr -d ' ') && \
-			echo "ABS database found ($$sz bytes) — will be preserved"; \
-		else \
-			echo "No existing ABS database — fresh install"; \
-		fi
-	docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
-	@echo ""
-	@echo "Deployed:"
-	@pwa_port=$$(awk -F= '/^PWA_PORT=/{print $$2}' deploy/.env); echo "  PWA:             http://localhost:$${pwa_port:-4173}"
-	@abs_port=$$(awk -F= '/^ABS_PORT=/{print $$2}' deploy/.env); echo "  Audiobookshelf:  http://localhost:$${abs_port:-13378}"
-
-deploy-down:
-	docker compose -f deploy/docker-compose.yml --env-file deploy/.env down --remove-orphans
-	@echo "Containers removed. Data directories and config are preserved on the host."
-
-deploy-logs:
-	docker compose -f deploy/docker-compose.yml --env-file deploy/.env logs -f

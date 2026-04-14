@@ -21,8 +21,7 @@ beskar-shelf/
 ├── package.json
 ├── vite.config.ts           # Vite + PWA + proxy
 ├── Dockerfile               # Multi-stage build → nginx
-├── nginx.conf
-├── deploy/                  # Audiobookshelf + PWA compose stack
+├── nginx.conf               # PWA container nginx template
 ├── tools/grab/              # YouTube → MP3 pipeline (self-contained)
 ├── bin/fix-ebooks           # Reorganize ebook folders for ABS
 ├── Makefile
@@ -63,14 +62,20 @@ make build      # production bundle
 
 ## Deploy
 
-Full stack guide in `deploy/README.md`.
+This repo now owns the Beskar Shelf app only. Manage the Audiobookshelf
+server itself in your infrastructure repo, then point the app container at it
+through `ABS_UPSTREAM`.
 
 ```bash
-cd deploy
-cp .env.example .env
-$EDITOR .env
-docker compose up -d
+docker build -t beskar-shelf .
+docker run --rm -p 4173:4173 \
+  -e ABS_UPSTREAM=http://host.docker.internal:13378 \
+  beskar-shelf
 ```
+
+The container serves the PWA on `http://localhost:4173` and proxies `/abs/*`
+to `ABS_UPSTREAM`, so the app can stay same-origin without bundling the
+Audiobookshelf server into this repo.
 
 ## Grab: YouTube → MP3
 

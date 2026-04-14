@@ -1,9 +1,14 @@
 # Environment and secrets
 .env
+.env.server
+.env.runtime
 *.local
 deploy/.env
 tools/grab/.env
 tools/grab/links.txt
+
+# OMX runtime state
+.omx/
 
 # Build output
 dist
