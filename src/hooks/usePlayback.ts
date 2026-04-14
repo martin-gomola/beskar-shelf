@@ -2,7 +2,6 @@ import {
   startTransition,
   useCallback,
   useEffect,
-  useEffectEvent,
   useRef,
   useState,
 } from 'react'
@@ -55,6 +54,10 @@ export function usePlayback(
   const audioRef = useRef<HTMLAudioElement>(null)
   const activePlaybackRef = useRef(activePlayback)
   activePlaybackRef.current = activePlayback
+  const sessionRef = useRef(session)
+  sessionRef.current = session
+  const playbackStateRef = useRef(playbackState)
+  playbackStateRef.current = playbackState
   const playbackTimeRef = useRef(playbackTime)
   playbackTimeRef.current = playbackTime
   const navigate = useNavigate()
@@ -62,8 +65,10 @@ export function usePlayback(
 
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastCommitRef = useRef(0)
+  const playbackRateRef = useRef(playbackRate)
+  playbackRateRef.current = playbackRate
 
-  async function createSourcesForItem(itemId: string, sessionValue: PlaybackSession) {
+  const createSourcesForItem = useCallback(async (itemId: string, sessionValue: PlaybackSession) => {
     const offline = await getOfflineBook(itemId)
     if (offline?.status === 'downloaded') {
       return sessionValue.audioTracks.map((track) => {
@@ -75,54 +80,9 @@ export function usePlayback(
       })
     }
     return sessionValue.audioTracks.map((track) => client.streamUrl(track.contentUrl))
-  }
+  }, [client])
 
-  const commitProgressNow = useEffectEvent(async (isFinished = false) => {
-    if (!activePlayback || !session) {
-      return
-    }
-
-    lastCommitRef.current = Date.now()
-
-    const payload: ProgressPayload = {
-      duration: activePlayback.duration,
-      progress: activePlayback.duration > 0 ? clamp(playbackTime / activePlayback.duration, 0, 1) : 0,
-      currentTime: playbackTime,
-      isFinished,
-      startedAt: playbackState?.updatedAt ?? Date.now(),
-      finishedAt: isFinished ? Date.now() : null,
-    }
-
-    setPlaybackState(() => {
-      const next = {
-        itemId: activePlayback.item.id,
-        sessionId: activePlayback.session.id,
-        currentTime: payload.currentTime,
-        duration: payload.duration,
-        rate: playbackRate,
-        updatedAt: Date.now(),
-      }
-      savePlaybackState(next)
-      return next
-    })
-
-    try {
-      await client.updateProgress(activePlayback.item.id, payload)
-      queryClient.setQueryData(['item', activePlayback.item.id], (old: unknown) => {
-        if (!old || typeof old !== 'object') return old
-        return { ...(old as Record<string, unknown>), currentTime: payload.currentTime, progress: payload.progress }
-      })
-      if (isFinished) {
-        void queryClient.invalidateQueries({ queryKey: ['personalized'] })
-      }
-      void drainProgressQueue()
-    } catch (error) {
-      enqueueProgress(activePlayback.item.id, payload as unknown as Record<string, unknown>)
-      console.error(error)
-    }
-  })
-
-  async function drainProgressQueue() {
+  const drainProgressQueue = useCallback(async () => {
     const queue = loadProgressQueue()
     if (queue.length === 0) {
       return
@@ -136,7 +96,58 @@ export function usePlayback(
       }
     }
     saveProgressQueue(remaining)
-  }
+  }, [client])
+
+  const commitProgressNow = useCallback(async (isFinished = false) => {
+    const currentPlayback = activePlaybackRef.current
+    const currentSession = sessionRef.current
+    const currentPlaybackState = playbackStateRef.current
+    const currentPlaybackTime = playbackTimeRef.current
+    const currentPlaybackRate = playbackRateRef.current
+
+    if (!currentPlayback || !currentSession) {
+      return
+    }
+
+    lastCommitRef.current = Date.now()
+
+    const payload: ProgressPayload = {
+      duration: currentPlayback.duration,
+      progress: currentPlayback.duration > 0 ? clamp(currentPlaybackTime / currentPlayback.duration, 0, 1) : 0,
+      currentTime: currentPlaybackTime,
+      isFinished,
+      startedAt: currentPlaybackState?.updatedAt ?? Date.now(),
+      finishedAt: isFinished ? Date.now() : null,
+    }
+
+    setPlaybackState(() => {
+      const next = {
+        itemId: currentPlayback.item.id,
+        sessionId: currentPlayback.session.id,
+        currentTime: payload.currentTime,
+        duration: payload.duration,
+        rate: currentPlaybackRate,
+        updatedAt: Date.now(),
+      }
+      savePlaybackState(next)
+      return next
+    })
+
+    try {
+      await client.updateProgress(currentPlayback.item.id, payload)
+      queryClient.setQueryData(['item', currentPlayback.item.id], (old: unknown) => {
+        if (!old || typeof old !== 'object') return old
+        return { ...(old as Record<string, unknown>), currentTime: payload.currentTime, progress: payload.progress }
+      })
+      if (isFinished) {
+        void queryClient.invalidateQueries({ queryKey: ['personalized'] })
+      }
+      void drainProgressQueue()
+    } catch (error) {
+      enqueueProgress(currentPlayback.item.id, payload as unknown as Record<string, unknown>)
+      console.error(error)
+    }
+  }, [client, drainProgressQueue, queryClient, setPlaybackState])
 
   const scheduleProgressCommit = useCallback(() => {
     if (progressTimerRef.current) {
@@ -277,7 +288,7 @@ export function usePlayback(
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
     }
-  }, [activePlayback, flushProgress, client, setPlaybackState])
+  }, [activePlayback, drainProgressQueue, flushProgress, client, setPlaybackState])
 
   const togglePlayback = useCallback(async () => {
     if (!audioRef.current) {
@@ -363,37 +374,7 @@ export function usePlayback(
     }
   }, [activePlayback])
 
-  // Restore playback from persisted state
-  const restorePlayback = useEffectEvent(async () => {
-    if (!playbackState || activePlayback) {
-      return
-    }
-    try {
-      const item = await client.getItem(playbackState.itemId)
-      if (item.audioTracks.length === 0) {
-        savePlaybackState(null)
-        setPlaybackState(null)
-        return
-      }
-      await startBook(item)
-      if (audioRef.current) {
-        audioRef.current.currentTime = playbackState.currentTime
-      }
-    } catch (error) {
-      savePlaybackState(null)
-      setPlaybackState(null)
-      console.error(error)
-    }
-  })
-
-  useEffect(() => {
-    if (!client.hasSession() || !playbackState || activePlayback) {
-      return
-    }
-    void restorePlayback()
-  }, [activePlayback, client, playbackState])
-
-  async function startBook(item: BookItem, startTime?: number) {
+  const startBook = useCallback(async (item: BookItem, startTime?: number) => {
     const playbackSession = await client.startPlayback(item.id)
     if (playbackSession.audioTracks.length === 0) {
       return
@@ -432,7 +413,32 @@ export function usePlayback(
       updatedAt: Date.now(),
     })
     startTransition(() => navigate('/player'))
-  }
+  }, [client, createSourcesForItem, navigate, playbackState, setPlaybackState])
+
+  useEffect(() => {
+    if (!client.hasSession() || !playbackState || activePlayback) {
+      return
+    }
+
+    void (async () => {
+      try {
+        const item = await client.getItem(playbackState.itemId)
+        if (item.audioTracks.length === 0) {
+          savePlaybackState(null)
+          setPlaybackState(null)
+          return
+        }
+        await startBook(item)
+        if (audioRef.current) {
+          audioRef.current.currentTime = playbackState.currentTime
+        }
+      } catch (error) {
+        savePlaybackState(null)
+        setPlaybackState(null)
+        console.error(error)
+      }
+    })()
+  }, [activePlayback, client, playbackState, setPlaybackState, startBook])
 
   function setPlaybackRate(rate: number) {
     setPlaybackRateState(rate)

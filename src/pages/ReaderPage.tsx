@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -40,39 +40,36 @@ function ReaderPage() {
   })
   const item = query.data
   const isPdf = item?.ebookFormat === 'pdf'
+  const itemRef = useRef(item)
+  itemRef.current = item
+  const themeRef = useRef(theme)
+  themeRef.current = theme
+  const fontSizeRef = useRef(fontSize)
+  fontSizeRef.current = fontSize
 
-  const commitReaderProgress = useEffectEvent(async (payload: { cfi: string; progress: number }) => {
-    if (!item) return
+  const commitReaderProgress = useCallback(async (payload: { cfi: string; progress: number }) => {
+    const currentItem = itemRef.current
+    if (!currentItem) return
     try {
-      localStorage.setItem(`beskar:reader:${item.id}`, payload.cfi)
+      localStorage.setItem(`beskar:reader:${currentItem.id}`, payload.cfi)
     } catch { /* quota */ }
     try {
-      await client.updateProgress(item.id, {
-        duration: item.duration,
-        progress: item.progress,
-        currentTime: item.currentTime,
-        isFinished: item.isFinished,
+      await client.updateProgress(currentItem.id, {
+        duration: currentItem.duration,
+        progress: currentItem.progress,
+        currentTime: currentItem.currentTime,
+        isFinished: currentItem.isFinished,
         ebookLocation: payload.cfi,
         ebookProgress: payload.progress,
         startedAt: Date.now(),
       })
-      await queryClient.invalidateQueries({ queryKey: ['item', item.id] })
+      await queryClient.invalidateQueries({ queryKey: ['item', currentItem.id] })
     } catch {
       // offline — progress queued elsewhere
     }
-  })
+  }, [client, queryClient])
 
   const pendingPayloadRef = useRef<{ cfi: string; progress: number } | null>(null)
-
-  const debouncedCommit = useCallback((payload: { cfi: string; progress: number }) => {
-    pendingPayloadRef.current = payload
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null
-      pendingPayloadRef.current = null
-      void commitReaderProgress(payload)
-    }, 3000)
-  }, [commitReaderProgress])
 
   const applyTheme = useCallback((t: ReaderTheme, size: number) => {
     const view = viewRef.current
@@ -158,12 +155,19 @@ function ReaderPage() {
         const progress = detail.fraction ?? 0
         setReaderProgress(progress)
         if (detail.cfi) {
-          debouncedCommit({ cfi: detail.cfi, progress })
+          const payload = { cfi: detail.cfi, progress }
+          pendingPayloadRef.current = payload
+          if (debounceRef.current) clearTimeout(debounceRef.current)
+          debounceRef.current = setTimeout(() => {
+            debounceRef.current = null
+            pendingPayloadRef.current = null
+            void commitReaderProgress(payload)
+          }, 3000)
         }
       }) as EventListener)
 
       view.addEventListener('load', (() => {
-        applyTheme(theme, fontSize)
+        applyTheme(themeRef.current, fontSizeRef.current)
       }) as EventListener)
 
       const savedCfi = item.ebookLocation || localStorage.getItem(`beskar:reader:${item.id}`) || null
@@ -193,7 +197,7 @@ function ReaderPage() {
       viewRef.current = null
       setReady(false)
     }
-  }, [client, item])
+  }, [applyTheme, client, commitReaderProgress, item])
 
   useEffect(() => {
     if (ready) applyTheme(theme, fontSize)

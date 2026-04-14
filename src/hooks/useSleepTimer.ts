@@ -66,7 +66,10 @@ export function useSleepTimer(
     }
     if (currentTime >= chapterEndTime) {
       pause()
-      clear()
+      const timeoutId = window.setTimeout(() => {
+        clear()
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
     }
   }, [state.mode, currentTime, chapterEndTime, pause, clear])
 
