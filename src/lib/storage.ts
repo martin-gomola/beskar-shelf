@@ -1,6 +1,7 @@
 import { openDB } from 'idb'
 
 import type {
+  Bookmark,
   OfflineBook,
   PersistedPlaybackState,
   ServerConfig,
@@ -12,6 +13,7 @@ const STORAGE_KEYS = {
   session: 'beskar:pwa:session',
   playback: 'beskar:pwa:playback',
   progressQueue: 'beskar:pwa:progress-queue',
+  bookmarksPrefix: 'beskar:pwa:bookmarks:',
 } as const
 
 const DB_NAME = 'beskar-shelf'
@@ -82,6 +84,30 @@ export function enqueueProgress(itemId: string, payload: Record<string, unknown>
   const queue = loadProgressQueue().filter((entry) => entry.itemId !== itemId)
   queue.push({ itemId, payload, queuedAt: Date.now() })
   saveProgressQueue(queue)
+}
+
+function bookmarkKey(itemId: string) {
+  return `${STORAGE_KEYS.bookmarksPrefix}${itemId}`
+}
+
+export function loadBookmarks(itemId: string) {
+  return readJson<Bookmark[]>(bookmarkKey(itemId)) ?? []
+}
+
+export function saveBookmarks(itemId: string, bookmarks: Bookmark[]) {
+  const sorted = [...bookmarks].sort((a, b) => a.time - b.time)
+  writeJson(bookmarkKey(itemId), sorted.length > 0 ? sorted : null)
+}
+
+export function upsertBookmark(itemId: string, bookmark: Bookmark) {
+  const bookmarks = loadBookmarks(itemId).filter((entry) => entry.time !== bookmark.time)
+  bookmarks.push(bookmark)
+  saveBookmarks(itemId, bookmarks)
+}
+
+export function deleteBookmark(itemId: string, time: number) {
+  const bookmarks = loadBookmarks(itemId).filter((entry) => entry.time !== time)
+  saveBookmarks(itemId, bookmarks)
 }
 
 async function openOfflineDb() {

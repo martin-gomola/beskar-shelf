@@ -82,6 +82,12 @@ export interface PersistedPlaybackState {
   updatedAt: number
 }
 
+export interface Bookmark {
+  title: string
+  time: number
+  createdAt: number
+}
+
 export interface OfflineTrack {
   trackIndex: number
   title: string

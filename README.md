@@ -44,9 +44,13 @@ Copy `.env.example` to `.env`:
 | `VITE_APP_NAME` | Display name |
 | `VITE_DEFAULT_SERVER_URL` | Pre-filled server URL on first launch |
 | `VITE_ABS_PROXY_BASE` | Dev proxy prefix (default `/abs`) |
-| `ABS_URL` | Audiobookshelf server URL, doubles as dev proxy target |
-| `ABS_TOKEN` | API token for metadata management |
-| `ABS_LIBRARY_ID` | Target library for metadata management |
+| `ABS_URL` | Optional Audiobookshelf base URL for local tooling and dev proxy |
+| `ABS_TOKEN` | Optional API token for metadata management |
+| `ABS_LIBRARY_ID` | Optional target library for metadata management |
+| `IMAGE_NAME` | Docker image tag for app deployment |
+| `CONTAINER_NAME` | Container name used by Docker Compose |
+| `APP_PORT` | Host port exposed by the app container |
+| `ABS_UPSTREAM` | Audiobookshelf base URL the app container proxies to |
 
 ## Development
 

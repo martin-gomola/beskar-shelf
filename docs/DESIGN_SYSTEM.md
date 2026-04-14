@@ -34,10 +34,10 @@
 
 | Token        | Hex       | Usage                              |
 |--------------|-----------|------------------------------------|
-| `accent-400` | `#34d058` | Light highlights                   |
-| `accent-500` | `#28a745` | Primary buttons, active states     |
-| `accent-600` | `#22863a` | Button hover                       |
-| `accent-700` | `#176f2c` | Button pressed                     |
+| `accent-400` | `#43C96D` | Light highlights                   |
+| `accent-500` | `#1DB954` | Primary buttons, active states     |
+| `accent-600` | `#169448` | Button hover                       |
+| `accent-700` | `#11753A` | Button pressed                     |
 
 #### Text
 
@@ -142,7 +142,7 @@ Glass pills with accent active state:
 }
 
 .pill-link.active {
-  background: #28a745;
+  background: #1DB954;
   color: #fff;
 }
 ```
@@ -155,7 +155,7 @@ Borderless, soft-fill buttons:
 
 ```css
 .primary-button {
-  background: #28a745;
+  background: #1DB954;
   color: #fff;
   border: none;
   border-radius: 14px;

@@ -5,7 +5,10 @@ import clsx from 'clsx'
 
 import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext, usePlayerTime } from '../contexts/PlayerContext'
+import { useToast } from '../contexts/ToastContext'
 import { useSleepTimer } from '../hooks/useSleepTimer'
+import { deleteBookmark as deleteLocalBookmark, loadBookmarks, upsertBookmark } from '../lib/storage'
+import type { Bookmark } from '../lib/types'
 import { formatDuration, formatProgress } from '../lib/utils'
 
 function IconRewind() {
@@ -71,6 +74,7 @@ function PlayerPage() {
   const client = useClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const {
     activePlayback,
     isPlaying,
@@ -88,6 +92,7 @@ function PlayerPage() {
   const [showBookmarks, setShowBookmarks] = useState(false)
   const [showSleepTimer, setShowSleepTimer] = useState(false)
   const [seekPreview, setSeekPreview] = useState<number | null>(null)
+  const [localBookmarkVersion, setLocalBookmarkVersion] = useState(0)
 
   const currentChapterEnd = useMemo(() => {
     if (!activePlayback) {
@@ -119,6 +124,34 @@ function PlayerPage() {
     enabled: Boolean(activePlayback?.item.id) && showBookmarks,
     staleTime: 30 * 1000,
   })
+  const activeItemId = activePlayback?.item.id ?? null
+  const localBookmarks = useMemo(() => {
+    void localBookmarkVersion
+    return activeItemId ? loadBookmarks(activeItemId) : []
+  }, [activeItemId, localBookmarkVersion])
+  const mergedBookmarks = useMemo(() => {
+    const byTime = new Map<number, Bookmark & { source: 'local' | 'server' | 'both' }>()
+
+    for (const bookmark of localBookmarks) {
+      byTime.set(bookmark.time, { ...bookmark, source: 'local' })
+    }
+
+    for (const bookmark of bookmarksQuery.data ?? []) {
+      const existing = byTime.get(bookmark.time)
+      if (existing) {
+        byTime.set(bookmark.time, {
+          title: existing.title || bookmark.title,
+          time: bookmark.time,
+          createdAt: Math.max(existing.createdAt, bookmark.createdAt),
+          source: 'both',
+        })
+      } else {
+        byTime.set(bookmark.time, { ...bookmark, source: 'server' })
+      }
+    }
+
+    return [...byTime.values()].sort((a, b) => a.time - b.time)
+  }, [bookmarksQuery.data, localBookmarks])
 
   if (!activePlayback) {
     return (
@@ -132,17 +165,50 @@ function PlayerPage() {
   }
 
   const progress = activePlayback.duration > 0 ? playbackTime / activePlayback.duration : 0
+  const activeItem = activePlayback.item
   const coverUrl = activePlayback.item.coverPath
     ? client.coverUrl(activePlayback.item.id)
     : null
 
   async function addBookmark() {
     const title = bookmarkTitle.trim() || `Bookmark at ${formatDuration(playbackTime)}`
+    const bookmark: Bookmark = {
+      title,
+      time: Math.floor(playbackTime),
+      createdAt: Date.now(),
+    }
+
+    upsertBookmark(activeItem.id, bookmark)
+    setLocalBookmarkVersion((value) => value + 1)
+    setBookmarkTitle('')
+
     try {
-      await client.createBookmark(activePlayback!.item.id, playbackTime, title)
-      setBookmarkTitle('')
-      await queryClient.invalidateQueries({ queryKey: ['bookmarks', activePlayback!.item.id] })
+      await client.createBookmark(activeItem.id, bookmark.time, title)
+      await queryClient.invalidateQueries({ queryKey: ['bookmarks', activeItem.id] })
+      showToast('Bookmark saved', 'success')
     } catch (error) {
+      showToast('Bookmark saved on this device', 'info')
+      console.error(error)
+    }
+  }
+
+  async function removeBookmark(bookmark: Bookmark & { source: 'local' | 'server' | 'both' }) {
+    deleteLocalBookmark(activeItem.id, bookmark.time)
+    setLocalBookmarkVersion((value) => value + 1)
+
+    if (bookmark.source === 'local') {
+      showToast('Local bookmark removed', 'info')
+      return
+    }
+
+    try {
+      await client.deleteBookmark(activeItem.id, bookmark.time)
+      await queryClient.invalidateQueries({ queryKey: ['bookmarks', activeItem.id] })
+      showToast('Bookmark removed', 'success')
+    } catch (error) {
+      upsertBookmark(activeItem.id, bookmark)
+      setLocalBookmarkVersion((value) => value + 1)
+      showToast('Could not remove bookmark from server', 'error')
       console.error(error)
     }
   }
@@ -269,28 +335,50 @@ function PlayerPage() {
         <section className="card">
           <div className="section-heading">
             <h2>Bookmarks</h2>
+            <span className="muted bookmark-meta">{mergedBookmarks.length} saved</span>
           </div>
-          <div className="button-row">
+          <div className="bookmark-form">
             <input
               value={bookmarkTitle}
               onChange={(event) => setBookmarkTitle(event.target.value)}
-              placeholder="Bookmark title (optional)"
-              style={{ flex: 1, borderRadius: 'var(--radius)', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text)', padding: 'var(--sp-3) var(--sp-4)', fontSize: 'var(--fs-base)', outline: 'none' }}
+              placeholder="Name this moment"
+              className="bookmark-input"
             />
-            <button className="ghost-button" onClick={() => void addBookmark()}>Add</button>
+            <button className="primary-button bookmark-add-btn" onClick={() => void addBookmark()}>
+              Save {formatDuration(playbackTime)}
+            </button>
           </div>
+          <p className="bookmark-help muted">
+            Bookmarks save instantly on this device and sync to Audiobookshelf when available.
+          </p>
           <div className="chapter-list">
-            {(bookmarksQuery.data ?? []).length === 0 ? (
-              <p className="muted">No bookmarks yet.</p>
-            ) : (bookmarksQuery.data ?? []).map((bm) => (
-              <button
-                key={`${bm.time}-${bm.title}`}
-                className="chapter-row"
-                onClick={() => seekTo(bm.time)}
-              >
-                <strong>{bm.title}</strong>
-                <span>{formatDuration(bm.time)}</span>
-              </button>
+            {mergedBookmarks.length === 0 ? (
+              <div className="bookmark-empty">
+                <strong>Save important moments as you listen.</strong>
+                <p className="muted">Your first bookmark will appear here for quick jump-back access.</p>
+              </div>
+            ) : mergedBookmarks.map((bm) => (
+              <div key={`${bm.time}-${bm.title}`} className="bookmark-row">
+                <button
+                  className="chapter-row bookmark-jump-btn"
+                  onClick={() => seekTo(bm.time)}
+                >
+                  <span className="bookmark-copy">
+                    <strong>{bm.title}</strong>
+                    <span className="bookmark-source">
+                      {bm.source === 'local' ? 'Local only' : bm.source === 'both' ? 'Synced' : 'Server'}
+                    </span>
+                  </span>
+                  <span>{formatDuration(bm.time)}</span>
+                </button>
+                <button
+                  className="ghost-button bookmark-delete-btn"
+                  onClick={() => void removeBookmark(bm)}
+                  aria-label={`Delete bookmark ${bm.title}`}
+                >
+                  Remove
+                </button>
+              </div>
             ))}
           </div>
         </section>

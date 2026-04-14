@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import type {
   AudioTrack,
+  Bookmark,
   BookItem,
   Chapter,
   Library,
@@ -410,7 +411,7 @@ export class AudiobookshelfClient {
     const response = asRecord(await this.request(`/api/items/${itemId}?expanded=1&include=progress`))
     const media = asRecord(response.media)
     const bookmarks = Array.isArray(media.bookmarks) ? media.bookmarks : []
-    return bookmarks.map((bm) => {
+    return bookmarks.map((bm): Bookmark => {
       const bookmark = asRecord(bm)
       return {
         title: String(bookmark.title ?? ''),
