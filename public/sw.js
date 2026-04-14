@@ -41,7 +41,7 @@ self.addEventListener('fetch', (event) => {
 
   // Cover images: cache-first in a long-lived cache (survives app updates)
   // Strip query params (token) from cache key so covers survive token rotation
-  if (/\/(?:abs\/)?api\/items\/[^/]+\/cover/.test(url.pathname)) {
+  if (/\/(?:abs\/)?api\/items\/[^/]+\/cover$/.test(url.pathname)) {
     const cacheKey = new Request(url.origin + url.pathname, { method: 'GET' })
     event.respondWith(
       caches.open(COVER_CACHE).then((cache) =>

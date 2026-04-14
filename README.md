@@ -52,6 +52,31 @@ Copy `.env.example` to `.env`:
 | `APP_PORT` | Host port exposed by the app container |
 | `ABS_UPSTREAM` | Audiobookshelf base URL the app container proxies to |
 
+### Get an API token
+
+If you want to use repo tooling that expects `ABS_TOKEN`, you can obtain one
+without opening the Audiobookshelf UI token screen:
+
+```bash
+make abs-token
+```
+
+The helper prompts for your Audiobookshelf URL, username, and password, then
+prints the token so you can paste it into `.env`.
+
+### Fill missing descriptions
+
+Export books with empty Audiobookshelf descriptions into a JSON file you can
+fill in and apply later:
+
+```bash
+make abs-descriptions
+./tools/fill-abs-descriptions --apply descriptions.todo.json
+```
+
+The tool reads `ABS_URL` or `ABS_LOCAL_URL`, `ABS_TOKEN`, and `ABS_LIBRARY_ID`
+from `.env`.
+
 ## Development
 
 ```bash

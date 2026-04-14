@@ -256,21 +256,21 @@ function PlayerPage() {
         </div>
 
         <div className="stats-row">
-          <div>
+          <div className="player-stat">
             <span className="stat-label">Progress</span>
-            <strong>{formatProgress(progress)}</strong>
+            <strong className="player-stat-value">{formatProgress(progress)}</strong>
           </div>
-          <div>
+          <label className="player-stat player-stat-rate">
             <span className="stat-label">Rate</span>
             <select value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))}>
               {[0.8, 1, 1.2, 1.5, 1.75, 2].map((rate) => (
                 <option key={rate} value={rate}>{rate}x</option>
               ))}
             </select>
-          </div>
-          <div>
+          </label>
+          <div className="player-stat">
             <span className="stat-label">Current track</span>
-            <strong>{formatDuration(currentTrackDuration)}</strong>
+            <strong className="player-stat-value">{formatDuration(currentTrackDuration)}</strong>
           </div>
         </div>
 

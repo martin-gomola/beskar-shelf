@@ -68,9 +68,9 @@ System font stack — no external font loads. Antialiased rendering.
 | Token        | Value    | Usage                              |
 |--------------|----------|------------------------------------|
 | `radius-sm`  | `10px`   | Covers, tags, small elements       |
-| `radius`     | `14px`   | Buttons, inputs, chapter rows      |
+| `radius`     | `14px`   | Buttons, pills, inputs, chapter rows |
 | `radius-lg`  | `20px`   | Cards, panels, nav bars            |
-| `radius-pill`| `9999px` | Pills, full-round elements         |
+| `radius-pill`| `9999px` | Full-round or true capsule elements only |
 
 ---
 
@@ -131,11 +131,11 @@ Active tab: green accent background with white text.
 
 ### Library pills
 
-Glass pills with accent active state:
+Use the standard rounded-rectangle control radius for category pills and compact filters:
 
 ```css
 .pill-link {
-  border-radius: 9999px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.65);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.45);
@@ -169,6 +169,8 @@ Borderless, soft-fill buttons:
   border-radius: 14px;
 }
 ```
+
+Compact action pills should share the same `radius` token as buttons and category pills so controls feel like one family.
 
 ---
 

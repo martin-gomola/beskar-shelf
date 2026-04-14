@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install dev down stop build test lint deploy deploy-down deploy-logs
+.PHONY: help setup doctor download download-dry-run install dev down stop build test lint deploy deploy-down deploy-logs abs-token abs-descriptions
 
 help:
 	@echo "beskar-shelf commands"
@@ -22,6 +22,8 @@ help:
 	@echo "  make doctor           Validate grab tools, config, links file, and output directory"
 	@echo "  make download         Download and process links from links.txt"
 	@echo "  make download-dry-run Fetch metadata and print the plan without downloading"
+	@echo "  make abs-token        Prompt for ABS credentials and print an API token"
+	@echo "  make abs-descriptions Export books with missing ABS descriptions to JSON"
 
 setup:
 	@if [ ! -f .env ]; then cp .env.example .env; echo "Created .env"; else echo ".env already exists"; fi
@@ -59,6 +61,12 @@ download:
 
 download-dry-run:
 	@./tools/grab/grab --dry-run
+
+abs-token:
+	@ABS_USERNAME_INPUT="" ABS_PASSWORD_INPUT="" ./tools/get-abs-token
+
+abs-descriptions:
+	@./tools/fill-abs-descriptions --export-missing descriptions.todo.json
 
 deploy:
 	@if [ ! -f .env ]; then \

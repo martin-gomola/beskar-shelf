@@ -1215,37 +1215,46 @@ h3 {
 }
 
 .player-card .stats-row {
-  align-items: end;
+  align-items: center;
   gap: var(--sp-5);
 }
 
-.player-card .stats-row > div {
-  display: grid;
-  gap: 6px;
+.player-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
   flex: 1;
   min-width: 0;
   text-align: left;
 }
 
-.player-card .stats-row > div:last-child {
+.player-card .stats-row > :last-child {
   text-align: right;
 }
 
 .player-card .stat-label {
-  letter-spacing: 0.14em;
-  margin-bottom: 2px;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  margin: 0;
 }
 
-.player-card .stats-row strong {
-  display: block;
+.player-stat-value {
   font-size: var(--fs-lg);
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.1;
+  white-space: nowrap;
 }
 
-.player-card .stats-row select {
-  min-width: 96px;
+.player-stat-rate {
+  justify-content: center;
+}
+
+.player-card .player-stat-rate select {
+  min-width: 88px;
+  width: auto;
+  padding-inline: var(--sp-4);
 }
 
 .player-action-btn {
@@ -1253,7 +1262,7 @@ h3 {
   align-items: center;
   gap: 6px;
   padding: var(--sp-2) var(--sp-4);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   background: transparent;
   border: 1px solid var(--line-strong);
   cursor: pointer;
@@ -1271,6 +1280,29 @@ h3 {
 
 .player-action-btn:active {
   background: var(--hover-bg-strong);
+}
+
+@media (max-width: 560px) {
+  .player-card .stats-row {
+    gap: var(--sp-3);
+  }
+
+  .player-stat {
+    gap: var(--sp-2);
+  }
+
+  .player-card .stat-label {
+    letter-spacing: 0.1em;
+  }
+
+  .player-stat-value {
+    font-size: var(--fs-md);
+  }
+
+  .player-card .player-stat-rate select {
+    min-width: 76px;
+    padding-inline: var(--sp-3);
+  }
 }
 
 .bookmark-meta {
