@@ -67,15 +67,17 @@ server itself in your infrastructure repo, then point the app container at it
 through `ABS_UPSTREAM`.
 
 ```bash
-docker build -t beskar-shelf .
-docker run --rm -p 4173:4173 \
-  -e ABS_UPSTREAM=http://host.docker.internal:13378 \
-  beskar-shelf
+cp .env.example .env
+$EDITOR .env
+docker compose up -d --build
 ```
 
 The container serves the PWA on `http://localhost:4173` and proxies `/abs/*`
 to `ABS_UPSTREAM`, so the app can stay same-origin without bundling the
 Audiobookshelf server into this repo.
+
+If you prefer Make targets, `make deploy`, `make deploy-down`, and `make deploy-logs`
+now wrap the same Compose commands.
 
 ## Grab: YouTube → MP3
 

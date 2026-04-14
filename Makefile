@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install dev down build test lint
+.PHONY: help setup doctor download download-dry-run install dev down build test lint deploy deploy-down deploy-logs
 
 help:
 	@echo "beskar-shelf commands"
@@ -11,6 +11,11 @@ help:
 	@echo "  make build            Build the PWA production bundle"
 	@echo "  make test             Run tests"
 	@echo "  make lint             Run linter"
+	@echo ""
+	@echo "  Deploy:"
+	@echo "  make deploy           Build and run the Beskar Shelf app container"
+	@echo "  make deploy-down      Stop and remove the deployed app container"
+	@echo "  make deploy-logs      Tail logs from the deployed app container"
 	@echo ""
 	@echo "  Tools:"
 	@echo "  make doctor           Validate grab tools, config, links file, and output directory"
@@ -50,3 +55,28 @@ download:
 
 download-dry-run:
 	@./tools/grab/grab --dry-run
+
+deploy:
+	@if [ ! -f .env ]; then \
+		echo "No .env found — copying from .env.example"; \
+		cp .env.example .env; \
+		echo "Edit .env with your app and runtime settings, then run make deploy again."; \
+		exit 1; \
+	fi
+	docker compose up -d --build
+	@echo ""
+	@container_name="$$(sed -n 's/^CONTAINER_NAME=//p' .env | head -n1)"; \
+		image_name="$$(sed -n 's/^IMAGE_NAME=//p' .env | head -n1)"; \
+		app_port="$$(sed -n 's/^APP_PORT=//p' .env | head -n1)"; \
+		abs_upstream="$$(sed -n 's/^ABS_UPSTREAM=//p' .env | head -n1)"; \
+		echo "Deployed:" && \
+		echo "  Container:       $${container_name:-beskar-shelf-pwa}" && \
+		echo "  Image:           $${image_name:-beskar-shelf}" && \
+		echo "  Beskar Shelf:    http://localhost:$${app_port:-4173}" && \
+		echo "  ABS upstream:    $${abs_upstream:-http://host.docker.internal:13378}"
+
+deploy-down:
+	docker compose down
+
+deploy-logs:
+	docker compose logs -f

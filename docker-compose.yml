@@ -1,0 +1,16 @@
+services:
+  beskar-shelf-pwa:
+    image: ${IMAGE_NAME:-beskar-shelf}
+    container_name: ${CONTAINER_NAME:-beskar-shelf-pwa}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_NAME: ${VITE_APP_NAME:-Beskar Shelf}
+        VITE_DEFAULT_SERVER_URL: ${VITE_DEFAULT_SERVER_URL:-}
+        VITE_ABS_PROXY_BASE: ${VITE_ABS_PROXY_BASE:-/abs}
+    environment:
+      ABS_UPSTREAM: ${ABS_UPSTREAM:-http://host.docker.internal:13378}
+    ports:
+      - "${APP_PORT:-4173}:4173"
+    restart: unless-stopped
