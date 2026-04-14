@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install dev down build test lint deploy deploy-down deploy-logs
+.PHONY: help setup doctor download download-dry-run install dev down stop build test lint deploy deploy-down deploy-logs
 
 help:
 	@echo "beskar-shelf commands"
@@ -7,7 +7,8 @@ help:
 	@echo "  make setup            Create .env files and links.txt from examples when missing"
 	@echo "  make install          Install frontend dependencies"
 	@echo "  make dev              Run the PWA dev server"
-	@echo "  make down             Stop the PWA dev server"
+	@echo "  make down             Stop the PWA dev server if it is running"
+	@echo "  make stop             Stop the deployed app container"
 	@echo "  make build            Build the PWA production bundle"
 	@echo "  make test             Run tests"
 	@echo "  make lint             Run linter"
@@ -34,9 +35,12 @@ dev:
 	@set -a && [ -f .env ] && . ./.env; export VITE_ABS_PROXY_BASE="$${VITE_ABS_PROXY_BASE:-/abs}" && set +a && npm run dev
 
 down:
-	@pid=$$(lsof -ti :5173 2>/dev/null) && \
-		if [ -n "$$pid" ]; then kill $$pid && echo "Dev server stopped (pid $$pid)"; \
-		else echo "No dev server running on port 5173"; fi
+	@pid=$$(lsof -ti :5173 2>/dev/null || true); \
+		if [ -n "$$pid" ]; then \
+			kill $$pid && echo "Dev server stopped (pid $$pid)"; \
+		else \
+			echo "No dev server running on port 5173"; \
+		fi
 
 build:
 	@npm run build
@@ -63,6 +67,9 @@ deploy:
 		echo "Edit .env with your app and runtime settings, then run make deploy again."; \
 		exit 1; \
 	fi
+	@container_name="$$(sed -n 's/^CONTAINER_NAME=//p' .env | head -n1)"; \
+		container_name="$${container_name:-beskar-shelf-pwa}" && \
+		docker rm -f "$$container_name" >/dev/null 2>&1 || true
 	docker compose up -d --build
 	@echo ""
 	@container_name="$$(sed -n 's/^CONTAINER_NAME=//p' .env | head -n1)"; \
@@ -77,6 +84,8 @@ deploy:
 
 deploy-down:
 	docker compose down
+
+stop: deploy-down
 
 deploy-logs:
 	docker compose logs -f
