@@ -1816,6 +1816,7 @@ h3 {
 
 .reader-back-btn,
 .reader-settings-btn,
+.reader-toc-btn,
 .reader-close-btn {
   background: var(--hover-bg);
   border: none;
@@ -1831,8 +1832,15 @@ h3 {
 
 .reader-back-btn:hover,
 .reader-settings-btn:hover,
+.reader-toc-btn:hover,
 .reader-close-btn:hover {
   background: var(--hover-bg-strong);
+}
+
+.reader-settings-btn.active,
+.reader-toc-btn.active {
+  background: var(--accent);
+  color: #fff;
 }
 
 .reader-content {
@@ -1969,6 +1977,78 @@ h3 {
 
 .reader-theme-swatch.active {
   border-color: var(--accent-500);
+}
+
+/* ─── Reader TOC panel ─── */
+
+.reader-toc-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(320px, 80vw);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  animation: toc-slide-in 180ms ease;
+}
+
+@keyframes toc-slide-in {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+.reader-toc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  flex-shrink: 0;
+}
+
+.reader-toc-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--fs-base);
+  opacity: 0.7;
+  padding: var(--sp-1);
+}
+
+.reader-toc-close:hover { opacity: 1; }
+
+.reader-toc-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: var(--sp-2) 0;
+}
+
+.reader-toc-item {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: var(--sp-2) var(--sp-4);
+  padding-right: var(--sp-4);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 100ms ease, background 100ms ease;
+  line-height: 1.4;
+}
+
+.reader-toc-item:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.12);
+}
+
+.reader-toc-item.active {
+  opacity: 1;
+  font-weight: 600;
+  background: rgba(128, 128, 128, 0.15);
 }
 
 /* ─── Bottom nav & mini-player ─── */

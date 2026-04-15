@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { AudiobookshelfClient } from './lib/api'
@@ -14,6 +14,7 @@ import type { PersistedPlaybackState, ServerConfig, UserSession } from './lib/ty
 import { AppContext } from './contexts/AppContext'
 import { ClientContext } from './contexts/ClientContext'
 import { PlayerContext, PlayerTimeContext } from './contexts/PlayerContext'
+import { useAbsSocket } from './hooks/useAbsSocket'
 import { usePlayback } from './hooks/usePlayback'
 import { useOffline } from './hooks/useOffline'
 import { Shell } from './components/Shell'
@@ -22,6 +23,18 @@ function App() {
   const queryClient = useQueryClient()
   const [server, setServerState] = useState<ServerConfig | null>(() => loadServerConfig())
   const [session, setSessionState] = useState<UserSession | null>(() => loadUserSession())
+  const isOnline = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener('online', cb)
+      window.addEventListener('offline', cb)
+      return () => {
+        window.removeEventListener('online', cb)
+        window.removeEventListener('offline', cb)
+      }
+    },
+    () => navigator.onLine,
+    () => true,
+  )
   const [playbackState, setPlaybackState] = useState<PersistedPlaybackState | null>(() => loadPlaybackState())
   const client = useMemo(() => new AudiobookshelfClient(server, session), [server, session])
 
@@ -40,6 +53,8 @@ function App() {
     window.addEventListener('session-expired', handleExpired)
     return () => window.removeEventListener('session-expired', handleExpired)
   }, [])
+
+  useAbsSocket(client, session, queryClient)
 
   const {
     offlineBooks,
@@ -70,6 +85,7 @@ function App() {
     seekBy,
     setPlaybackRate,
     jumpToTrack,
+    setIsSeeking,
     audioRef,
   } = usePlayback(client, session, playbackState, setPlaybackState)
 
@@ -78,6 +94,7 @@ function App() {
     setServer,
     session,
     setSession,
+    isOnline,
     offlineBooks,
     refreshBooks,
     refreshOfflineBooks,
@@ -86,7 +103,7 @@ function App() {
     downloadCurrentBook,
     removeOfflineBook,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [server, session, offlineBooks, playbackState])
+  }), [server, session, isOnline, offlineBooks, playbackState])
 
   const playerContextValue = useMemo(() => ({
     activePlayback,
@@ -98,6 +115,7 @@ function App() {
     seekBy,
     setPlaybackRate,
     jumpToTrack,
+    setIsSeeking,
     audioRef,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [activePlayback, isPlaying, playbackRate])

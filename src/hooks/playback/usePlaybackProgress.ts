@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 
 import { enqueueProgress, loadProgressQueue, savePlaybackState, saveProgressQueue } from '../../lib/storage'
@@ -18,6 +18,7 @@ interface UsePlaybackProgressOptions {
   playbackStateRef: React.RefObject<PersistedPlaybackState | null>
   playbackTimeRef: React.RefObject<number>
   playbackRateRef: React.RefObject<number>
+  isSeekingRef: React.RefObject<boolean>
 }
 
 export function usePlaybackProgress({
@@ -29,9 +30,17 @@ export function usePlaybackProgress({
   playbackStateRef,
   playbackTimeRef,
   playbackRateRef,
+  isSeekingRef,
 }: UsePlaybackProgressOptions) {
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastCommitRef = useRef(0)
+
+  useEffect(() => {
+    return () => {
+      if (invalidateTimerRef.current) clearTimeout(invalidateTimerRef.current)
+    }
+  }, [])
 
   const drainProgressQueue = useCallback(async () => {
     const queue = loadProgressQueue()
@@ -59,6 +68,11 @@ export function usePlaybackProgress({
     const currentPlaybackRate = playbackRateRef.current
 
     if (!currentPlayback || !currentSession) {
+      return
+    }
+
+    // Skip syncs for the first 10s — avoids polluting server with session-start noise
+    if (!isFinished && currentPlaybackTime < 10) {
       return
     }
 
@@ -99,7 +113,11 @@ export function usePlaybackProgress({
         }
       })
       if (isFinished) {
-        void queryClient.invalidateQueries({ queryKey: ['personalized'] })
+        if (invalidateTimerRef.current) clearTimeout(invalidateTimerRef.current)
+        invalidateTimerRef.current = setTimeout(() => {
+          invalidateTimerRef.current = null
+          void queryClient.invalidateQueries({ queryKey: ['personalized'] })
+        }, 600)
       }
       void drainProgressQueue()
     } catch (error) {
@@ -119,7 +137,7 @@ export function usePlaybackProgress({
   ])
 
   const scheduleProgressCommit = useCallback(() => {
-    if (progressTimerRef.current) {
+    if (progressTimerRef.current || isSeekingRef.current) {
       return
     }
 

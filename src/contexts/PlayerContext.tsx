@@ -12,6 +12,7 @@ export interface PlayerContextValue {
   seekBy: (delta: number) => void
   setPlaybackRate: (rate: number) => void
   jumpToTrack: (index: number) => void
+  setIsSeeking: (value: boolean) => void
   audioRef: React.RefObject<HTMLAudioElement | null>
 }
 

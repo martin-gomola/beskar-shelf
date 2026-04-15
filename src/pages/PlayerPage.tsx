@@ -85,6 +85,7 @@ function PlayerPage() {
     seekTo,
     setPlaybackRate,
     jumpToTrack,
+    setIsSeeking,
   } = usePlayerContext()
   const { playbackTime, currentTrackDuration } = usePlayerTime()
 
@@ -252,9 +253,13 @@ function PlayerPage() {
             min={0}
             max={Math.max(activePlayback.duration, 1)}
             value={seekPreview ?? playbackTime}
-            onInput={(event) => setSeekPreview(Number((event.target as HTMLInputElement).value))}
+            onInput={(event) => {
+              setIsSeeking(true)
+              setSeekPreview(Number((event.target as HTMLInputElement).value))
+            }}
             onChange={(event) => {
               const value = Number(event.target.value)
+              setIsSeeking(false)
               seekTo(value)
               setSeekPreview(null)
             }}

@@ -56,7 +56,7 @@ export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
   const navigate = useNavigate()
-  const { startBook, downloadCurrentBook, offlineBooks } = useAppContext()
+  const { startBook, downloadCurrentBook, offlineBooks, isOnline } = useAppContext()
   const { activePlayback, seekTo } = usePlayerContext()
   const [descExpanded, setDescExpanded] = useState(false)
   const [showDownloadPicker, setShowDownloadPicker] = useState(false)
@@ -69,8 +69,10 @@ export function BookPage() {
   })
   const item = query.data
   const offline = offlineBooks.find((book) => book.itemId === itemId)
+  const isDownloaded = offline?.status === 'downloaded'
   const canPlay = item ? item.audioTracks.length > 0 || item.duration > 0 : false
   const canRead = item ? Boolean(item.ebookFormat) : false
+  const playBlocked = !isOnline && !isDownloaded
 
   if (query.isPending) {
     return <main className="screen"><p className="muted" style={{ textAlign: 'center', padding: '48px 0' }}>Loading…</p></main>
@@ -149,14 +151,31 @@ export function BookPage() {
       {/* Actions */}
       <div className="bd-actions">
         {canPlay ? (
-          <button className="primary-button bd-action-main" onClick={() => void startBook(item)}>
-            {item.currentTime > 0 ? `Resume · ${formatDuration(item.currentTime)}` : 'Play'}
+          <button
+            className="primary-button bd-action-main"
+            onClick={() => void startBook(item)}
+            disabled={playBlocked}
+            title={playBlocked ? 'Not available offline — download first' : undefined}
+          >
+            {playBlocked
+              ? 'Offline — not downloaded'
+              : item.currentTime > 0 ? `Resume · ${formatDuration(item.currentTime)}` : 'Play'}
           </button>
         ) : null}
         {canRead ? (
-          <Link className={clsx(canPlay ? 'ghost-button' : 'primary-button', 'bd-action-main')} to={`/read/${item.id}`} replace>
-            {item.ebookLocation ? 'Continue reading' : 'Read'}
-          </Link>
+          playBlocked ? (
+            <button
+              className={clsx(canPlay ? 'ghost-button' : 'primary-button', 'bd-action-main')}
+              disabled
+              title="Not available offline — download first"
+            >
+              Offline — not downloaded
+            </button>
+          ) : (
+            <Link className={clsx(canPlay ? 'ghost-button' : 'primary-button', 'bd-action-main')} to={`/read/${item.id}`} replace>
+              {item.ebookLocation ? 'Continue reading' : 'Read'}
+            </Link>
+          )
         ) : null}
         {canPlay || canRead ? (
           showDownloadPicker ? (

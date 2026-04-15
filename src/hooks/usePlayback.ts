@@ -30,6 +30,7 @@ export function usePlayback(
   const [playbackRate, setPlaybackRateState] = useState(() => playbackState?.rate ?? 1)
   const [currentTrackDuration, setCurrentTrackDuration] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
+  const isSeekingRef = useRef(false)
   const activePlaybackRef = useRef(activePlayback)
   const sessionRef = useRef(session)
   const playbackStateRef = useRef(playbackState)
@@ -60,6 +61,7 @@ export function usePlayback(
   }, [client])
 
   const { drainProgressQueue, scheduleProgressCommit, flushProgress } = usePlaybackProgress({
+    isSeekingRef,
     client,
     queryClient,
     setPlaybackState,
@@ -237,6 +239,10 @@ export function usePlayback(
     void audioRef.current.play()
   }
 
+  function setIsSeeking(value: boolean) {
+    isSeekingRef.current = value
+  }
+
   return {
     activePlayback,
     playbackTime,
@@ -250,6 +256,7 @@ export function usePlayback(
     seekBy,
     setPlaybackRate,
     jumpToTrack,
+    setIsSeeking,
     audioRef,
   }
 }

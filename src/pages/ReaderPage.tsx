@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -27,14 +27,19 @@ function ReaderPage() {
   const viewRef = useRef<InstanceType<typeof import('foliate-js/view.js').View> | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  interface TocItem { label: string; href: string; subitems?: TocItem[] | null }
+
   const [readerProgress, setReaderProgress] = useState(0)
   const [showUI, setShowUI] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showToc, setShowToc] = useState(false)
   const [theme, setTheme] = useState<ReaderTheme>('sepia')
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE)
   const [ready, setReady] = useState(false)
   const [bootProgress, setBootProgress] = useState(0)
   const [pdfSrc, setPdfSrc] = useState<string | null>(null)
+  const [toc, setToc] = useState<TocItem[]>([])
+  const [activeTocHref, setActiveTocHref] = useState<string | null>(null)
 
   const query = useQuery({
     queryKey: ['item', itemId],
@@ -152,6 +157,10 @@ function ReaderPage() {
       if (cancelled) return
       setBootProgress(78)
 
+      // Grab TOC from the opened book
+      const bookToc = (view as unknown as { book?: { toc?: TocItem[] } }).book?.toc ?? []
+      setToc(bookToc)
+
       if (view.renderer) {
         view.renderer.setAttribute('flow', 'paginated')
         view.renderer.setAttribute('gap', '5%')
@@ -161,9 +170,12 @@ function ReaderPage() {
       }
 
       view.addEventListener('relocate', ((e: CustomEvent) => {
-        const detail = e.detail as { fraction?: number; cfi?: string }
+        const detail = e.detail as { fraction?: number; cfi?: string; tocItem?: { href?: string } }
         const progress = detail.fraction ?? 0
         setReaderProgress(progress)
+        if (detail.tocItem?.href) {
+          setActiveTocHref(detail.tocItem.href)
+        }
         if (detail.cfi) {
           const payload = { cfi: detail.cfi, progress }
           pendingPayloadRef.current = payload
@@ -208,6 +220,8 @@ function ReaderPage() {
       viewRef.current = null
       setReady(false)
       setBootProgress(0)
+      setToc([])
+      setActiveTocHref(null)
     }
   }, [applyTheme, client, commitReaderProgress, item])
 
@@ -245,9 +259,27 @@ function ReaderPage() {
     }
   }, [client, item])
 
+  // Flatten nested TOC for rendering (preserving depth for indent)
+  const flatToc = useMemo(() => {
+    const result: { item: TocItem; depth: number }[] = []
+    function flatten(items: TocItem[], depth: number) {
+      for (const item of items) {
+        result.push({ item, depth })
+        if (item.subitems?.length) flatten(item.subitems, depth + 1)
+      }
+    }
+    flatten(toc, 0)
+    return result
+  }, [toc])
+
+  const goToTocItem = useCallback((href: string) => {
+    viewRef.current?.goTo(href)
+    setShowToc(false)
+  }, [])
+
   const toggleUI = useCallback(() => {
     setShowUI((prev) => {
-      if (prev) setShowSettings(false)
+      if (prev) { setShowSettings(false); setShowToc(false) }
       return !prev
     })
   }, [])
@@ -297,13 +329,47 @@ function ReaderPage() {
         <div className="reader-topbar-title">
           <strong>{item.title}</strong>
         </div>
-        <button className="reader-settings-btn" onClick={() => setShowSettings(!showSettings)}>
+        {flatToc.length > 0 && (
+          <button
+            className={`reader-toc-btn ${showToc ? 'active' : ''}`}
+            onClick={() => { setShowToc((v) => !v); setShowSettings(false) }}
+            aria-label="Table of contents"
+          >
+            ☰
+          </button>
+        )}
+        <button
+          className={`reader-settings-btn ${showSettings ? 'active' : ''}`}
+          onClick={() => { setShowSettings((v) => !v); setShowToc(false) }}
+        >
           Aa
         </button>
         <button className="reader-close-btn" onClick={toggleUI} aria-label="Hide controls">
           ✕
         </button>
       </header>
+
+      {/* TOC panel */}
+      {showToc && flatToc.length > 0 && (
+        <div className="reader-toc-panel" style={{ background: currentTheme.bg, color: currentTheme.fg }}>
+          <div className="reader-toc-header">
+            <strong>Chapters</strong>
+            <button className="reader-toc-close" onClick={() => setShowToc(false)} aria-label="Close chapters">✕</button>
+          </div>
+          <div className="reader-toc-list">
+            {flatToc.map(({ item: tocEntry, depth }, i) => (
+              <button
+                key={`${tocEntry.href}-${i}`}
+                className={`reader-toc-item ${activeTocHref === tocEntry.href ? 'active' : ''}`}
+                style={{ paddingLeft: `${16 + depth * 16}px` }}
+                onClick={() => goToTocItem(tocEntry.href)}
+              >
+                {tocEntry.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Reading area */}
       {isPdf ? (

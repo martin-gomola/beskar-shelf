@@ -7,6 +7,7 @@ export interface AppContextValue {
   setServer: (server: ServerConfig | null) => void
   session: UserSession | null
   setSession: (session: UserSession | null) => void
+  isOnline: boolean
   offlineBooks: OfflineBook[]
   refreshBooks: () => Promise<void>
   refreshOfflineBooks: () => Promise<void>

@@ -207,28 +207,26 @@ run_doctor
 processed=0
 handled=0
 
-while IFS= read -r url || [ -n "$url" ]; do
-    url=$(echo "$url" | xargs)
-    [[ -z "$url" || "$url" == \#* ]] && continue
+process_video_url() {
+    local url="$1"
+    local idx="$2"
 
-    if [ -n "$ITEM_LIMIT" ] && [ "$processed" -ge "$ITEM_LIMIT" ]; then
-        break
+    echo "[$idx] Fetching metadata: $url"
+    if ! raw_title=$(yt-dlp --js-runtimes node --get-title --no-playlist "$url" 2>/dev/null); then
+        echo "[$idx] Metadata fetch failed for title. Skipping this URL."
+        return 0
     fi
-
-    processed=$((processed + 1))
-
-    echo "[$processed] Fetching metadata: $url"
-    if ! raw_title=$(yt-dlp --get-title --no-playlist "$url"); then
-        echo "[$processed] Metadata fetch failed for title. Skipping this URL."
-        continue
+    # Bail out if multiple titles were returned (shouldn't happen with --no-playlist but guard anyway)
+    if [ "$(echo "$raw_title" | wc -l)" -gt 1 ]; then
+        raw_title=$(echo "$raw_title" | head -1)
     fi
-    if ! uploader=$(yt-dlp --print "%(uploader)s" --no-playlist "$url"); then
-        echo "[$processed] Metadata fetch failed for uploader. Skipping this URL."
-        continue
+    if ! uploader=$(yt-dlp --js-runtimes node --print "%(uploader)s" --no-playlist "$url" 2>/dev/null | head -1); then
+        echo "[$idx] Metadata fetch failed for uploader. Skipping this URL."
+        return 0
     fi
-    if ! chapters=$(yt-dlp --print "%(chapters)s" --no-playlist "$url"); then
-        echo "[$processed] Metadata fetch failed for chapters. Skipping this URL."
-        continue
+    if ! chapters=$(yt-dlp --js-runtimes node --print "%(chapters)s" --no-playlist "$url" 2>/dev/null | head -1); then
+        echo "[$idx] Metadata fetch failed for chapters. Skipping this URL."
+        return 0
     fi
 
     parse_author_and_title "$raw_title" "$uploader"
@@ -242,32 +240,33 @@ while IFS= read -r url || [ -n "$url" ]; do
         has_chapters=true
     fi
 
-    echo "[$processed] Title:  $parsed_title"
-    echo "[$processed] Author: $parsed_author"
-    echo "[$processed] Target: $book_dir"
+    echo "[$idx] Title:  $parsed_title"
+    echo "[$idx] Author: $parsed_author"
+    echo "[$idx] Target: $book_dir"
     if $parse_used_fallback; then
-        echo "[$processed] Parsing: fallback metadata used; review in Audiobookshelf after import."
+        echo "[$idx] Parsing: fallback metadata used; review in Audiobookshelf after import."
     else
-        echo "[$processed] Parsing: matched expected title/author pattern."
+        echo "[$idx] Parsing: matched expected title/author pattern."
     fi
 
     if $has_chapters; then
-        echo "[$processed] Split mode: chapter split"
+        echo "[$idx] Split mode: chapter split"
     else
-        echo "[$processed] Split mode: inspect duration after download"
+        echo "[$idx] Split mode: inspect duration after download"
     fi
 
     if $DRY_RUN; then
-        echo "[$processed] Dry run: metadata validated, no files written."
+        echo "[$idx] Dry run: metadata validated, no files written."
         handled=$((handled + 1))
-        continue
+        return 0
     fi
 
     mkdir -p "$book_dir"
 
-    echo "[$processed] Downloading audio..."
+    echo "[$idx] Downloading audio..."
     if $has_chapters; then
         yt-dlp \
+            --js-runtimes node \
             --extract-audio \
             --audio-format mp3 \
             --audio-quality 0 \
@@ -279,6 +278,7 @@ while IFS= read -r url || [ -n "$url" ]; do
             "$url"
     else
         yt-dlp \
+            --js-runtimes node \
             --extract-audio \
             --audio-format mp3 \
             --audio-quality 0 \
@@ -291,12 +291,12 @@ while IFS= read -r url || [ -n "$url" ]; do
         if [ -n "$mp3_file" ]; then
             duration=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 "$mp3_file" | cut -d. -f1)
             if [ "${duration:-0}" -gt "$SPLIT_THRESHOLD_VALUE" ]; then
-                echo "[$processed] Split mode: fixed-length split every ${SEGMENT_LENGTH_VALUE}s"
+                echo "[$idx] Split mode: fixed-length split every ${SEGMENT_LENGTH_VALUE}s"
                 ffmpeg -y -i "$mp3_file" -f segment -segment_time "$SEGMENT_LENGTH_VALUE" -c copy \
                     "$book_dir/%03d - Part.mp3" 2>/dev/null
                 rm "$mp3_file"
             else
-                echo "[$processed] Split mode: single file, duration ${duration}s"
+                echo "[$idx] Split mode: single file, duration ${duration}s"
             fi
         fi
     fi
@@ -308,6 +308,36 @@ while IFS= read -r url || [ -n "$url" ]; do
 
     find "$book_dir" -maxdepth 1 \( -name '*.webm' -o -name '*.m4a' -o -name '*.opus' \) -delete
     handled=$((handled + 1))
+}
+
+while IFS= read -r url || [ -n "$url" ]; do
+    url=$(echo "$url" | xargs)
+    [[ -z "$url" || "$url" == \#* ]] && continue
+
+    if [ -n "$ITEM_LIMIT" ] && [ "$processed" -ge "$ITEM_LIMIT" ]; then
+        break
+    fi
+
+    # Expand playlist URLs into individual video URLs; single videos pass through as-is
+    if echo "$url" | grep -qE '[?&]list='; then
+        echo "[playlist] Expanding: $url"
+        mapfile -t video_urls < <(yt-dlp --js-runtimes node --flat-playlist --print "%(url)s" "$url" 2>/dev/null)
+        if [ "${#video_urls[@]}" -eq 0 ]; then
+            echo "[playlist] Failed to expand playlist, skipping: $url"
+            continue
+        fi
+        echo "[playlist] Found ${#video_urls[@]} video(s)"
+    else
+        video_urls=("$url")
+    fi
+
+    for video_url in "${video_urls[@]}"; do
+        if [ -n "$ITEM_LIMIT" ] && [ "$processed" -ge "$ITEM_LIMIT" ]; then
+            break
+        fi
+        processed=$((processed + 1))
+        process_video_url "$video_url" "$processed"
+    done
 done < "$LINKS_FILE"
 
 if $DRY_RUN; then
