@@ -28,6 +28,7 @@ function renderSettingsPage(appOverrides: Partial<AppContextValue> = {}) {
       },
     },
     setSession: vi.fn(),
+    isOnline: true,
     offlineBooks: [],
     refreshBooks: vi.fn().mockResolvedValue(undefined),
     refreshOfflineBooks: vi.fn().mockResolvedValue(undefined),

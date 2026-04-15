@@ -81,6 +81,7 @@ function renderPlayerPage({
     seekBy: vi.fn(),
     setPlaybackRate: vi.fn(),
     jumpToTrack: vi.fn(),
+    setIsSeeking: vi.fn(),
     audioRef: { current: null },
   }
 

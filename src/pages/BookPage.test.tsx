@@ -94,6 +94,7 @@ function renderBookPage({
     setServer: vi.fn(),
     session: null,
     setSession: vi.fn(),
+    isOnline: true,
     offlineBooks: [],
     refreshBooks: vi.fn().mockResolvedValue(undefined),
     refreshOfflineBooks: vi.fn().mockResolvedValue(undefined),
@@ -114,6 +115,7 @@ function renderBookPage({
     seekBy: vi.fn(),
     setPlaybackRate: vi.fn(),
     jumpToTrack: vi.fn(),
+    setIsSeeking: vi.fn(),
     audioRef: { current: null },
   }
 

@@ -147,7 +147,7 @@ export function usePlaybackProgress({
       progressTimerRef.current = null
       void commitProgressNow(false)
     }, delay)
-  }, [commitProgressNow])
+  }, [commitProgressNow, isSeekingRef])
 
   const flushProgress = useCallback((isFinished = false) => {
     if (progressTimerRef.current) {

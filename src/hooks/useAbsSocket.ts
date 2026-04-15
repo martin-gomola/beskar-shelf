@@ -49,6 +49,7 @@ export function useAbsSocket(
 
   useEffect(() => {
     if (!session?.token || !client.hasServer()) return
+    const token = session.token
 
     let destroyed = false
 
@@ -66,7 +67,7 @@ export function useAbsSocket(
     function connect() {
       if (destroyed) return
       try {
-        const url = absSocketUrl(client, session!.token)
+        const url = absSocketUrl(client, token)
         const ws = new WebSocket(url)
         wsRef.current = ws
 
@@ -139,5 +140,5 @@ export function useAbsSocket(
 
     connect()
     return cleanup
-  }, [client, session?.token, queryClient])
+  }, [client, queryClient, session])
 }
