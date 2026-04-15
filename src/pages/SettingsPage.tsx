@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
+import { useServiceWorkerUpdate } from '../hooks/useServiceWorkerUpdate'
 import { useTheme } from '../hooks/useTheme'
 import { APP_VERSION } from '../utils/version'
 
@@ -13,9 +14,11 @@ const THEME_OPTIONS = [
 
 function SettingsPage() {
   const { server, session, setSession, setServer, refreshBooks, refreshOfflineBooks } = useAppContext()
+  const { updateAvailable, reload, checkForUpdate } = useServiceWorkerUpdate()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [refreshingBooks, setRefreshingBooks] = useState(false)
+  const [checkingForUpdate, setCheckingForUpdate] = useState(false)
 
   async function handleRefreshBooks() {
     setRefreshingBooks(true)
@@ -23,6 +26,20 @@ function SettingsPage() {
       await refreshBooks()
     } finally {
       setRefreshingBooks(false)
+    }
+  }
+
+  async function handleCheckForUpdates() {
+    if (updateAvailable) {
+      reload()
+      return
+    }
+
+    setCheckingForUpdate(true)
+    try {
+      await checkForUpdate()
+    } finally {
+      setCheckingForUpdate(false)
     }
   }
 
@@ -72,6 +89,25 @@ function SettingsPage() {
           >
             <span>{refreshingBooks ? 'Refreshing books…' : 'Refresh books'}</span>
             <span className="settings-action-hint">Refetch your libraries and titles</span>
+          </button>
+          <div className="settings-divider" />
+          <button
+            className="settings-action"
+            onClick={() => void handleCheckForUpdates()}
+            disabled={checkingForUpdate}
+          >
+            <span>
+              {updateAvailable
+                ? 'Reload to update'
+                : checkingForUpdate
+                  ? 'Checking for updates…'
+                  : 'Check for updates'}
+            </span>
+            <span className="settings-action-hint">
+              {updateAvailable
+                ? 'A new version is ready'
+                : 'Ask the app to look for a newer version'}
+            </span>
           </button>
         </div>
       </section>

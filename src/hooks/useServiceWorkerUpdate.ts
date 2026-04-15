@@ -45,5 +45,19 @@ export function useServiceWorkerUpdate() {
     }
   }, [location.pathname])
 
-  return { updateAvailable, reload }
+  const checkForUpdate = useCallback(async () => {
+    if (!('serviceWorker' in navigator)) {
+      return false
+    }
+
+    const registration = await navigator.serviceWorker.getRegistration()
+    if (!registration) {
+      return false
+    }
+
+    await registration.update()
+    return true
+  }, [])
+
+  return { updateAvailable, reload, checkForUpdate }
 }
