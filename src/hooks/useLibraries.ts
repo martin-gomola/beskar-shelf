@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 
-export function useLibraries() {
+function useLibraries() {
   const client = useClient()
   const { session } = useAppContext()
   return useQuery({

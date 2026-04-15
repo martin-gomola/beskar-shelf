@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
@@ -104,20 +104,6 @@ function PlayerPage() {
     return chapter?.end ?? null
   }, [activePlayback, playbackTime])
 
-  const pausePlayback = useMemo(() => {
-    return async () => {
-      if (isPlaying) {
-        await togglePlayback()
-      }
-    }
-  }, [isPlaying, togglePlayback])
-
-  const { sleepTimer, setSleepMinutes, setSleepEndOfChapter, cancelSleepTimer } = useSleepTimer(
-    pausePlayback,
-    currentChapterEnd,
-    playbackTime,
-  )
-
   const bookmarksQuery = useQuery({
     queryKey: ['bookmarks', activePlayback?.item.id],
     queryFn: () => client.getBookmarks(activePlayback!.item.id),
@@ -153,6 +139,50 @@ function PlayerPage() {
     return [...byTime.values()].sort((a, b) => a.time - b.time)
   }, [bookmarksQuery.data, localBookmarks])
 
+  const saveBookmark = useCallback(async (
+    bookmark: Bookmark,
+    messages: { success: string, fallback: string },
+  ) => {
+    if (!activeItemId) {
+      return
+    }
+
+    upsertBookmark(activeItemId, bookmark)
+    setLocalBookmarkVersion((value) => value + 1)
+
+    try {
+      await client.createBookmark(activeItemId, bookmark.time, bookmark.title)
+      await queryClient.invalidateQueries({ queryKey: ['bookmarks', activeItemId] })
+      showToast(messages.success, 'success')
+    } catch (error) {
+      showToast(messages.fallback, 'info')
+      console.error(error)
+    }
+  }, [activeItemId, client, queryClient, showToast])
+
+  const handleSleepTimerComplete = useCallback(async () => {
+    const bookmark: Bookmark = {
+      title: `Sleep timer at ${formatDuration(playbackTime)}`,
+      time: Math.floor(playbackTime),
+      createdAt: Date.now(),
+    }
+
+    await saveBookmark(bookmark, {
+      success: 'Sleep bookmark saved',
+      fallback: 'Sleep bookmark saved on this device',
+    })
+
+    if (isPlaying) {
+      await togglePlayback()
+    }
+  }, [isPlaying, playbackTime, saveBookmark, togglePlayback])
+
+  const { sleepTimer, setSleepMinutes, setSleepEndOfChapter, cancelSleepTimer } = useSleepTimer(
+    handleSleepTimerComplete,
+    currentChapterEnd,
+    playbackTime,
+  )
+
   if (!activePlayback) {
     return (
       <main className="screen">
@@ -171,25 +201,17 @@ function PlayerPage() {
     : null
 
   async function addBookmark() {
-    const title = bookmarkTitle.trim() || `Bookmark at ${formatDuration(playbackTime)}`
     const bookmark: Bookmark = {
-      title,
+      title: bookmarkTitle.trim() || `Bookmark at ${formatDuration(playbackTime)}`,
       time: Math.floor(playbackTime),
       createdAt: Date.now(),
     }
 
-    upsertBookmark(activeItem.id, bookmark)
-    setLocalBookmarkVersion((value) => value + 1)
+    await saveBookmark(bookmark, {
+      success: 'Bookmark saved',
+      fallback: 'Bookmark saved on this device',
+    })
     setBookmarkTitle('')
-
-    try {
-      await client.createBookmark(activeItem.id, bookmark.time, title)
-      await queryClient.invalidateQueries({ queryKey: ['bookmarks', activeItem.id] })
-      showToast('Bookmark saved', 'success')
-    } catch (error) {
-      showToast('Bookmark saved on this device', 'info')
-      console.error(error)
-    }
   }
 
   async function removeBookmark(bookmark: Bookmark & { source: 'local' | 'server' | 'both' }) {

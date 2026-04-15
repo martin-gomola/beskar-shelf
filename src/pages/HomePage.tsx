@@ -50,9 +50,8 @@ export function HomePage() {
               <h1>Discovery</h1>
             </div>
           </div>
-          <p className="home-subtitle">Pick a library and get back to listening.</p>
+          {/* <p className="home-subtitle">Pick a library and get back to listening.</p> */}
         </div>
-        {primary ? <Link className="ghost-button home-header-action" to={`/library/${primary.id}`}>Browse {primary.name}</Link> : null}
       </section>
 
       <section className="library-toolbar">

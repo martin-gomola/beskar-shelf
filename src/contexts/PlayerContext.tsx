@@ -15,7 +15,7 @@ export interface PlayerContextValue {
   audioRef: React.RefObject<HTMLAudioElement | null>
 }
 
-export interface PlayerTimeContextValue {
+interface PlayerTimeContextValue {
   playbackTime: number
   currentTrackDuration: number
 }

@@ -8,7 +8,7 @@ interface UsePlaybackEffectsOptions {
   activePlayback: ActivePlayback | null
   setActivePlayback: React.Dispatch<React.SetStateAction<ActivePlayback | null>>
   audioRef: React.RefObject<HTMLAudioElement | null>
-  playbackState: PersistedPlaybackState | null
+  playbackStateRef: React.RefObject<PersistedPlaybackState | null>
   playbackRate: number
   setPlaybackTime: React.Dispatch<React.SetStateAction<number>>
   setCurrentTrackDuration: React.Dispatch<React.SetStateAction<number>>
@@ -27,7 +27,7 @@ export function usePlaybackEffects({
   activePlayback,
   setActivePlayback,
   audioRef,
-  playbackState,
+  playbackStateRef,
   playbackRate,
   setPlaybackTime,
   setCurrentTrackDuration,
@@ -49,6 +49,7 @@ export function usePlaybackEffects({
     const audio = audioRef.current
     const currentSource = activePlayback.sources[activePlayback.trackIndex]
     if (audio.src !== currentSource) {
+      const playbackState = playbackStateRef.current
       audio.src = currentSource
       audio.currentTime = Math.max(
         0,
@@ -97,7 +98,7 @@ export function usePlaybackEffects({
     audioRef,
     flushProgress,
     playbackRate,
-    playbackState,
+    playbackStateRef,
     setActivePlayback,
     setCurrentTrackDuration,
     setIsPlaying,

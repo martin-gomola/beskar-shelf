@@ -56,12 +56,6 @@ export interface BookItem {
   ebookProgress: number
 }
 
-export interface Shelf {
-  id: string
-  label: string
-  entities: BookItem[]
-}
-
 export interface PlaybackSession {
   id: string
   libraryItemId: string

@@ -231,9 +231,13 @@ h3 {
   animation: slide-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.screen:not(.auth-screen):not(.setup-screen) {
+  width: min(1120px, 100%);
+}
+
 @media (max-width: 680px) {
   .app-shell {
-    padding: max(var(--sp-3), env(safe-area-inset-top)) 0 130px;
+    padding: 0 0 130px;
   }
   .screen {
     border-radius: 0;
@@ -474,6 +478,35 @@ h3 {
   transform: scale(0.97);
 }
 
+.primary-button:disabled,
+.ghost-button:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.primary-button:disabled {
+  background: var(--surface-dark);
+  color: var(--text-muted);
+}
+
+.ghost-button:disabled,
+.icon-button:disabled {
+  background: var(--surface-dark);
+  color: var(--text-muted);
+  border-color: var(--glass-border);
+}
+
+.primary-button:disabled:hover,
+.ghost-button:disabled:hover,
+.icon-button:disabled:hover,
+.primary-button:disabled:active,
+.ghost-button:disabled:active,
+.icon-button:disabled:active {
+  transform: none;
+}
+
 .ghost-button {
   background: var(--glass-bg-heavy);
   color: var(--text-secondary);
@@ -546,8 +579,8 @@ h3 {
 
 .home-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: flex-start;
   gap: var(--sp-4);
   padding: 18px 20px;
   border-radius: 20px;
@@ -586,46 +619,13 @@ h3 {
   font-size: var(--fs-sm);
 }
 
-.home-header-action {
-  min-width: 0;
-  white-space: nowrap;
-}
-
 .settings-screen {
   gap: var(--sp-5);
 }
 
 .settings-hero {
-  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
-  align-items: stretch;
-  gap: var(--sp-4);
-}
-
-.settings-hero-copy {
   display: grid;
   gap: var(--sp-2);
-}
-
-.settings-identity {
-  display: grid;
-  gap: var(--sp-3);
-}
-
-.settings-identity-card {
-  display: grid;
-  gap: 6px;
-  padding: var(--sp-4);
-  border-radius: 18px;
-  background: transparent;
-  border: 1px solid var(--glass-border);
-  min-width: 0;
-}
-
-.settings-identity-card strong {
-  font-size: var(--fs-md);
-  line-height: 1.35;
-  color: var(--text);
-  overflow-wrap: anywhere;
 }
 
 .settings-group {
@@ -1988,6 +1988,13 @@ h3 {
   box-shadow: none;
 }
 
+@media (min-width: 768px) {
+  .bottom-nav,
+  .mini-player {
+    width: min(760px, calc(100% - 32px));
+  }
+}
+
 .bottom-nav {
   bottom: max(12px, env(safe-area-inset-bottom));
   padding: 8px;
@@ -2451,10 +2458,6 @@ h3 {
   .home-header {
     gap: var(--sp-3);
     padding: 14px 16px;
-  }
-
-  .home-header-action {
-    width: 100%;
   }
 
   .text-link {

@@ -6,6 +6,7 @@ import clsx from 'clsx'
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext } from '../contexts/PlayerContext'
+import type { AudioTrack } from '../lib/types'
 import { formatDuration, formatProgress, formatBytes } from '../lib/utils'
 
 function IconChevronLeft() {
@@ -60,6 +61,7 @@ export function BookPage() {
   const [descExpanded, setDescExpanded] = useState(false)
   const [showDownloadPicker, setShowDownloadPicker] = useState(false)
   const [selectedTrackIndices, setSelectedTrackIndices] = useState<number[]>([])
+  const [downloadTracks, setDownloadTracks] = useState<AudioTrack[]>([])
   const query = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => client.getItem(itemId),
@@ -103,6 +105,11 @@ export function BookPage() {
       return
     }
 
+    const tracks = currentItem.audioTracks.length > 0
+      ? currentItem.audioTracks
+      : (await client.startPlayback(currentItem.id)).audioTracks
+
+    setDownloadTracks(tracks)
     setSelectedTrackIndices([])
     setShowDownloadPicker(true)
   }
@@ -111,6 +118,7 @@ export function BookPage() {
     await downloadCurrentBook(currentItem, { selectedTrackIndices })
     setShowDownloadPicker(false)
     setSelectedTrackIndices([])
+    setDownloadTracks([])
   }
 
   return (
@@ -165,6 +173,7 @@ export function BookPage() {
                 onClick={() => {
                   setShowDownloadPicker(false)
                   setSelectedTrackIndices([])
+                  setDownloadTracks([])
                 }}
               >
                 Cancel
@@ -187,7 +196,7 @@ export function BookPage() {
             <span className="muted">{selectedTrackIndices.length} selected</span>
           </div>
           <div className="chapter-list">
-            {item.audioTracks.map((track, index) => {
+            {downloadTracks.map((track, index) => {
               const isSelected = selectedTrackIndices.includes(index)
               return (
                 <button

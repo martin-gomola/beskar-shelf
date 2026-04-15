@@ -94,7 +94,7 @@ export function loadBookmarks(itemId: string) {
   return readJson<Bookmark[]>(bookmarkKey(itemId)) ?? []
 }
 
-export function saveBookmarks(itemId: string, bookmarks: Bookmark[]) {
+function saveBookmarks(itemId: string, bookmarks: Bookmark[]) {
   const sorted = [...bookmarks].sort((a, b) => a.time - b.time)
   writeJson(bookmarkKey(itemId), sorted.length > 0 ? sorted : null)
 }

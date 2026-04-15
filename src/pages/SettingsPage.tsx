@@ -46,23 +46,11 @@ function SettingsPage() {
   return (
     <main className="screen settings-screen">
       <section className="settings-hero card">
-        <div className="settings-hero-copy">
-          <p className="eyebrow">Shelf tuning</p>
-          <h1>Settings</h1>
-          <p className="muted">
-            Adjust the vibe, refresh your catalog, and manage how this device stays connected.
-          </p>
-        </div>
-        <div className="settings-identity" aria-label="Connection summary">
-          <div className="settings-identity-card">
-            <span className="stat-label">Server</span>
-            <strong>{server?.baseUrl ?? 'Not connected'}</strong>
-          </div>
-          <div className="settings-identity-card">
-            <span className="stat-label">Account</span>
-            <strong>{session?.user.username ?? 'Guest'}</strong>
-          </div>
-        </div>
+        <p className="eyebrow">Shelf tuning</p>
+        <h1>Settings</h1>
+        <p className="muted">
+          Adjust the vibe, refresh your catalog, and manage how this device stays connected.
+        </p>
       </section>
 
       {/* Appearance */}

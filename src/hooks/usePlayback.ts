@@ -108,7 +108,7 @@ export function usePlayback(
     activePlayback,
     setActivePlayback,
     audioRef,
-    playbackState,
+    playbackStateRef,
     playbackRate,
     setPlaybackTime,
     setCurrentTrackDuration,

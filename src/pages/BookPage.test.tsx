@@ -57,6 +57,15 @@ const audiobookItem: BookItem = {
   ebookProgress: 0,
 }
 
+const audiobookItemWithoutTrackMetadata: BookItem = {
+  ...audiobookItem,
+  chapters: [
+    { id: 1, title: 'Jurassic Park - Michael Crichton 1', start: 0, end: 1 },
+    { id: 2, title: 'Jurassic Park - Michael Crichton 2', start: 1, end: 2 },
+  ],
+  audioTracks: [],
+}
+
 function renderBookPage({
   item = ebookOnlyItem,
   appOverrides = {},
@@ -68,6 +77,16 @@ function renderBookPage({
   const client = {
     getItem: vi.fn().mockResolvedValue(item),
     coverUrl: vi.fn().mockReturnValue('/cover.jpg'),
+    startPlayback: vi.fn().mockResolvedValue({
+      id: 'session-1',
+      libraryItemId: item.id,
+      duration: item.duration,
+      displayTitle: item.title,
+      displayAuthor: item.author,
+      coverPath: item.coverPath,
+      chapters: item.chapters,
+      audioTracks: item.audioTracks,
+    }),
   } as unknown as AudiobookshelfClient
 
   const appContextValue: AppContextValue = {
@@ -150,15 +169,51 @@ describe('BookPage', () => {
     expect(screen.getByText(/select tracks to download/i)).toBeInTheDocument()
     expect(screen.getByText(/0 selected/i)).toBeInTheDocument()
 
+    const confirmButton = screen.getByRole('button', { name: /download selected/i })
+    expect(confirmButton).toBeDisabled()
+
     await user.click(screen.getByRole('button', { name: /chapter 2/i }))
     await user.click(screen.getByRole('button', { name: /chapter 3/i }))
 
-    await user.click(screen.getByRole('button', { name: /download selected/i }))
+    expect(confirmButton).toBeEnabled()
+
+    await user.click(confirmButton)
 
     await waitFor(() => {
       expect(appContextValue.downloadCurrentBook).toHaveBeenCalledWith(
         audiobookItem,
         { selectedTrackIndices: [1, 2] },
+      )
+    })
+  })
+
+  it('loads downloadable tracks from playback when the item payload only contains chapters', async () => {
+    const user = userEvent.setup()
+    const { appContextValue, client } = renderBookPage({ item: audiobookItemWithoutTrackMetadata })
+
+    vi.mocked(client.startPlayback).mockResolvedValue({
+      id: 'session-2',
+      libraryItemId: audiobookItemWithoutTrackMetadata.id,
+      duration: audiobookItem.duration,
+      displayTitle: audiobookItemWithoutTrackMetadata.title,
+      displayAuthor: audiobookItemWithoutTrackMetadata.author,
+      coverPath: audiobookItemWithoutTrackMetadata.coverPath,
+      chapters: audiobookItemWithoutTrackMetadata.chapters,
+      audioTracks: audiobookItem.audioTracks,
+    })
+
+    await user.click(await screen.findByRole('button', { name: /download/i }))
+
+    expect(await screen.findByRole('button', { name: /chapter 2/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /chapter 2/i }))
+    await user.click(screen.getByRole('button', { name: /download selected/i }))
+
+    await waitFor(() => {
+      expect(client.startPlayback).toHaveBeenCalledWith(audiobookItemWithoutTrackMetadata.id)
+      expect(appContextValue.downloadCurrentBook).toHaveBeenCalledWith(
+        audiobookItemWithoutTrackMetadata,
+        { selectedTrackIndices: [1] },
       )
     })
   })

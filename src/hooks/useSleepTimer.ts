@@ -16,7 +16,7 @@ function loadLastMinutes(): number {
 }
 
 export function useSleepTimer(
-  pause: () => void,
+  onSleep: () => void | Promise<void>,
   chapterEndTime: number | null,
   currentTime: number,
 ) {
@@ -27,6 +27,11 @@ export function useSleepTimer(
   })
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const deadlineRef = useRef(0)
+  const onSleepRef = useRef(onSleep)
+
+  useEffect(() => {
+    onSleepRef.current = onSleep
+  }, [onSleep])
 
   const clear = useCallback(() => {
     if (timerRef.current) {
@@ -46,13 +51,13 @@ export function useSleepTimer(
     timerRef.current = setInterval(() => {
       const remaining = deadlineRef.current - Date.now()
       if (remaining <= 0) {
-        pause()
+        void onSleepRef.current()
         clear()
       } else {
         setState((prev) => ({ ...prev, remainingMs: remaining }))
       }
     }, 1000)
-  }, [clear, pause])
+  }, [clear])
 
   const startEndOfChapter = useCallback(() => {
     clear()
@@ -65,13 +70,13 @@ export function useSleepTimer(
       return
     }
     if (currentTime >= chapterEndTime) {
-      pause()
+      void onSleepRef.current()
       const timeoutId = window.setTimeout(() => {
         clear()
       }, 0)
       return () => window.clearTimeout(timeoutId)
     }
-  }, [state.mode, currentTime, chapterEndTime, pause, clear])
+  }, [state.mode, currentTime, chapterEndTime, clear])
 
   useEffect(() => {
     return () => {
