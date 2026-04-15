@@ -135,4 +135,62 @@ describe('downloadBook', () => {
     })
     expect(result.tracks).toHaveLength(1)
   })
+
+  it('downloads only the selected audiobook tracks', async () => {
+    const firstBlob = new Blob(['first'], { type: 'audio/mpeg' })
+    const secondBlob = new Blob(['second'], { type: 'audio/mpeg' })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: async () => firstBlob,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: async () => secondBlob,
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const client = {
+      startPlayback: vi.fn().mockResolvedValue({
+        audioTracks: [
+          { index: 0, title: 'Chapter 1', duration: 60, mimeType: 'audio/mpeg', contentUrl: '/stream/ch1.mp3' },
+          { index: 1, title: 'Chapter 2', duration: 60, mimeType: 'audio/mpeg', contentUrl: '/stream/ch2.mp3' },
+          { index: 2, title: 'Chapter 3', duration: 60, mimeType: 'audio/mpeg', contentUrl: '/stream/ch3.mp3' },
+        ],
+      }),
+      downloadEbook: vi.fn(),
+      streamUrl: vi.fn((path: string) => `https://books.example.com${path}`),
+    }
+
+    const item: BookItem = {
+      id: 'audio-2',
+      libraryId: 'lib-audio',
+      title: 'Selective Download',
+      author: 'Archivist',
+      narrator: 'Din',
+      description: '',
+      coverPath: null,
+      duration: 180,
+      size: 0,
+      genres: [],
+      progress: 0,
+      currentTime: 0,
+      isFinished: false,
+      chapters: [],
+      audioTracks: [
+        { index: 0, title: 'Chapter 1', duration: 60, startOffset: 0, mimeType: 'audio/mpeg', contentUrl: '/stream/ch1.mp3' },
+        { index: 1, title: 'Chapter 2', duration: 60, startOffset: 60, mimeType: 'audio/mpeg', contentUrl: '/stream/ch2.mp3' },
+        { index: 2, title: 'Chapter 3', duration: 60, startOffset: 120, mimeType: 'audio/mpeg', contentUrl: '/stream/ch3.mp3' },
+      ],
+      ebookFormat: null,
+      ebookLocation: null,
+      ebookProgress: 0,
+    }
+
+    const result = await downloadBook(client as unknown as AudiobookshelfClient, item, { selectedTrackIndices: [1, 2] })
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://books.example.com/stream/ch2.mp3')
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://books.example.com/stream/ch3.mp3')
+    expect(result.tracks.map((track) => track.trackIndex)).toEqual([1, 2])
+  })
 })

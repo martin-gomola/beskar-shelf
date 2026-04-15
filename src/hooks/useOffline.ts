@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AudiobookshelfClient } from '../lib/api'
 import { downloadBook } from '../lib/downloads'
 import { deleteOfflineBook, listOfflineBooks } from '../lib/storage'
-import type { BookItem, OfflineBook } from '../lib/types'
+import type { BookItem, DownloadBookOptions, OfflineBook } from '../lib/types'
 
 export function useOffline(client: AudiobookshelfClient) {
   const queryClient = useQueryClient()
@@ -20,8 +20,8 @@ export function useOffline(client: AudiobookshelfClient) {
     await queryClient.invalidateQueries({ queryKey: ['offline-books'] })
   }
 
-  async function downloadCurrentBook(item: BookItem) {
-    await downloadBook(client, item, async () => {
+  async function downloadCurrentBook(item: BookItem, options?: DownloadBookOptions) {
+    await downloadBook(client, item, options, async () => {
       await refreshOfflineBooks()
     })
     await refreshOfflineBooks()

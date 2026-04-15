@@ -1,6 +1,6 @@
 import type { AudiobookshelfClient } from './api'
 import { getOfflineBook, putOfflineBook } from './storage'
-import type { BookItem, OfflineBook, OfflineTrack } from './types'
+import type { BookItem, DownloadBookOptions, OfflineBook, OfflineTrack } from './types'
 
 interface DownloadProgress {
   completedTracks: number
@@ -14,6 +14,7 @@ const CONCURRENCY = 3
 export async function downloadBook(
   client: AudiobookshelfClient,
   item: BookItem,
+  options?: DownloadBookOptions,
   onProgress?: (progress: DownloadProgress) => void,
 ) {
   const existing = await getOfflineBook(item.id)
@@ -36,13 +37,16 @@ export async function downloadBook(
   const playback = shouldDownloadAudio
     ? await client.startPlayback(item.id)
     : { audioTracks: [] }
-  const totalTracks = playback.audioTracks.length
+  const selectedTrackIndices = shouldDownloadAudio
+    ? Array.from(new Set(options?.selectedTrackIndices?.filter((index) => index >= 0 && index < playback.audioTracks.length) ?? playback.audioTracks.map((_, index) => index)))
+    : []
+  const totalTracks = selectedTrackIndices.length
   const results: OfflineTrack[] = new Array(totalTracks)
   let completedBytes = 0
   let completedTracks = 0
 
-  async function downloadTrack(index: number) {
-    const track = playback.audioTracks[index]
+  async function downloadTrack(index: number, selectedIndex: number) {
+    const track = playback.audioTracks[selectedIndex]
     const response = await fetch(client.streamUrl(track.contentUrl))
     if (!response.ok) {
       throw new Error(`Failed downloading ${track.title}`)
@@ -68,11 +72,11 @@ export async function downloadBook(
     })
   }
 
-  const indices = Array.from({ length: totalTracks }, (_, i) => i)
+  const indices = selectedTrackIndices.map((selectedIndex, index) => ({ index, selectedIndex }))
   const pool: Promise<void>[] = []
 
-  for (const index of indices) {
-    const task = downloadTrack(index)
+  for (const { index, selectedIndex } of indices) {
+    const task = downloadTrack(index, selectedIndex)
     pool.push(task)
 
     if (pool.length >= CONCURRENCY) {

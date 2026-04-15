@@ -11,7 +11,7 @@ const cachePutSafe = async (cacheName, request, response) => {
   } catch (_) {}
 }
 
-const PRECACHE = ['/', '/favicon.svg', '/manifest.webmanifest']
+const PRECACHE = ['/', '/favicon.svg', '/manifest.webmanifest', '/pwa-icon.svg', ...__PRECACHE_ASSETS__]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -268,7 +268,7 @@ function PlayerPage() {
               ))}
             </select>
           </label>
-          <div className="player-stat">
+          <div className="player-stat player-stat-track">
             <span className="stat-label">Current track</span>
             <strong className="player-stat-value">{formatDuration(currentTrackDuration)}</strong>
           </div>

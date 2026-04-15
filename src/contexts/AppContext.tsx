@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-import type { BookItem, OfflineBook, PersistedPlaybackState, ServerConfig, UserSession } from '../lib/types'
+import type { BookItem, DownloadBookOptions, OfflineBook, PersistedPlaybackState, ServerConfig, UserSession } from '../lib/types'
 
 export interface AppContextValue {
   server: ServerConfig | null
@@ -12,7 +12,7 @@ export interface AppContextValue {
   refreshOfflineBooks: () => Promise<void>
   playbackState: PersistedPlaybackState | null
   startBook: (item: BookItem, startTime?: number) => Promise<void>
-  downloadCurrentBook: (item: BookItem) => Promise<void>
+  downloadCurrentBook: (item: BookItem, options?: DownloadBookOptions) => Promise<void>
   removeOfflineBook: (itemId: string) => Promise<void>
 }
 

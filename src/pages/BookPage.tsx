@@ -35,6 +35,22 @@ function IconRefresh() {
   )
 }
 
+function IconCheck() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+function IconSquare() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+    </svg>
+  )
+}
+
 export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
@@ -42,6 +58,8 @@ export function BookPage() {
   const { startBook, downloadCurrentBook, offlineBooks } = useAppContext()
   const { activePlayback, seekTo } = usePlayerContext()
   const [descExpanded, setDescExpanded] = useState(false)
+  const [showDownloadPicker, setShowDownloadPicker] = useState(false)
+  const [selectedTrackIndices, setSelectedTrackIndices] = useState<number[]>([])
   const query = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => client.getItem(itemId),
@@ -67,8 +85,33 @@ export function BookPage() {
     )
   }
 
+  const currentItem = item
   const progressPct = Math.round((item.progress ?? 0) * 100)
   const hasProgress = progressPct > 0
+
+  function toggleTrack(index: number) {
+    setSelectedTrackIndices((current) => (
+      current.includes(index)
+        ? current.filter((value) => value !== index)
+        : [...current, index].sort((a, b) => a - b)
+    ))
+  }
+
+  async function handleDownload() {
+    if (!canPlay) {
+      await downloadCurrentBook(currentItem)
+      return
+    }
+
+    setSelectedTrackIndices([])
+    setShowDownloadPicker(true)
+  }
+
+  async function confirmSelectedDownload() {
+    await downloadCurrentBook(currentItem, { selectedTrackIndices })
+    setShowDownloadPicker(false)
+    setSelectedTrackIndices([])
+  }
 
   return (
     <main className="screen book-detail">
@@ -108,13 +151,63 @@ export function BookPage() {
           </Link>
         ) : null}
         {canPlay || canRead ? (
-          <button className="ghost-button bd-action-secondary" onClick={() => void downloadCurrentBook(item)}>
-            {offline?.status === 'downloaded'
-              ? <><IconRefresh /> Redownload</>
-              : <><IconDownload /> Download</>}
-          </button>
+          showDownloadPicker ? (
+            <div className="bd-download-actions">
+              <button
+                className="primary-button bd-action-secondary"
+                disabled={selectedTrackIndices.length === 0}
+                onClick={() => void confirmSelectedDownload()}
+              >
+                Download selected
+              </button>
+              <button
+                className="ghost-button bd-action-secondary"
+                onClick={() => {
+                  setShowDownloadPicker(false)
+                  setSelectedTrackIndices([])
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button className="ghost-button bd-action-secondary" onClick={() => void handleDownload()}>
+              {offline?.status === 'downloaded'
+                ? <><IconRefresh /> Redownload</>
+                : <><IconDownload /> Download</>}
+            </button>
+          )
         ) : null}
       </div>
+
+      {canPlay && showDownloadPicker ? (
+        <div className="bd-track-picker">
+          <div className="section-heading">
+            <h3 className="bd-section-title">Select tracks to download</h3>
+            <span className="muted">{selectedTrackIndices.length} selected</span>
+          </div>
+          <div className="chapter-list">
+            {item.audioTracks.map((track, index) => {
+              const isSelected = selectedTrackIndices.includes(index)
+              return (
+                <button
+                  key={`${track.index}-${track.title}`}
+                  className={clsx('chapter-row', 'bd-download-row', { active: isSelected })}
+                  onClick={() => toggleTrack(index)}
+                >
+                  <span className="bd-download-copywrap">
+                    <strong>{track.title}</strong>
+                    <span>{formatDuration(track.duration)}</span>
+                  </span>
+                  <span className="bd-download-check" aria-hidden="true">
+                    {isSelected ? <IconCheck /> : <IconSquare />}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {/* Progress bar (only if started) */}
       {hasProgress ? (

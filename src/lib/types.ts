@@ -96,6 +96,10 @@ export interface OfflineTrack {
   blob: Blob
 }
 
+export interface DownloadBookOptions {
+  selectedTrackIndices?: number[]
+}
+
 export interface OfflineBook {
   itemId: string
   title: string

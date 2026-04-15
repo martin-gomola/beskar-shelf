@@ -32,6 +32,31 @@ const ebookOnlyItem: BookItem = {
   ebookProgress: 0,
 }
 
+const audiobookItem: BookItem = {
+  id: 'audio-1',
+  libraryId: 'lib-audio',
+  title: 'Beskar Rising',
+  author: 'Archivist',
+  narrator: 'Din',
+  description: 'Audio mission log.',
+  coverPath: null,
+  duration: 180,
+  size: 0,
+  genres: [],
+  progress: 0.5,
+  currentTime: 70,
+  isFinished: false,
+  chapters: [],
+  audioTracks: [
+    { index: 0, title: 'Chapter 1', duration: 60, startOffset: 0, mimeType: 'audio/mpeg', contentUrl: '/stream/ch1.mp3' },
+    { index: 1, title: 'Chapter 2', duration: 60, startOffset: 60, mimeType: 'audio/mpeg', contentUrl: '/stream/ch2.mp3' },
+    { index: 2, title: 'Chapter 3', duration: 60, startOffset: 120, mimeType: 'audio/mpeg', contentUrl: '/stream/ch3.mp3' },
+  ],
+  ebookFormat: null,
+  ebookLocation: null,
+  ebookProgress: 0,
+}
+
 function renderBookPage({
   item = ebookOnlyItem,
   appOverrides = {},
@@ -113,6 +138,28 @@ describe('BookPage', () => {
 
     await waitFor(() => {
       expect(appContextValue.downloadCurrentBook).toHaveBeenCalledWith(ebookOnlyItem)
+    })
+  })
+
+  it('lets listeners choose audiobook chapters for offline download', async () => {
+    const user = userEvent.setup()
+    const { appContextValue } = renderBookPage({ item: audiobookItem })
+
+    await user.click(await screen.findByRole('button', { name: /download/i }))
+
+    expect(screen.getByText(/select tracks to download/i)).toBeInTheDocument()
+    expect(screen.getByText(/0 selected/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /chapter 2/i }))
+    await user.click(screen.getByRole('button', { name: /chapter 3/i }))
+
+    await user.click(screen.getByRole('button', { name: /download selected/i }))
+
+    await waitFor(() => {
+      expect(appContextValue.downloadCurrentBook).toHaveBeenCalledWith(
+        audiobookItem,
+        { selectedTrackIndices: [1, 2] },
+      )
     })
   })
 })

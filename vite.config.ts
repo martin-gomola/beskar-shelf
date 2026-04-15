@@ -7,12 +7,24 @@ import path from 'node:path'
 function swVersionPlugin(): Plugin {
   return {
     name: 'sw-version',
-    writeBundle(options) {
+    writeBundle(options, bundle) {
       const outDir = options.dir || 'dist'
       const swPath = path.resolve(outDir, 'sw.js')
       if (fs.existsSync(swPath)) {
+        const precacheAssets = Object.keys(bundle)
+          .filter((fileName) => {
+            if (fileName === 'sw.js' || fileName.endsWith('.map')) return false
+            return fileName.endsWith('.js') || fileName.endsWith('.css')
+          })
+          .map((fileName) => `/${fileName}`)
+
         const content = fs.readFileSync(swPath, 'utf-8')
-        fs.writeFileSync(swPath, content.replaceAll('__BUILD_VERSION__', Date.now().toString()))
+        fs.writeFileSync(
+          swPath,
+          content
+            .replaceAll('__BUILD_VERSION__', Date.now().toString())
+            .replace('__PRECACHE_ASSETS__', JSON.stringify(precacheAssets)),
+        )
       }
     },
   }
