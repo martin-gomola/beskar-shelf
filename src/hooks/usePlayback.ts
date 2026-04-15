@@ -12,7 +12,7 @@ import type { AudiobookshelfClient } from '../lib/api'
 import { getOfflineBook, savePlaybackState } from '../lib/storage'
 import type { BookItem, PersistedPlaybackState, PlaybackSession } from '../lib/types'
 import { clamp } from '../lib/utils'
-import { revokePlaybackSources, trackForTime, type ActivePlayback } from './playback/shared'
+import { buildOfflineSession, revokePlaybackSources, trackForTime, type ActivePlayback } from './playback/shared'
 import { usePlaybackEffects } from './playback/usePlaybackEffects'
 import { usePlaybackProgress } from './playback/usePlaybackProgress'
 
@@ -46,8 +46,7 @@ export function usePlayback(
     playbackRateRef.current = playbackRate
   }, [activePlayback, playbackRate, playbackState, playbackTime, session])
 
-  const createSourcesForItem = useCallback(async (itemId: string, sessionValue: PlaybackSession) => {
-    const offline = await getOfflineBook(itemId)
+  const createSourcesForItem = useCallback((sessionValue: PlaybackSession, offline: Awaited<ReturnType<typeof getOfflineBook>>) => {
     if (offline?.status === 'downloaded') {
       return sessionValue.audioTracks.map((track) => {
         const stored = offline.tracks.find((savedTrack) => savedTrack.trackIndex === track.index)
@@ -124,11 +123,17 @@ export function usePlayback(
   })
 
   const startBook = useCallback(async (item: BookItem, startTime?: number) => {
-    const playbackSession = await client.startPlayback(item.id)
+    const offline = await getOfflineBook(item.id)
+    let playbackSession
+    if (offline?.status === 'downloaded' && offline.tracks.length > 0) {
+      playbackSession = buildOfflineSession(item, offline)
+    } else {
+      playbackSession = await client.startPlayback(item.id)
+    }
     if (playbackSession.audioTracks.length === 0) {
       return
     }
-    const sources = await createSourcesForItem(item.id, playbackSession)
+    const sources = createSourcesForItem(playbackSession, offline)
     const hasSavedPosition = playbackState?.itemId === item.id && playbackState.currentTime > 0
     const initialTime = startTime != null
       ? startTime

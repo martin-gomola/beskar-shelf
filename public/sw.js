@@ -1,6 +1,7 @@
 const BUILD_VERSION = '__BUILD_VERSION__'
 const CACHE_NAME = `beskar-shelf-${BUILD_VERSION}`
 const COVER_CACHE = 'beskar-covers'
+const API_CACHE = 'beskar-api'
 
 const cachePutSafe = async (cacheName, request, response) => {
   if (!response || response.bodyUsed) return
@@ -25,7 +26,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME && key !== COVER_CACHE && key.startsWith('beskar-'))
+          .filter((key) => key !== CACHE_NAME && key !== COVER_CACHE && key !== API_CACHE && key.startsWith('beskar-'))
           .map((key) => caches.delete(key))
       )
     )
@@ -58,11 +59,26 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // API JSON: network-only (authenticated, don't cache)
+  // API JSON: stale-while-revalidate for GETs; pass-through for mutations
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/abs/')) {
+    if (request.method !== 'GET') return
+
+    // Strip volatile params (auth token) so cache key is stable across token rotations
+    const stableUrl = new URL(request.url)
+    stableUrl.searchParams.delete('token')
+    const cacheKey = new Request(stableUrl.toString(), { method: 'GET' })
+
     event.respondWith(
-      fetch(request)
-        .catch(() => new Response('Offline', { status: 503, statusText: 'Service Unavailable' }))
+      caches.open(API_CACHE).then(async (cache) => {
+        const cached = await cache.match(cacheKey)
+        const networkFetch = fetch(request)
+          .then((res) => {
+            if (res.ok) event.waitUntil(cachePutSafe(API_CACHE, cacheKey, res))
+            return res
+          })
+          .catch(() => cached ?? new Response('Offline', { status: 503, statusText: 'Service Unavailable' }))
+        return cached ?? networkFetch
+      })
     )
     return
   }
