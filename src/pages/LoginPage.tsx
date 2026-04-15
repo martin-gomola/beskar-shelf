@@ -44,9 +44,18 @@ export function LoginPage() {
   return (
     <main className="screen auth-screen">
       <section className="card form-card" style={{ width: '100%' }}>
-        <p className="eyebrow">Server</p>
-        <h2>{server?.baseUrl}</h2>
-        <p className="muted">Sign in with your Audiobookshelf account.</p>
+        <div className="auth-intro">
+          <div className="brand-lockup brand-lockup-compact">
+            <img className="brand-mark brand-mark-small" src="/pwa-icon.svg" alt="" aria-hidden="true" />
+            <div>
+              <p className="eyebrow">Server</p>
+              <h2>{server?.baseUrl}</h2>
+            </div>
+          </div>
+          <p className="muted">
+            Sign in to sync progress, restore downloads, and pick up exactly where you left off.
+          </p>
+        </div>
         <label className="field">
           <span>Username</span>
           <input value={username} onChange={(event) => setUsername(event.target.value)} />

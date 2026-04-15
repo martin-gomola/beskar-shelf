@@ -41,8 +41,18 @@ export function HomePage() {
 
   return (
     <main className="screen home-screen">
-      <section className="screen-header">
-        <h1>Discovery</h1>
+      <section className="home-header">
+        <div className="home-header-copy">
+          <div className="brand-lockup brand-lockup-compact home-brand">
+            <img className="brand-mark brand-mark-small" src="/pwa-icon.svg" alt="" aria-hidden="true" />
+            <div>
+              <p className="eyebrow">Beskar Shelf</p>
+              <h1>Discovery</h1>
+            </div>
+          </div>
+          <p className="home-subtitle">Pick a library and get back to listening.</p>
+        </div>
+        {primary ? <Link className="ghost-button home-header-action" to={`/library/${primary.id}`}>Browse {primary.name}</Link> : null}
       </section>
 
       <section className="library-toolbar">
@@ -60,7 +70,8 @@ export function HomePage() {
         <section className="resume-banner card">
           <div>
             <p className="eyebrow">Resume listening</p>
-            <p style={{ fontWeight: 500 }}>{formatDuration(playbackState.currentTime)} listened</p>
+            <p style={{ fontWeight: 600 }}>{formatDuration(playbackState.currentTime)} logged</p>
+            <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Jump straight back into your current session.</p>
           </div>
           <Link className="primary-button" to="/player">Open player</Link>
         </section>

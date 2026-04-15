@@ -45,14 +45,35 @@ function SettingsPage() {
 
   return (
     <main className="screen settings-screen">
-      <h1>Settings</h1>
+      <section className="settings-hero card">
+        <div className="settings-hero-copy">
+          <p className="eyebrow">Shelf tuning</p>
+          <h1>Settings</h1>
+          <p className="muted">
+            Adjust the vibe, refresh your catalog, and manage how this device stays connected.
+          </p>
+        </div>
+        <div className="settings-identity" aria-label="Connection summary">
+          <div className="settings-identity-card">
+            <span className="stat-label">Server</span>
+            <strong>{server?.baseUrl ?? 'Not connected'}</strong>
+          </div>
+          <div className="settings-identity-card">
+            <span className="stat-label">Account</span>
+            <strong>{session?.user.username ?? 'Guest'}</strong>
+          </div>
+        </div>
+      </section>
 
       {/* Appearance */}
       <section className="settings-group">
         <h3 className="settings-group-label">Appearance</h3>
         <div className="settings-card">
-          <div className="settings-item">
-            <span className="settings-key">Theme</span>
+          <div className="settings-item settings-item-stack">
+            <div className="settings-copy">
+              <span className="settings-key">Theme</span>
+              <span className="settings-action-hint">Choose light, dark, or follow the device.</span>
+            </div>
             <div className="theme-toggle">
               {THEME_OPTIONS.map((opt) => (
                 <button
@@ -73,13 +94,17 @@ function SettingsPage() {
         <h3 className="settings-group-label">Connection</h3>
         <div className="settings-card">
           <div className="settings-item">
-            <span className="settings-key">Server</span>
-            <span className="settings-value">{server?.baseUrl}</span>
+            <div className="settings-copy">
+              <span className="settings-key">Server</span>
+              <span className="settings-value">{server?.baseUrl}</span>
+            </div>
           </div>
           <div className="settings-divider" />
           <div className="settings-item">
-            <span className="settings-key">User</span>
-            <span className="settings-value">{session?.user.username}</span>
+            <div className="settings-copy">
+              <span className="settings-key">User</span>
+              <span className="settings-value">{session?.user.username}</span>
+            </div>
           </div>
           <div className="settings-divider" />
           <button
