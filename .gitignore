@@ -1,0 +1,47 @@
+# Environment and secrets
+.env
+*.local
+tools/grab/.env
+tools/grab/links.txt
+
+# Local AI/editor/runtime state
+.claude/
+.cursor/
+.code-review-graph/
+.cursorrules
+.windsurfrules
+.mcp.json
+.opencode.json
+CLAUDE.md
+GEMINI.md
+
+# OMX runtime state
+.omx/
+
+# Build output
+dist
+dist-ssr
+downloads/
+
+# Dependencies
+node_modules
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

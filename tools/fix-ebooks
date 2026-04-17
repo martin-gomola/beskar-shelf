@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Reorganize flat ebook files into per-book subdirectories for Audiobookshelf.
+# Usage: ./tools/fix-ebooks /path/to/author-dir
+#
+# Before: Author/01 - Title.epub
+# After:  Author/01 - Title/01 - Title.epub
+
+AUTHOR_DIR="${1:?Usage: fix-ebooks /path/to/author-directory}"
+
+if [ ! -d "$AUTHOR_DIR" ]; then
+    echo "Error: $AUTHOR_DIR is not a directory"
+    exit 1
+fi
+
+count=0
+for file in "$AUTHOR_DIR"/*; do
+    [ -f "$file" ] || continue
+
+    basename="$(basename "$file")"
+    # Strip extension to get book directory name
+    book_name="${basename%.*}"
+    book_dir="$AUTHOR_DIR/$book_name"
+
+    mkdir -p "$book_dir"
+    mv "$file" "$book_dir/"
+    echo "  $basename -> $book_name/"
+    count=$((count + 1))
+done
+
+echo "Done. Moved $count file(s) into per-book directories."
+echo "Trigger a library scan in Audiobookshelf to pick up the changes."

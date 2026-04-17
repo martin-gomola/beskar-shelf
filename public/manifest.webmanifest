@@ -1,0 +1,17 @@
+{
+  "name": "Beskar Shelf",
+  "short_name": "Beskar",
+  "description": "Mobile-first Audiobookshelf playback PWA.",
+  "theme_color": "#f2f2f7",
+  "background_color": "#f2f2f7",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

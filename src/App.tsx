@@ -1,0 +1,142 @@
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+
+import { AudiobookshelfClient } from './lib/api'
+import {
+  loadPlaybackState,
+  loadServerConfig,
+  loadUserSession,
+  saveServerConfig,
+  saveUserSession,
+} from './lib/storage'
+import type { PersistedPlaybackState, ServerConfig, UserSession } from './lib/types'
+
+import { AppContext } from './contexts/AppContext'
+import { ClientContext } from './contexts/ClientContext'
+import { PlayerContext, PlayerTimeContext } from './contexts/PlayerContext'
+import { useAbsSocket } from './hooks/useAbsSocket'
+import { usePlayback } from './hooks/usePlayback'
+import { useOffline } from './hooks/useOffline'
+import { Shell } from './components/Shell'
+
+function App() {
+  const queryClient = useQueryClient()
+  const [server, setServerState] = useState<ServerConfig | null>(() => loadServerConfig())
+  const [session, setSessionState] = useState<UserSession | null>(() => loadUserSession())
+  const isOnline = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener('online', cb)
+      window.addEventListener('offline', cb)
+      return () => {
+        window.removeEventListener('online', cb)
+        window.removeEventListener('offline', cb)
+      }
+    },
+    () => navigator.onLine,
+    () => true,
+  )
+  const [playbackState, setPlaybackState] = useState<PersistedPlaybackState | null>(() => loadPlaybackState())
+  const client = useMemo(() => new AudiobookshelfClient(server, session), [server, session])
+
+  function setServer(next: ServerConfig | null) {
+    setServerState(next)
+    saveServerConfig(next)
+  }
+
+  function setSession(next: UserSession | null) {
+    setSessionState(next)
+    saveUserSession(next)
+  }
+
+  useEffect(() => {
+    const handleExpired = () => setSession(null)
+    window.addEventListener('session-expired', handleExpired)
+    return () => window.removeEventListener('session-expired', handleExpired)
+  }, [])
+
+  useAbsSocket(client, session, queryClient)
+
+  const {
+    offlineBooks,
+    refreshOfflineBooks,
+    downloadCurrentBook,
+    removeOfflineBook,
+  } = useOffline(client)
+
+  async function refreshBooks() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['libraries'] }),
+      queryClient.invalidateQueries({ queryKey: ['personalized'] }),
+      queryClient.invalidateQueries({ queryKey: ['library-paginated'] }),
+      queryClient.invalidateQueries({ queryKey: ['item'] }),
+    ])
+  }
+
+  const {
+    activePlayback,
+    playbackTime,
+    isPlaying,
+    playbackRate,
+    currentTrackDuration,
+    startBook,
+    togglePlayback,
+    stopPlayback,
+    seekTo,
+    seekBy,
+    setPlaybackRate,
+    jumpToTrack,
+    setIsSeeking,
+    audioRef,
+  } = usePlayback(client, session, playbackState, setPlaybackState)
+
+  const appContextValue = useMemo(() => ({
+    server,
+    setServer,
+    session,
+    setSession,
+    isOnline,
+    offlineBooks,
+    refreshBooks,
+    refreshOfflineBooks,
+    playbackState,
+    startBook,
+    downloadCurrentBook,
+    removeOfflineBook,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [server, session, isOnline, offlineBooks, playbackState])
+
+  const playerContextValue = useMemo(() => ({
+    activePlayback,
+    isPlaying,
+    playbackRate,
+    togglePlayback,
+    stopPlayback,
+    seekTo,
+    seekBy,
+    setPlaybackRate,
+    jumpToTrack,
+    setIsSeeking,
+    audioRef,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [activePlayback, isPlaying, playbackRate])
+
+  const playerTimeValue = useMemo(() => ({
+    playbackTime,
+    currentTrackDuration,
+  }), [playbackTime, currentTrackDuration])
+
+  return (
+    <ClientContext.Provider value={client}>
+      <AppContext.Provider value={appContextValue}>
+        <PlayerContext.Provider value={playerContextValue}>
+          <PlayerTimeContext.Provider value={playerTimeValue}>
+            <audio ref={audioRef} preload="metadata" />
+            <Shell />
+          </PlayerTimeContext.Provider>
+        </PlayerContext.Provider>
+      </AppContext.Provider>
+    </ClientContext.Provider>
+  )
+}
+
+export default App

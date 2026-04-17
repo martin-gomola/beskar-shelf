@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="$REPO_ROOT/.env"
+
+abs_url="${ABS_URL:-}"
+username="${ABS_USERNAME:-}"
+password="${ABS_PASSWORD:-}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./tools/get-abs-token [--url URL] [--username USERNAME]
+
+Prompts for any missing values and prints the Audiobookshelf API token.
+The password is read securely from stdin and is never written to disk.
+EOF
+}
+
+if [ -f "$ENV_FILE" ]; then
+  while IFS='=' read -r key value; do
+    case "$key" in
+      ABS_URL) [ -z "$abs_url" ] && abs_url="${value%\"}" && abs_url="${abs_url#\"}" ;;
+      ABS_USERNAME) [ -z "$username" ] && username="${value%\"}" && username="${username#\"}" ;;
+    esac
+  done < "$ENV_FILE"
+fi
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --url)
+      abs_url="${2:-}"
+      shift 2
+      ;;
+    --username)
+      username="${2:-}"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "$abs_url" ]; then
+  printf 'Audiobookshelf URL: '
+  read -r abs_url
+fi
+
+if [ -z "$username" ]; then
+  printf 'Username: '
+  read -r username
+fi
+
+if [ -z "$password" ]; then
+  printf 'Password: '
+  stty -echo
+  read -r password
+  stty echo
+  printf '\n'
+fi
+
+if [ -z "$abs_url" ] || [ -z "$username" ] || [ -z "$password" ]; then
+  echo "URL, username, and password are required." >&2
+  exit 1
+fi
+
+response="$(
+  ABS_USERNAME_INPUT="$username" ABS_PASSWORD_INPUT="$password" \
+  curl -fsS \
+    -H 'Content-Type: application/json' \
+    -H 'x-return-tokens: true' \
+    -X POST "${abs_url%/}/login" \
+    --data "$(ABS_USERNAME_INPUT="$username" ABS_PASSWORD_INPUT="$password" python3 - <<'PY'
+import json, os
+print(json.dumps({
+    "username": os.environ["ABS_USERNAME_INPUT"],
+    "password": os.environ["ABS_PASSWORD_INPUT"],
+}))
+PY
+)"
+)"
+
+token="$(
+  RESPONSE_JSON="$response" python3 - <<'PY'
+import json, os, sys
+
+payload = json.loads(os.environ["RESPONSE_JSON"])
+
+candidates = [
+    payload.get("user", {}).get("token"),
+    payload.get("user", {}).get("accessToken"),
+    payload.get("response", {}).get("user", {}).get("token"),
+    payload.get("response", {}).get("user", {}).get("accessToken"),
+]
+
+for token in candidates:
+    if token:
+        print(token)
+        sys.exit(0)
+
+sys.exit("Login succeeded but no token was returned")
+PY
+)"
+
+printf '\nAPI token:\n%s\n' "$token"
