@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage:
+  render-cover-text --input PATH --output PATH --title "Book Title" --author "Author Name"
+
+Renders deterministic title + author text onto a square cover image.
+The text is rendered locally with ImageMagick instead of relying on AI text.
+EOF
+}
+
+require_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "Missing required command: $1" >&2
+        exit 1
+    fi
+}
+
+resolve_path() {
+    case "$1" in
+        /*)
+            printf '%s\n' "$1"
+            ;;
+        *)
+            printf '%s/%s\n' "$(pwd)" "$1"
+            ;;
+    esac
+}
+
+select_font() {
+    while [ "$#" -gt 0 ]; do
+        if [ -f "$1" ]; then
+            printf '%s\n' "$1"
+            return 0
+        fi
+        shift
+    done
+
+    echo "Could not find a usable font file." >&2
+    exit 1
+}
+
+INPUT_PATH=""
+OUTPUT_PATH=""
+TITLE_TEXT=""
+AUTHOR_TEXT=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --input)
+            INPUT_PATH="$2"
+            shift 2
+            ;;
+        --output)
+            OUTPUT_PATH="$2"
+            shift 2
+            ;;
+        --title)
+            TITLE_TEXT="$2"
+            shift 2
+            ;;
+        --author)
+            AUTHOR_TEXT="$2"
+            shift 2
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "$INPUT_PATH" ] || [ -z "$OUTPUT_PATH" ] || [ -z "$TITLE_TEXT" ] || [ -z "$AUTHOR_TEXT" ]; then
+    usage >&2
+    exit 1
+fi
+
+require_command magick
+
+TITLE_FONT="$(select_font \
+    /System/Library/Fonts/Supplemental/Georgia\ Bold.ttf \
+    /System/Library/Fonts/Supplemental/Times\ New\ Roman\ Bold.ttf \
+    /System/Library/Fonts/Supplemental/Baskerville.ttc \
+    /System/Library/Fonts/Palatino.ttc)"
+
+AUTHOR_FONT="$(select_font \
+    /System/Library/Fonts/Supplemental/Times\ New\ Roman\ Bold.ttf \
+    /System/Library/Fonts/Supplemental/Georgia\ Bold.ttf \
+    /System/Library/Fonts/Supplemental/Baskerville.ttc \
+    /System/Library/Fonts/Palatino.ttc)"
+
+TEMP_DIR="$(mktemp -d)"
+cleanup() {
+    rm -rf "$TEMP_DIR"
+}
+trap cleanup EXIT
+
+INPUT_PATH="$(resolve_path "$INPUT_PATH")"
+OUTPUT_PATH="$(resolve_path "$OUTPUT_PATH")"
+
+PANEL_PATH="$TEMP_DIR/panel.png"
+TITLE_PATH="$TEMP_DIR/title.png"
+AUTHOR_PATH="$TEMP_DIR/author.png"
+COMPOSED_PANEL_PATH="$TEMP_DIR/panel-composed.png"
+BASE_PATH="$TEMP_DIR/base.jpg"
+OUTPUT_TEMP_PATH="$TEMP_DIR/output.jpg"
+
+magick "$INPUT_PATH" \
+    -auto-orient \
+    -resize 1024x1024^ \
+    -gravity center \
+    -extent 1024x1024 \
+    "$BASE_PATH"
+
+magick -size 724x360 xc:none \
+    -fill '#090c14' \
+    -draw 'roundrectangle 0,0 723,359 28,28' \
+    -fill '#4a0e1a' \
+    -draw 'rectangle 0,0 723,59' \
+    "$PANEL_PATH"
+
+magick -background none \
+    -fill '#f3e6d2' \
+    -stroke 'rgba(0,0,0,0.22)' \
+    -strokewidth 1 \
+    -font "$TITLE_FONT" \
+    -pointsize 78 \
+    -interline-spacing -10 \
+    -gravity center \
+    -size 620x190 \
+    caption:"$TITLE_TEXT" \
+    "$TITLE_PATH"
+
+magick -background none \
+    -fill '#efe0ca' \
+    -font "$AUTHOR_FONT" \
+    -pointsize 30 \
+    -gravity center \
+    -size 540x44 \
+    caption:"$AUTHOR_TEXT" \
+    "$AUTHOR_PATH"
+
+magick "$PANEL_PATH" \
+    "$TITLE_PATH" -gravity north -geometry +0+54 -compose over -composite \
+    "$AUTHOR_PATH" -gravity north -geometry +0+286 -compose over -composite \
+    "$COMPOSED_PANEL_PATH"
+
+magick "$BASE_PATH" \
+    "$COMPOSED_PANEL_PATH" -gravity south -geometry +0+86 -compose over -composite \
+    "$OUTPUT_TEMP_PATH"
+
+mv "$OUTPUT_TEMP_PATH" "$OUTPUT_PATH"

@@ -57,5 +57,6 @@ For each valid URL in `links.txt`, grab:
 - otherwise downloads a single MP3 and splits by fixed length when it exceeds `SPLIT_THRESHOLD`
 - converts the thumbnail into `cover.jpg` for Audiobookshelf
 - removes leftover source audio artifacts
+- removes successfully handled URLs from `links.txt` so the queue stays clean
 
 Generated media lands in `OUTPUT_DIR/Author/Title/`. Point your Audiobookshelf library at that root and trigger a scan.

@@ -58,7 +58,9 @@ parse_author_and_title() {
         s/ *[–—-] *(Full )?Audio(book|kniha)//gi
         s/ *\| *(Full )?Audio(book|kniha)//gi
         s/ *[–—-] *(FANTASY|SCI-?FI|HORROR|THRILLER|ROMANCE|DRAMA|COMEDY) *(\([A-Z]{2}\))?$//gi
-        s/ *\([A-Z]{2}\) *$//g
+        s/ *\([A-Z]{2,3}\) *$//g
+        s/ *\([^)]*[0-9]{4}[^)]*\) *$//g
+        s/ *\([^)]*(rozhlasov|audiokniha|audiobook|slovensky|česky|český|radio play|dramatizace|čtení|mluvené slovo)[^)]*\) *$//gi
         s/  */ /g
         s/^ *//;s/ *$//
     ')
@@ -102,6 +104,29 @@ print_summary() {
         echo "  Limit:            none"
     fi
     echo "  Valid URLs:       $valid_count"
+}
+
+remove_links_entry() {
+    local target_url="$1"
+    local temp_file
+
+    temp_file="$(mktemp "${LINKS_FILE}.tmp.XXXXXX")"
+    if ! awk -v target="$target_url" '
+        function trim(value) {
+            sub(/^[[:space:]]+/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            return value
+        }
+
+        trim($0) == target { next }
+        { print }
+    ' "$LINKS_FILE" > "$temp_file"; then
+        rm -f "$temp_file"
+        echo "[queue] Failed to update links file: $LINKS_FILE"
+        return 1
+    fi
+
+    mv "$temp_file" "$LINKS_FILE"
 }
 
 run_doctor() {
@@ -218,7 +243,7 @@ process_video_url() {
     if ! meta=$(yt-dlp --js-runtimes node --no-playlist \
         --print "%(title)s	%(uploader)s	%(chapters)s" "$url" 2>/dev/null | head -1); then
         echo "[$idx] Metadata fetch failed. Skipping this URL."
-        return 0
+        return 1
     fi
     local raw_title uploader chapters
     raw_title=$(echo "$meta"  | cut -f1)
@@ -299,10 +324,11 @@ process_video_url() {
             if [ "${duration:-0}" -gt "$SPLIT_THRESHOLD_VALUE" ]; then
                 echo "[$idx] Split mode: fixed-length split every ${SEGMENT_LENGTH_VALUE}s"
                 ffmpeg -y -i "$mp3_file" -f segment -segment_time "$SEGMENT_LENGTH_VALUE" -c copy \
-                    "$book_dir/%03d - Part.mp3" 2>/dev/null
+                    "$book_dir/%03d - $safe_title.mp3" 2>/dev/null
                 rm "$mp3_file"
             else
                 echo "[$idx] Split mode: single file, duration ${duration}s"
+                mv "$mp3_file" "$book_dir/$safe_title.mp3" 2>/dev/null || true
             fi
         fi
     fi
@@ -325,11 +351,16 @@ while IFS= read -r url || [ -n "$url" ]; do
     fi
 
     # Expand playlist URLs into individual video URLs; single videos pass through as-is
+    line_completed=true
     if echo "$url" | grep -qE '[?&]list='; then
         echo "[playlist] Expanding: $url"
-        mapfile -t video_urls < <(yt-dlp --js-runtimes node --flat-playlist --print "%(url)s" "$url" 2>/dev/null)
+        video_urls=()
+        while IFS= read -r video_url || [ -n "$video_url" ]; do
+            [ -n "$video_url" ] && video_urls+=("$video_url")
+        done < <(yt-dlp --js-runtimes node --flat-playlist --print "%(url)s" "$url" 2>/dev/null)
         if [ "${#video_urls[@]}" -eq 0 ]; then
             echo "[playlist] Failed to expand playlist, skipping: $url"
+            line_completed=false
             continue
         fi
         echo "[playlist] Found ${#video_urls[@]} video(s)"
@@ -339,11 +370,20 @@ while IFS= read -r url || [ -n "$url" ]; do
 
     for video_url in "${video_urls[@]}"; do
         if [ -n "$ITEM_LIMIT" ] && [ "$processed" -ge "$ITEM_LIMIT" ]; then
+            line_completed=false
             break
         fi
         processed=$((processed + 1))
-        process_video_url "$video_url" "$processed"
+        if ! process_video_url "$video_url" "$processed"; then
+            line_completed=false
+        fi
     done
+
+    if ! $DRY_RUN && $line_completed; then
+        if remove_links_entry "$url"; then
+            echo "[queue] Removed completed link from $LINKS_FILE"
+        fi
+    fi
 done < "$LINKS_FILE"
 
 if $DRY_RUN; then
