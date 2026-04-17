@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
+import { useCollections } from '../hooks/useCollections'
 import { usePrimaryLibrary } from '../hooks/useLibraries'
 import { BookCard } from '../components/BookCard'
 
@@ -30,13 +31,38 @@ const PAGE_SIZE = 40
 
 export function LibraryPage() {
   const { libraryId } = useParams() as { libraryId: string }
+  const [searchParams, setSearchParams] = useSearchParams()
   const client = useClient()
   const { offlineBooks } = useAppContext()
   const { librariesQuery } = usePrimaryLibrary()
+  const collectionsQuery = useCollections(libraryId)
   const [search, setSearch] = useState('')
+  const [activeCollection, setActiveCollection] = useState<string | null>(
+    searchParams.get('collection'),
+  )
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const deferredSearch = useDeferredValue(search)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const prevLibraryId = useRef(libraryId)
+
+  useEffect(() => {
+    if (prevLibraryId.current !== libraryId) {
+      setActiveCollection(null)
+      prevLibraryId.current = libraryId
+    }
+  }, [libraryId])
+
+  const selectCollection = useCallback((id: string | null) => {
+    setActiveCollection(id)
+    setSearchParams((prev) => {
+      if (id) {
+        prev.set('collection', id)
+      } else {
+        prev.delete('collection')
+      }
+      return prev
+    }, { replace: true })
+  }, [setSearchParams])
 
   const query = useInfiniteQuery({
     queryKey: ['library-paginated', libraryId],
@@ -54,13 +80,25 @@ export function LibraryPage() {
     [query.data],
   )
 
+  const collectionBookIds = useMemo(() => {
+    if (!activeCollection) return null
+    const col = collectionsQuery.data?.find((c) => c.id === activeCollection)
+    return col ? new Set(col.bookIds) : null
+  }, [activeCollection, collectionsQuery.data])
+
   const filtered = useMemo(() => {
-    if (!deferredSearch) return allItems
-    const needle = deferredSearch.toLowerCase()
-    return allItems.filter((item) =>
-      `${item.title} ${item.author}`.toLowerCase().includes(needle),
-    )
-  }, [allItems, deferredSearch])
+    let items = allItems
+    if (collectionBookIds) {
+      items = items.filter((item) => collectionBookIds.has(item.id))
+    }
+    if (deferredSearch) {
+      const needle = deferredSearch.toLowerCase()
+      items = items.filter((item) =>
+        `${item.title} ${item.author}`.toLowerCase().includes(needle),
+      )
+    }
+    return items
+  }, [allItems, collectionBookIds, deferredSearch])
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
 
@@ -120,6 +158,28 @@ export function LibraryPage() {
           </button>
         </div>
       </section>
+
+      {(collectionsQuery.data?.length ?? 0) > 0 ? (
+        <section className="library-toolbar">
+          <div className="library-pills">
+            <button
+              className={clsx('pill-link', !activeCollection && 'active')}
+              onClick={() => selectCollection(null)}
+            >
+              All
+            </button>
+            {collectionsQuery.data!.map((col) => (
+              <button
+                key={col.id}
+                className={clsx('pill-link', activeCollection === col.id && 'active')}
+                onClick={() => selectCollection(col.id)}
+              >
+                {col.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <label className="field search-field">
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by author or title…" />

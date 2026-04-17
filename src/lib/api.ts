@@ -5,6 +5,7 @@ import type {
   Bookmark,
   BookItem,
   Chapter,
+  Collection,
   Library,
   PlaybackSession,
   ProgressPayload,
@@ -398,6 +399,24 @@ export class AudiobookshelfClient {
     const results = Array.isArray(response.results) ? response.results : []
     const total = Number(response.total ?? 0)
     return { results: results.map(bookFromUnknown), total }
+  }
+
+  async getCollections(libraryId: string) {
+    const response = asRecord(
+      await this.request(`/api/libraries/${libraryId}/collections?limit=0&minified=1`),
+    )
+    const results = Array.isArray(response.results) ? response.results : []
+    return results.map((entry): Collection => {
+      const col = asRecord(entry)
+      const books = Array.isArray(col.books) ? col.books : []
+      return {
+        id: String(col.id ?? ''),
+        libraryId: String(col.libraryId ?? ''),
+        name: String(col.name ?? ''),
+        description: typeof col.description === 'string' ? col.description : null,
+        bookIds: books.map((b) => String(asRecord(b).id ?? '')).filter(Boolean),
+      }
+    })
   }
 
   async getItem(itemId: string) {

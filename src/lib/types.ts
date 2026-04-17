@@ -107,6 +107,14 @@ export interface OfflineBook {
   ebookFormat?: string | null
 }
 
+export interface Collection {
+  id: string
+  libraryId: string
+  name: string
+  description: string | null
+  bookIds: string[]
+}
+
 export interface ProgressPayload {
   duration: number
   progress: number
