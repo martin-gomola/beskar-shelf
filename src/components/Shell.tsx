@@ -48,6 +48,7 @@ export function Shell() {
   const needsSetup = !server?.baseUrl
   const needsLogin = Boolean(server?.baseUrl) && !session
   const publicRoute = location.pathname === '/' || location.pathname === '/login'
+  const showMiniPlayer = !publicRoute && Boolean(activePlayback) && location.pathname !== '/player'
 
   if (needsSetup && location.pathname !== '/') {
     return <Navigate to="/" replace />
@@ -79,7 +80,7 @@ export function Shell() {
       </Routes>
 
       {!publicRoute && <BottomNav />}
-      {!publicRoute && activePlayback && <MiniPlayer />}
+      {showMiniPlayer ? <MiniPlayer /> : null}
     </div>
   )
 }

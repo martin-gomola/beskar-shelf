@@ -6,12 +6,13 @@ import { useClient } from '../contexts/ClientContext'
 import { getOfflineBook } from '../lib/storage'
 import { formatProgress } from '../lib/utils'
 
-type ReaderTheme = 'light' | 'sepia' | 'dark'
+type ReaderTheme = 'light' | 'sepia' | 'dark' | 'night'
 
 const THEMES: Record<ReaderTheme, { bg: string; fg: string; label: string }> = {
   light: { bg: '#ffffff', fg: '#1a1a1a', label: 'Light' },
   sepia: { bg: '#f5efe4', fg: '#1f1a15', label: 'Sepia' },
   dark:  { bg: '#1a1a1a', fg: '#d4d4d4', label: 'Dark' },
+  night: { bg: '#050a10', fg: '#efe6d9', label: 'Night' },
 }
 
 const FONT_SIZES = [14, 16, 18, 20, 22, 24]
@@ -120,8 +121,13 @@ function ReaderPage() {
 
     const filterPart = view.renderer as unknown as { style?: CSSStyleDeclaration }
     if (filterPart.style) {
-      if (t === 'dark') {
-        filterPart.style.setProperty('filter', 'invert(1) hue-rotate(180deg)')
+      if (t === 'dark' || t === 'night') {
+        filterPart.style.setProperty(
+          'filter',
+          t === 'night'
+            ? 'invert(1) hue-rotate(180deg) brightness(0.72) contrast(0.92) saturate(0.9)'
+            : 'invert(1) hue-rotate(180deg)',
+        )
       } else {
         filterPart.style.removeProperty('filter')
       }

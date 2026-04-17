@@ -156,14 +156,16 @@ export function usePlayback(
       return nextPlayback
     })
     setPlaybackRateState(playbackState?.itemId === item.id ? playbackState.rate : 1)
-    setPlaybackState({
+    const nextPlaybackState = {
       itemId: item.id,
       sessionId: playbackSession.id,
       currentTime: initialTime,
       duration: playbackSession.duration,
       rate: playbackState?.itemId === item.id ? playbackState.rate : 1,
       updatedAt: Date.now(),
-    })
+    }
+    savePlaybackState(nextPlaybackState)
+    setPlaybackState(nextPlaybackState)
     startTransition(() => navigate('/player'))
   }, [client, createSourcesForItem, navigate, playbackState, setPlaybackState])
 

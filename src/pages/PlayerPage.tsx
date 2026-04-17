@@ -87,7 +87,7 @@ function PlayerPage() {
     jumpToTrack,
     setIsSeeking,
   } = usePlayerContext()
-  const { playbackTime, currentTrackDuration } = usePlayerTime()
+  const { playbackTime } = usePlayerTime()
 
   const [bookmarkTitle, setBookmarkTitle] = useState('')
   const [showBookmarks, setShowBookmarks] = useState(false)
@@ -244,7 +244,6 @@ function PlayerPage() {
             {coverUrl ? <img className="cover-img cover-img-loaded" src={coverUrl} alt={activePlayback.item.title} /> : null}
           </div>
         </div>
-        <p className="eyebrow">Now playing</p>
         <h1>{activePlayback.item.title}</h1>
         <p className="author-line">{activePlayback.item.author}</p>
         <label className="scrubber">
@@ -282,25 +281,6 @@ function PlayerPage() {
           </button>
         </div>
 
-        <div className="stats-row">
-          <div className="player-stat">
-            <span className="stat-label">Progress</span>
-            <strong className="player-stat-value">{formatProgress(progress)}</strong>
-          </div>
-          <label className="player-stat player-stat-rate">
-            <span className="stat-label">Rate</span>
-            <select value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))}>
-              {[0.8, 1, 1.2, 1.5, 1.75, 2].map((rate) => (
-                <option key={rate} value={rate}>{rate}x</option>
-              ))}
-            </select>
-          </label>
-          <div className="player-stat player-stat-track">
-            <span className="stat-label">Current track</span>
-            <strong className="player-stat-value">{formatDuration(currentTrackDuration)}</strong>
-          </div>
-        </div>
-
         <div className="player-actions">
           <button className="player-action-btn" onClick={() => setShowSleepTimer(!showSleepTimer)} aria-label="Sleep timer">
             <IconMoon />
@@ -327,6 +307,21 @@ function PlayerPage() {
             <IconStop />
             <span>Stop</span>
           </button>
+        </div>
+
+        <div className="stats-row">
+          <div className="player-stat player-utility-card">
+            <span className="stat-label">Progress</span>
+            <strong className="player-stat-value">{formatProgress(progress)}</strong>
+          </div>
+          <label className="player-stat player-stat-rate player-utility-card">
+            <span className="stat-label">Rate</span>
+            <select value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))}>
+              {[0.8, 1, 1.2, 1.5, 1.75, 2].map((rate) => (
+                <option key={rate} value={rate}>{rate}x</option>
+              ))}
+            </select>
+          </label>
         </div>
       </section>
 

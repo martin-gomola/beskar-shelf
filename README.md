@@ -2,6 +2,39 @@
 
 A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) armory. Browse libraries, play audiobooks, read ebooks, sync progress, stash content offline. This is the Way.
 
+## In Action
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/home-preview.png" alt="Home screen showing discovery shelves and recent additions" />
+      <br /><br />
+      <strong>Home discovery</strong><br />
+      Jump into a more curated home screen with discovery shelves, recent additions, and quick access back to your library.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/library-overview.png" alt="Library browsing screen with shelves, search, and book covers" />
+      <br /><br />
+      <strong>Library browsing</strong><br />
+      Search across your shelf, switch libraries, and jump into book detail views from a fast grid/list browser.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/audio-player.png" alt="Audio player screen with cover art, playback controls, and track queue" />
+      <br /><br />
+      <strong>Audio player</strong><br />
+      Resume sessions, scrub progress, adjust rate, manage bookmarks, and move through the track queue.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/epub-reader.png" alt="EPUB reader screen showing in-book reading view" />
+      <br /><br />
+      <strong>EPUB reader</strong><br />
+      Open ebooks inside the app, keep your place, and move between reading and listening without losing progress.
+    </td>
+  </tr>
+</table>
+
 ## The Armory
 
 - Login and server onboarding
