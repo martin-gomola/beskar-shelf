@@ -1477,50 +1477,54 @@ h3 {
   gap: var(--sp-3);
 }
 
-.player-card .stats-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
-  gap: var(--sp-4);
+.player-stats-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
 }
 
-.player-stat {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  text-align: left;
+.player-stat-inline {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  white-space: nowrap;
 }
 
-.player-card .stat-label {
-  letter-spacing: 0.12em;
-  white-space: normal;
+.player-stat-inline .stat-label {
+  letter-spacing: 0.08em;
   margin: 0;
 }
 
-.player-stat-value {
-  font-size: var(--fs-lg);
+.player-stat-inline strong {
+  font-size: var(--fs-base);
   font-weight: 700;
-  letter-spacing: 0.01em;
-  line-height: 1.1;
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
 
-.player-stat-rate {
-  justify-items: start;
+.player-stat-inline select {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-weight: 700;
+  font-size: var(--fs-base);
+  padding: 0;
+  cursor: pointer;
+  outline: none;
 }
 
-.player-card .player-stat-rate select {
-  min-width: 0;
-  width: 100%;
-  max-width: 120px;
-  padding-inline: var(--sp-4);
-}
-
-.player-stat-track {
-  justify-items: end;
-  text-align: right;
+.player-stat-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--line-strong);
+  flex-shrink: 0;
 }
 
 .time-row {
@@ -1533,14 +1537,9 @@ h3 {
 }
 
 @media (max-width: 880px) {
-  .player-card .stats-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .player-stat-track {
-    grid-column: 1 / -1;
-    justify-items: start;
-    text-align: left;
+  .player-stats-inline {
+    gap: 0;
+    padding: var(--sp-2) var(--sp-3);
   }
 }
 
@@ -1570,30 +1569,22 @@ h3 {
 }
 
 @media (max-width: 560px) {
-  .player-card .stats-row {
-    grid-template-columns: 1fr;
-    gap: var(--sp-3);
+  .player-stats-inline {
+    padding: var(--sp-2) var(--sp-2);
   }
 
-  .player-stat {
-    gap: var(--sp-2);
+  .player-stat-inline {
+    gap: var(--sp-1);
   }
 
-  .player-card .stat-label {
-    letter-spacing: 0.1em;
+  .player-stat-inline .stat-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.05em;
   }
 
-  .player-stat-value {
-    font-size: var(--fs-md);
-  }
-
-  .player-card .player-stat-rate select {
-    max-width: 100%;
-    padding-inline: var(--sp-3);
-  }
-
-  .player-stat-track {
-    grid-column: auto;
+  .player-stat-inline strong,
+  .player-stat-inline select {
+    font-size: var(--fs-sm);
   }
 }
 

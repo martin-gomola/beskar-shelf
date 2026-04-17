@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
-import { useCollections } from '../hooks/useCollections'
 import { usePrimaryLibrary } from '../hooks/useLibraries'
 import { BookCard } from '../components/BookCard'
 import { QueryState } from '../components/QueryState'
@@ -33,7 +32,6 @@ export function HomePage() {
   const { librariesQuery, primary } = usePrimaryLibrary()
   const client = useClient()
   const { playbackState } = useAppContext()
-  const collectionsQuery = useCollections(primary?.id)
   const personalizedQuery = useQuery({
     queryKey: ['personalized', primary?.id],
     queryFn: () => client.getPersonalized(primary!.id),
@@ -66,22 +64,6 @@ export function HomePage() {
         </div>
         {primary ? <Link className="text-link" to={`/library/${primary.id}`}>Browse all</Link> : null}
       </section>
-
-      {(collectionsQuery.data?.length ?? 0) > 0 ? (
-        <section className="library-toolbar">
-          <div className="library-pills">
-            {collectionsQuery.data!.map((col) => (
-              <Link
-                key={col.id}
-                className="pill-link"
-                to={`/library/${col.libraryId}?collection=${col.id}`}
-              >
-                {col.name}
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {playbackState ? (
         <section className="resume-banner card">

@@ -282,12 +282,13 @@ function PlayerPage() {
           </button>
         </div>
 
-        <div className="stats-row">
-          <div className="player-stat">
+        <div className="player-stats-inline">
+          <span className="player-stat-inline">
             <span className="stat-label">Progress</span>
-            <strong className="player-stat-value">{formatProgress(progress)}</strong>
-          </div>
-          <label className="player-stat player-stat-rate">
+            <strong>{formatProgress(progress)}</strong>
+          </span>
+          <span className="player-stat-divider" />
+          <label className="player-stat-inline">
             <span className="stat-label">Rate</span>
             <select value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))}>
               {[0.8, 1, 1.2, 1.5, 1.75, 2].map((rate) => (
@@ -295,10 +296,11 @@ function PlayerPage() {
               ))}
             </select>
           </label>
-          <div className="player-stat player-stat-track">
-            <span className="stat-label">Current track</span>
-            <strong className="player-stat-value">{formatDuration(currentTrackDuration)}</strong>
-          </div>
+          <span className="player-stat-divider" />
+          <span className="player-stat-inline">
+            <span className="stat-label">Track</span>
+            <strong>{formatDuration(currentTrackDuration)}</strong>
+          </span>
         </div>
 
         <div className="player-actions">
@@ -375,16 +377,8 @@ function PlayerPage() {
               Save {formatDuration(playbackTime)}
             </button>
           </div>
-          <p className="bookmark-help muted">
-            Bookmarks save instantly on this device and sync to Audiobookshelf when available.
-          </p>
           <div className="chapter-list">
-            {mergedBookmarks.length === 0 ? (
-              <div className="bookmark-empty">
-                <strong>Save important moments as you listen.</strong>
-                <p className="muted">Your first bookmark will appear here for quick jump-back access.</p>
-              </div>
-            ) : mergedBookmarks.map((bm) => (
+            {mergedBookmarks.map((bm) => (
               <div key={`${bm.time}-${bm.title}`} className="bookmark-row">
                 <button
                   className="chapter-row bookmark-jump-btn"
