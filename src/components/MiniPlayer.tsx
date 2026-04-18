@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { useClient } from '../contexts/ClientContext'
@@ -31,9 +32,27 @@ function IconClose() {
 
 export function MiniPlayer() {
   const client = useClient()
-  const { activePlayback, isPlaying, togglePlayback, stopPlayback } = usePlayerContext()
+  const { activePlayback, isPlaying, togglePlayback } = usePlayerContext()
   const { playbackTime } = usePlayerTime()
+  const [dismissedItemId, setDismissedItemId] = useState<string | null>(null)
+  const [lastSeenItemId, setLastSeenItemId] = useState<string | null>(null)
+
+  const activeItemId = activePlayback?.item.id ?? null
+
+  // Reset dismissal when a new session starts (or the session ends),
+  // using the "update state during render" pattern from the React docs
+  // to avoid scheduling a setState inside an effect.
+  if (activeItemId !== lastSeenItemId) {
+    setLastSeenItemId(activeItemId)
+    if (dismissedItemId && dismissedItemId !== activeItemId) {
+      setDismissedItemId(null)
+    }
+  }
+
   if (!activePlayback) {
+    return null
+  }
+  if (dismissedItemId === activePlayback.item.id) {
     return null
   }
 
@@ -72,9 +91,13 @@ export function MiniPlayer() {
             className="mini-player-close"
             onClick={(event) => {
               event.preventDefault()
-              stopPlayback()
+              event.stopPropagation()
+              if (isPlaying) {
+                void togglePlayback()
+              }
+              setDismissedItemId(activePlayback.item.id)
             }}
-            aria-label="Close player"
+            aria-label="Dismiss mini player"
           >
             <IconClose />
           </button>
