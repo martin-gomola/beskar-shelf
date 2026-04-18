@@ -441,6 +441,8 @@ function PlayerResumeGate() {
   const client = useClient()
   const { playbackState, startBook } = useAppContext()
   const attemptedForItemRef = useRef<string | null>(null)
+  const [resumeError, setResumeError] = useState<string | null>(null)
+  const [isResuming, setIsResuming] = useState(false)
 
   const savedItemId = playbackState?.itemId ?? null
   const savedTime = playbackState?.currentTime ?? 0
@@ -453,6 +455,28 @@ function PlayerResumeGate() {
     retry: 1,
   })
 
+  const attemptResume = useCallback(async () => {
+    if (!savedItemId || !itemQuery.data) {
+      return
+    }
+    if (itemQuery.data.audioTracks.length === 0) {
+      setResumeError('This book has no audio tracks to resume.')
+      return
+    }
+    setResumeError(null)
+    setIsResuming(true)
+    try {
+      await startBook(itemQuery.data, savedTime)
+    } catch (error) {
+      console.error('Failed to resume playback', error)
+      setResumeError(error instanceof Error ? error.message : 'Failed to resume playback.')
+      // Allow the user to retry by clearing the guard.
+      attemptedForItemRef.current = null
+    } finally {
+      setIsResuming(false)
+    }
+  }, [savedItemId, savedTime, itemQuery.data, startBook])
+
   useEffect(() => {
     if (!savedItemId || !itemQuery.data) {
       return
@@ -460,19 +484,52 @@ function PlayerResumeGate() {
     if (attemptedForItemRef.current === savedItemId) {
       return
     }
-    if (itemQuery.data.audioTracks.length === 0) {
-      return
-    }
     attemptedForItemRef.current = savedItemId
-    void startBook(itemQuery.data, savedTime)
-  }, [savedItemId, savedTime, itemQuery.data, startBook])
+    void attemptResume()
+  }, [savedItemId, itemQuery.data, attemptResume])
 
-  if (savedItemId) {
+  if (!savedItemId) {
     return (
       <main className="screen">
         <section className="card">
-          <h1>Resuming…</h1>
-          <p className="muted">Reopening your last session.</p>
+          <h1>No active session</h1>
+          <p className="muted">Pick a book to begin a listening session.</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (itemQuery.isError) {
+    return (
+      <main className="screen">
+        <section className="card">
+          <h1>Couldn't load last book</h1>
+          <p className="muted">We couldn't fetch the book details. Check your connection and try again.</p>
+          <button
+            className="primary-button"
+            onClick={() => void itemQuery.refetch()}
+            style={{ marginTop: 'var(--space-3)' }}
+          >
+            Retry
+          </button>
+        </section>
+      </main>
+    )
+  }
+
+  if (resumeError) {
+    return (
+      <main className="screen">
+        <section className="card">
+          <h1>Resume failed</h1>
+          <p className="muted">{resumeError}</p>
+          <button
+            className="primary-button"
+            onClick={() => void attemptResume()}
+            style={{ marginTop: 'var(--space-3)' }}
+          >
+            Try again
+          </button>
         </section>
       </main>
     )
@@ -481,8 +538,8 @@ function PlayerResumeGate() {
   return (
     <main className="screen">
       <section className="card">
-        <h1>No active session</h1>
-        <p className="muted">Pick a book to begin a listening session.</p>
+        <h1>{isResuming || itemQuery.isPending ? 'Resuming…' : 'Opening last session…'}</h1>
+        <p className="muted">Reopening {itemQuery.data?.title ?? 'your last book'}.</p>
       </section>
     </main>
   )
