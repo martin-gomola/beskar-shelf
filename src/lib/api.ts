@@ -77,6 +77,20 @@ function trackFromUnknown(value: unknown, index: number): AudioTrack {
   }
 }
 
+// ABS's /api/items/:id endpoint returns the source files in `media.audioFiles`
+// and only populates `media.audioTracks` on /api/items/:id/play. Any consumer
+// that needs to know "does this book have audio?" must consider both shapes,
+// otherwise resume/play guards reject every freshly fetched item.
+function pickAudioSources(media: Record<string, unknown>): unknown[] {
+  for (const key of ['audioTracks', 'audioFiles', 'tracks'] as const) {
+    const candidate = media[key]
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate
+    }
+  }
+  return []
+}
+
 function withTrackOffsets(tracks: AudioTrack[]) {
   let offset = 0
   return tracks.map((track) => {
@@ -99,9 +113,7 @@ function bookFromUnknown(value: unknown): BookItem {
   const chapters = Array.isArray(media.chapters)
     ? media.chapters.map(chapterFromUnknown)
     : []
-  const tracks = Array.isArray(media.audioTracks)
-    ? withTrackOffsets(media.audioTracks.map(trackFromUnknown))
-    : []
+  const tracks = withTrackOffsets(pickAudioSources(media).map(trackFromUnknown))
   const ebooks = Array.isArray(media.ebookFiles)
     ? media.ebookFiles.map(asRecord)
     : []
@@ -229,6 +241,18 @@ export class AudiobookshelfClient {
       url.searchParams.set('token', this.session.token)
     }
     return url.toString()
+  }
+
+  // Build a Socket.IO v4 WebSocket URL that routes through the same base as
+  // the REST API. In proxy mode this means /abs/socket.io/, so that nginx
+  // forwards to ABS instead of the SPA falling back to index.html.
+  socketIoUrl(token: string) {
+    const httpUrl = new URL(this.absoluteUrl('/socket.io/'))
+    httpUrl.protocol = httpUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    httpUrl.searchParams.set('EIO', '4')
+    httpUrl.searchParams.set('transport', 'websocket')
+    httpUrl.searchParams.set('token', token)
+    return httpUrl.toString()
   }
 
   ebookUrl(itemId: string) {

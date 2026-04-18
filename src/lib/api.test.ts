@@ -187,6 +187,64 @@ describe('AudiobookshelfClient', () => {
     ])
   })
 
+  it('falls back to media.audioFiles when ABS does not pre-build audioTracks', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'book_2',
+        libraryId: 'lib_1',
+        media: {
+          duration: 1799,
+          metadata: { title: 'Around the world', authorName: 'Jules Verne' },
+          audioTracks: [],
+          audioFiles: [
+            {
+              index: 1,
+              mimeType: 'audio/mpeg',
+              codec: 'mp3',
+              duration: 900,
+              metadata: { filename: '000 - Part.mp3' },
+            },
+            {
+              index: 2,
+              mimeType: 'audio/mpeg',
+              codec: 'mp3',
+              duration: 899,
+              metadata: { filename: '001 - Part.mp3' },
+            },
+          ],
+        },
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const client = new AudiobookshelfClient(server, session)
+    const item = await client.getItem('book_2')
+
+    expect(item.audioTracks).toHaveLength(2)
+    expect(item.audioTracks[0]).toMatchObject({
+      duration: 900,
+      title: '000 - Part.mp3',
+      mimeType: 'audio/mpeg',
+      startOffset: 0,
+    })
+    expect(item.audioTracks[1].startOffset).toBe(900)
+  })
+
+  it('builds a wss Socket.IO URL routed through the same base as the REST API', () => {
+    const client = new AudiobookshelfClient(server, session)
+
+    const url = new URL(client.socketIoUrl(session.token))
+
+    expect(url.protocol).toBe('wss:')
+    expect(url.host).toBe('books.example.com')
+    expect(url.pathname).toBe('/socket.io/')
+    expect(url.searchParams.get('EIO')).toBe('4')
+    expect(url.searchParams.get('transport')).toBe('websocket')
+    expect(url.searchParams.get('token')).toBe(session.token)
+  })
+
   it('drops personalized shelves that are not browsable books or series', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

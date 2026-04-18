@@ -25,11 +25,10 @@ function parseSocketIoPacket(raw: string): { type: string; data: unknown[] } | n
 }
 
 function absSocketUrl(client: AudiobookshelfClient, token: string): string {
-  // Build ws(s)://<host>/socket.io/?EIO=4&transport=websocket&token=<token>
-  const coverUrl = client.coverUrl('probe')
-  const parsed = new URL(coverUrl)
-  const wsScheme = parsed.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${wsScheme}//${parsed.host}/socket.io/?EIO=4&transport=websocket&token=${encodeURIComponent(token)}`
+  // Routed through the same base as the REST API (so /abs/socket.io/ in proxy
+  // mode); the previous shortcut of "host of cover URL + /socket.io/" missed
+  // the proxy prefix and made nginx serve the SPA fallback instead of ABS.
+  return client.socketIoUrl(token)
 }
 
 export function useAbsSocket(
