@@ -1837,6 +1837,38 @@ h3 {
   background: var(--glass-bg-heavy);
 }
 
+/* Reader chrome theming: derive colors from the *reader* theme
+   (light/sepia/dark) rather than the app theme, so the top bar stays
+   readable regardless of which app theme is active. */
+.reader-fullscreen {
+  --reader-chrome-fg: #1f1a15;
+  --reader-chrome-muted: rgba(31, 26, 21, 0.6);
+  --reader-chrome-bg: rgba(245, 239, 228, 0.92);
+  --reader-chrome-border: rgba(31, 26, 21, 0.12);
+  --reader-chrome-btn-bg: rgba(31, 26, 21, 0.08);
+  --reader-chrome-btn-bg-hover: rgba(31, 26, 21, 0.14);
+  --reader-chrome-accent: var(--accent-500);
+  --reader-chrome-accent-fg: #ffffff;
+}
+
+.reader-fullscreen[data-reader-theme="light"] {
+  --reader-chrome-fg: #1a1a1a;
+  --reader-chrome-muted: rgba(26, 26, 26, 0.6);
+  --reader-chrome-bg: rgba(255, 255, 255, 0.92);
+  --reader-chrome-border: rgba(0, 0, 0, 0.12);
+  --reader-chrome-btn-bg: rgba(0, 0, 0, 0.06);
+  --reader-chrome-btn-bg-hover: rgba(0, 0, 0, 0.12);
+}
+
+.reader-fullscreen[data-reader-theme="dark"] {
+  --reader-chrome-fg: #e8e8e8;
+  --reader-chrome-muted: rgba(232, 232, 232, 0.65);
+  --reader-chrome-bg: rgba(26, 26, 26, 0.92);
+  --reader-chrome-border: rgba(255, 255, 255, 0.12);
+  --reader-chrome-btn-bg: rgba(255, 255, 255, 0.08);
+  --reader-chrome-btn-bg-hover: rgba(255, 255, 255, 0.16);
+}
+
 .reader-topbar {
   position: absolute;
   top: 0;
@@ -1847,11 +1879,14 @@ h3 {
   align-items: center;
   gap: 12px;
   padding: max(env(safe-area-inset-top), 12px) 16px 12px;
-  background: var(--glass-bg-heavy);
+  background: var(--reader-chrome-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transform: translateY(-100%);
   transition: transform 250ms ease;
   pointer-events: none;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--reader-chrome-border);
+  color: var(--reader-chrome-fg);
 }
 
 .reader-topbar-visible {
@@ -1869,7 +1904,7 @@ h3 {
   display: block;
   font-size: var(--fs-base);
   font-weight: 600;
-  color: var(--text);
+  color: var(--reader-chrome-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1877,36 +1912,50 @@ h3 {
 
 .reader-topbar-title span {
   font-size: var(--fs-xs);
-  color: var(--text-muted);
+  color: var(--reader-chrome-muted);
 }
 
 .reader-back-btn,
 .reader-settings-btn,
 .reader-toc-btn,
 .reader-close-btn {
-  background: var(--hover-bg);
-  border: none;
+  background: var(--reader-chrome-btn-bg);
+  border: 1px solid var(--reader-chrome-border);
   border-radius: var(--radius-sm);
   padding: var(--sp-2) var(--sp-3);
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: var(--fs-base);
   font-weight: 600;
   flex-shrink: 0;
   cursor: pointer;
-  color: var(--text);
-  transition: background 150ms ease;
+  color: var(--reader-chrome-fg);
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
 .reader-back-btn:hover,
 .reader-settings-btn:hover,
 .reader-toc-btn:hover,
 .reader-close-btn:hover {
-  background: var(--hover-bg-strong);
+  background: var(--reader-chrome-btn-bg-hover);
+}
+
+.reader-back-btn:focus-visible,
+.reader-settings-btn:focus-visible,
+.reader-toc-btn:focus-visible,
+.reader-close-btn:focus-visible {
+  outline: 2px solid var(--reader-chrome-accent);
+  outline-offset: 2px;
 }
 
 .reader-settings-btn.active,
 .reader-toc-btn.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--reader-chrome-accent);
+  border-color: var(--reader-chrome-accent);
+  color: var(--reader-chrome-accent-fg);
 }
 
 .reader-content {
@@ -1947,11 +1996,14 @@ h3 {
   right: 0;
   z-index: 10;
   padding: 10px 16px max(env(safe-area-inset-bottom), 12px);
-  background: var(--glass-bg-heavy);
+  background: var(--reader-chrome-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--reader-chrome-fg);
   transform: translateY(100%);
   transition: transform 250ms ease;
   pointer-events: none;
-  border-top: 1px solid var(--glass-border);
+  border-top: 1px solid var(--reader-chrome-border);
 }
 
 .reader-bottombar-visible {
@@ -1961,7 +2013,7 @@ h3 {
 
 .reader-progress-track {
   height: 3px;
-  background: var(--line-strong);
+  background: var(--reader-chrome-border);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -1982,7 +2034,7 @@ h3 {
   justify-content: space-between;
   margin-top: var(--sp-1);
   font-size: var(--fs-xs);
-  color: var(--text-muted);
+  color: var(--reader-chrome-muted);
 }
 
 .reader-settings-panel {
@@ -1990,8 +2042,11 @@ h3 {
   top: 60px;
   right: var(--sp-4);
   z-index: 20;
-  background: var(--glass-bg-heavy);
-  border: 1px solid var(--glass-border);
+  background: var(--reader-chrome-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--reader-chrome-fg);
+  border: 1px solid var(--reader-chrome-border);
   border-radius: var(--radius-lg);
   padding: var(--sp-4);
   display: grid;
@@ -2009,7 +2064,7 @@ h3 {
 
 .reader-settings-row > span {
   font-size: var(--fs-sm);
-  color: var(--text-muted);
+  color: var(--reader-chrome-muted);
   font-weight: 500;
 }
 
@@ -2019,9 +2074,20 @@ h3 {
   gap: var(--sp-2);
 }
 
+.reader-font-controls .icon-button {
+  background: var(--reader-chrome-btn-bg);
+  border: 1px solid var(--reader-chrome-border);
+  color: var(--reader-chrome-fg);
+}
+
+.reader-font-controls .icon-button:hover {
+  background: var(--reader-chrome-btn-bg-hover);
+  color: var(--reader-chrome-fg);
+}
+
 .reader-font-controls span {
   font-size: var(--fs-sm);
-  color: var(--text);
+  color: var(--reader-chrome-fg);
   min-width: 40px;
   text-align: center;
 }
@@ -2032,7 +2098,7 @@ h3 {
 }
 
 .reader-theme-swatch {
-  border: 2px solid var(--line-strong);
+  border: 2px solid var(--reader-chrome-border);
   border-radius: var(--radius-sm);
   padding: var(--sp-1) var(--sp-3);
   font-size: var(--fs-xs);

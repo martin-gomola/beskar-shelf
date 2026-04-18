@@ -286,7 +286,7 @@ function ReaderPage() {
 
   if (query.isPending) {
     return (
-      <div className="reader-fullscreen" style={{ background: THEMES[theme].bg }}>
+      <div className="reader-fullscreen" data-reader-theme={theme} style={{ background: THEMES[theme].bg }}>
         <p style={{ color: THEMES[theme].fg, textAlign: 'center', paddingTop: '40vh' }}>Loading…</p>
       </div>
     )
@@ -308,7 +308,7 @@ function ReaderPage() {
   const footerProgressPct = isBootingEpub ? bootProgress : Math.round((readerProgress || item.ebookProgress) * 100)
 
   return (
-    <div className="reader-fullscreen" style={{ background: currentTheme.bg }}>
+    <div className="reader-fullscreen" data-reader-theme={theme} style={{ background: currentTheme.bg }}>
       {/* Floating toggle — only visible when chrome is hidden */}
       {!showUI && (
         <button
