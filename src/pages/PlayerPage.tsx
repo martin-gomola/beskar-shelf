@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 
+import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext, usePlayerTime } from '../contexts/PlayerContext'
 import { useToast } from '../contexts/ToastContext'
@@ -185,14 +186,7 @@ function PlayerPage() {
   )
 
   if (!activePlayback) {
-    return (
-      <main className="screen">
-        <section className="card">
-          <h1>No active session</h1>
-          <p className="muted">Pick a book to begin a listening session.</p>
-        </section>
-      </main>
-    )
+    return <PlayerResumeGate />
   }
 
   const progress = activePlayback.duration > 0 ? playbackTime / activePlayback.duration : 0
@@ -435,6 +429,60 @@ function PlayerPage() {
             </button>
           ))}
         </div>
+      </section>
+    </main>
+  )
+}
+
+// Rendered on /player when no live session exists. If a saved position is
+// in localStorage we use that as explicit user intent (they navigated to
+// /player) and resume from it. Otherwise we show the empty-state card.
+function PlayerResumeGate() {
+  const client = useClient()
+  const { playbackState, startBook } = useAppContext()
+  const attemptedForItemRef = useRef<string | null>(null)
+
+  const savedItemId = playbackState?.itemId ?? null
+  const savedTime = playbackState?.currentTime ?? 0
+
+  const itemQuery = useQuery({
+    queryKey: ['item', savedItemId],
+    queryFn: () => client.getItem(savedItemId as string),
+    enabled: Boolean(savedItemId) && client.hasSession(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  })
+
+  useEffect(() => {
+    if (!savedItemId || !itemQuery.data) {
+      return
+    }
+    if (attemptedForItemRef.current === savedItemId) {
+      return
+    }
+    if (itemQuery.data.audioTracks.length === 0) {
+      return
+    }
+    attemptedForItemRef.current = savedItemId
+    void startBook(itemQuery.data, savedTime)
+  }, [savedItemId, savedTime, itemQuery.data, startBook])
+
+  if (savedItemId) {
+    return (
+      <main className="screen">
+        <section className="card">
+          <h1>Resuming…</h1>
+          <p className="muted">Reopening your last session.</p>
+        </section>
+      </main>
+    )
+  }
+
+  return (
+    <main className="screen">
+      <section className="card">
+        <h1>No active session</h1>
+        <p className="muted">Pick a book to begin a listening session.</p>
       </section>
     </main>
   )
