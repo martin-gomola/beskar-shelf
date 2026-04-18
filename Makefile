@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install dev down stop build test lint deploy deploy-down deploy-logs abs-token abs-descriptions
+.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop build test lint deploy deploy-down deploy-logs abs-token abs-descriptions
 
 help:
 	@echo "beskar-shelf commands"
@@ -19,6 +19,9 @@ help:
 	@echo "  make deploy-logs      Tail logs from the deployed app container"
 	@echo ""
 	@echo "  Tools:"
+	@echo "  make install-tools    Create tools/.venv and install beskar-tools (editable)"
+	@echo "  make tools-test       Run beskar-tools pytest suite"
+	@echo "  make tools-lint       Run ruff over beskar-tools"
 	@echo "  make doctor           Validate grab tools, config, links file, and output directory"
 	@echo "  make download         Download and process links from links.txt"
 	@echo "  make download-dry-run Fetch metadata and print the plan without downloading"
@@ -52,6 +55,20 @@ test:
 
 lint:
 	@npm run lint
+
+install-tools:
+	@cd tools && \
+		if [ ! -d .venv ]; then \
+			python3 -m venv .venv && echo "Created tools/.venv"; \
+		fi && \
+		./.venv/bin/pip install --upgrade pip >/dev/null && \
+		./.venv/bin/pip install -e ".[dev]"
+
+tools-test:
+	@cd tools && ./.venv/bin/pytest tests
+
+tools-lint:
+	@cd tools && ./.venv/bin/ruff check beskar_tools tests
 
 doctor:
 	@./tools/grab/grab --doctor

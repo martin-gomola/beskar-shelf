@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
 import { useServiceWorkerUpdate } from '../hooks/useServiceWorkerUpdate'
 import { useTheme } from '../hooks/useTheme'
+import { formatBytes, getOfflineBookBytes } from '../lib/utils'
 import { APP_VERSION } from '../utils/version'
 
 const THEME_OPTIONS = [
@@ -13,12 +14,18 @@ const THEME_OPTIONS = [
 ]
 
 function SettingsPage() {
-  const { server, session, setSession, setServer, refreshBooks, refreshOfflineBooks } = useAppContext()
+  const { server, session, setSession, setServer, refreshBooks, refreshOfflineBooks, offlineBooks } = useAppContext()
   const { updateAvailable, reload, checkForUpdate } = useServiceWorkerUpdate()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [refreshingBooks, setRefreshingBooks] = useState(false)
   const [checkingForUpdate, setCheckingForUpdate] = useState(false)
+
+  const offlineSummary = useMemo(() => {
+    const downloaded = offlineBooks.filter((book) => book.status === 'downloaded')
+    const totalBytes = downloaded.reduce((sum, book) => sum + getOfflineBookBytes(book), 0)
+    return { count: downloaded.length, totalBytes }
+  }, [offlineBooks])
 
   async function handleRefreshBooks() {
     setRefreshingBooks(true)
@@ -120,6 +127,24 @@ function SettingsPage() {
               {updateAvailable
                 ? 'A new version is ready'
                 : 'Ask the app to look for a newer version'}
+            </span>
+          </button>
+        </div>
+      </section>
+
+      {/* Storage */}
+      <section className="settings-group">
+        <h3 className="settings-group-label">Storage</h3>
+        <div className="settings-card">
+          <button
+            className="settings-action"
+            onClick={() => navigate('/downloads')}
+          >
+            <span>Offline books</span>
+            <span className="settings-action-hint">
+              {offlineSummary.count === 0
+                ? 'No books downloaded yet'
+                : `${offlineSummary.count} book${offlineSummary.count === 1 ? '' : 's'} · ${formatBytes(offlineSummary.totalBytes)}`}
             </span>
           </button>
         </div>

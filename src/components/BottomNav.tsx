@@ -2,6 +2,8 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 
+import { usePrimaryLibrary } from '../hooks/useLibraries'
+
 function IconHome() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -38,20 +40,55 @@ function IconSettings() {
   )
 }
 
-const NAV_ITEMS: { href: string; label: string; icon: () => React.ReactNode }[] = [
-  { href: '/home', label: 'Home', icon: IconHome },
-  { href: '/downloads', label: 'Library', icon: IconLibrary },
-  { href: '/player', label: 'Player', icon: IconPlay },
-  { href: '/settings', label: 'Settings', icon: IconSettings },
-]
+type NavItem = {
+  key: string
+  href: string
+  label: string
+  icon: () => React.ReactNode
+  isActive: (pathname: string) => boolean
+}
 
 export function BottomNav() {
   const location = useLocation()
+  const { primary } = usePrimaryLibrary()
+
+  const libraryHref = primary ? `/library/${primary.id}` : '/home'
+
+  const items: NavItem[] = [
+    {
+      key: 'home',
+      href: '/home',
+      label: 'Home',
+      icon: IconHome,
+      isActive: (p) => p === '/home',
+    },
+    {
+      key: 'library',
+      href: libraryHref,
+      label: 'Library',
+      icon: IconLibrary,
+      isActive: (p) => p.startsWith('/library/') || p.startsWith('/book/') || p.startsWith('/read/'),
+    },
+    {
+      key: 'player',
+      href: '/player',
+      label: 'Player',
+      icon: IconPlay,
+      isActive: (p) => p === '/player',
+    },
+    {
+      key: 'settings',
+      href: '/settings',
+      label: 'Settings',
+      icon: IconSettings,
+      isActive: (p) => p === '/settings' || p === '/downloads',
+    },
+  ]
 
   return (
     <nav className="bottom-nav">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-        <Link key={href} className={clsx('nav-link', { active: location.pathname === href })} to={href}>
+      {items.map(({ key, href, label, icon: Icon, isActive }) => (
+        <Link key={key} className={clsx('nav-link', { active: isActive(location.pathname) })} to={href}>
           <Icon />
           <span>{label}</span>
         </Link>

@@ -54,17 +54,6 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="library-toolbar">
-        <div className="library-pills">
-          {(librariesQuery.data ?? []).map((library) => (
-            <Link key={library.id} className="pill-link" to={`/library/${library.id}`}>
-              {library.name}
-            </Link>
-          ))}
-        </div>
-        {primary ? <Link className="text-link" to={`/library/${primary.id}`}>Browse all</Link> : null}
-      </section>
-
       {playbackState ? (
         <section className="resume-banner card">
           <div>

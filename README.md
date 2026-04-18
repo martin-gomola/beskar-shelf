@@ -22,8 +22,8 @@ beskar-shelf/
 ├── vite.config.ts           # Vite + PWA + proxy
 ├── Dockerfile               # Multi-stage build → nginx
 ├── nginx.conf               # PWA container nginx template
-├── tools/grab/              # YouTube → MP3 pipeline (self-contained)
-├── tools/fix-ebooks         # Reorganize ebook folders for ABS
+├── tools/                   # beskar-tools Python package (grab, organize, …)
+├── tools/grab/              # `grab` binary shim + per-project env + links
 ├── Makefile
 └── .env.example
 ```
@@ -110,9 +110,11 @@ now wrap the same Compose commands.
 
 ## Grab: YouTube → MP3
 
-Self-contained pipeline in `tools/grab/`. Details in `tools/grab/README.md`.
+Python pipeline under `tools/beskar_tools/` (exposed as `beskar-grab` and the
+`tools/grab/grab` shim). Details in `tools/README.md`.
 
 ```bash
+make install-tools    # create tools/.venv + install beskar-tools
 make doctor           # preflight checks
 make download-dry-run # validate + print plan
 make download         # forge the audiobooks

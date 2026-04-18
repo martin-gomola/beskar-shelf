@@ -27,6 +27,16 @@ function IconList() {
   )
 }
 
+function IconDownload() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  )
+}
+
 const PAGE_SIZE = 40
 
 export function LibraryPage() {
@@ -41,6 +51,7 @@ export function LibraryPage() {
     searchParams.get('collection'),
   )
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [offlineOnly, setOfflineOnly] = useState<boolean>(searchParams.get('offline') === '1')
   const deferredSearch = useDeferredValue(search)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const prevLibraryId = useRef(libraryId)
@@ -62,6 +73,21 @@ export function LibraryPage() {
       }
       return prev
     }, { replace: true })
+  }, [setSearchParams])
+
+  const toggleOfflineOnly = useCallback(() => {
+    setOfflineOnly((prev) => {
+      const next = !prev
+      setSearchParams((params) => {
+        if (next) {
+          params.set('offline', '1')
+        } else {
+          params.delete('offline')
+        }
+        return params
+      }, { replace: true })
+      return next
+    })
   }, [setSearchParams])
 
   const query = useInfiniteQuery({
@@ -86,10 +112,18 @@ export function LibraryPage() {
     return col ? new Set(col.bookIds) : null
   }, [activeCollection, collectionsQuery.data])
 
+  const offlineBookIds = useMemo(
+    () => new Set(offlineBooks.filter((b) => b.status === 'downloaded').map((b) => b.itemId)),
+    [offlineBooks],
+  )
+
   const filtered = useMemo(() => {
     let items = allItems
     if (collectionBookIds) {
       items = items.filter((item) => collectionBookIds.has(item.id))
+    }
+    if (offlineOnly) {
+      items = items.filter((item) => offlineBookIds.has(item.id))
     }
     if (deferredSearch) {
       const needle = deferredSearch.toLowerCase()
@@ -98,7 +132,7 @@ export function LibraryPage() {
       )
     }
     return items
-  }, [allItems, collectionBookIds, deferredSearch])
+  }, [allItems, collectionBookIds, offlineOnly, offlineBookIds, deferredSearch])
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
 
@@ -141,21 +175,36 @@ export function LibraryPage() {
             </Link>
           ))}
         </div>
-        <div className="view-toggle">
+        <div className="library-toolbar-actions">
           <button
-            className={clsx('view-toggle-btn', { active: viewMode === 'grid' })}
-            onClick={() => setViewMode('grid')}
-            aria-label="Grid view"
+            type="button"
+            className={clsx('view-toggle-btn offline-filter-btn', { active: offlineOnly })}
+            onClick={toggleOfflineOnly}
+            aria-pressed={offlineOnly}
+            aria-label={offlineOnly ? 'Show all books' : 'Show only downloaded books'}
+            title={offlineOnly ? 'Showing downloaded only' : 'Show downloaded only'}
           >
-            <IconGrid />
+            <IconDownload />
+            {offlineBookIds.size > 0 ? (
+              <span className="offline-filter-count">{offlineBookIds.size}</span>
+            ) : null}
           </button>
-          <button
-            className={clsx('view-toggle-btn', { active: viewMode === 'list' })}
-            onClick={() => setViewMode('list')}
-            aria-label="List view"
-          >
-            <IconList />
-          </button>
+          <div className="view-toggle">
+            <button
+              className={clsx('view-toggle-btn', { active: viewMode === 'grid' })}
+              onClick={() => setViewMode('grid')}
+              aria-label="Grid view"
+            >
+              <IconGrid />
+            </button>
+            <button
+              className={clsx('view-toggle-btn', { active: viewMode === 'list' })}
+              onClick={() => setViewMode('list')}
+              aria-label="List view"
+            >
+              <IconList />
+            </button>
+          </div>
         </div>
       </section>
 
@@ -191,6 +240,14 @@ export function LibraryPage() {
         <section className="card">
           <h2>Request failed</h2>
           <p className="muted">{(query.error as Error).message}</p>
+        </section>
+      ) : offlineOnly && filtered.length === 0 && !query.isFetchingNextPage && !query.hasNextPage ? (
+        <section className="card" style={{ textAlign: 'center' }}>
+          <p className="muted">
+            {offlineBookIds.size === 0
+              ? 'No downloaded books in this library yet. Open a book to download it for offline use.'
+              : 'No downloaded books match the current filters.'}
+          </p>
         </section>
       ) : viewMode === 'grid' ? (
         <>

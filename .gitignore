@@ -1,8 +1,16 @@
 # Environment and secrets
 .env
+.venv
 *.local
 tools/grab/.env
 tools/grab/links.txt
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
 
 # Local AI/editor/runtime state
 .claude/

@@ -304,7 +304,12 @@ function PlayerPage() {
         </div>
 
         <div className="player-actions">
-          <button className="player-action-btn" onClick={() => setShowSleepTimer(!showSleepTimer)} aria-label="Sleep timer">
+          <button
+            className={clsx('player-action-btn', { active: showSleepTimer })}
+            onClick={() => setShowSleepTimer(!showSleepTimer)}
+            aria-label="Sleep timer"
+            aria-expanded={showSleepTimer}
+          >
             <IconMoon />
             <span>
               {sleepTimer.mode === 'off'
@@ -314,7 +319,12 @@ function PlayerPage() {
                   : formatDuration(sleepTimer.remainingMs / 1000)}
             </span>
           </button>
-          <button className="player-action-btn" onClick={() => setShowBookmarks(!showBookmarks)} aria-label="Bookmarks">
+          <button
+            className={clsx('player-action-btn', { active: showBookmarks })}
+            onClick={() => setShowBookmarks(!showBookmarks)}
+            aria-label="Bookmarks"
+            aria-expanded={showBookmarks}
+          >
             <IconBookmark />
             <span>Bookmarks</span>
           </button>
@@ -330,80 +340,82 @@ function PlayerPage() {
             <span>Stop</span>
           </button>
         </div>
-      </section>
 
-      {showSleepTimer ? (
-        <section className="card">
-          <div className="section-heading">
-            <h2>Sleep timer</h2>
-          </div>
-          <div className="sleep-timer-row">
-            {[5, 10, 15, 30, 60].map((min) => (
+        {showSleepTimer ? (
+          <div className="player-action-panel">
+            <div className="sleep-timer-row">
+              {[5, 10, 15, 30, 60].map((min) => (
+                <button
+                  key={min}
+                  className={clsx('ghost-button sleep-timer-btn', { active: sleepTimer.mode === 'minutes' && sleepTimer.minutes === min })}
+                  onClick={() => setSleepMinutes(min)}
+                >
+                  {min}m
+                </button>
+              ))}
               <button
-                key={min}
-                className={clsx('ghost-button sleep-timer-btn', { active: sleepTimer.mode === 'minutes' && sleepTimer.minutes === min })}
-                onClick={() => setSleepMinutes(min)}
+                className={clsx('ghost-button sleep-timer-btn', { active: sleepTimer.mode === 'end-of-chapter' })}
+                onClick={setSleepEndOfChapter}
               >
-                {min}m
+                End of chapter
               </button>
-            ))}
-            <button
-              className={clsx('ghost-button sleep-timer-btn', { active: sleepTimer.mode === 'end-of-chapter' })}
-              onClick={setSleepEndOfChapter}
-            >
-              End of chapter
-            </button>
-            {sleepTimer.mode !== 'off' ? (
-              <button className="ghost-button sleep-timer-btn" onClick={cancelSleepTimer}>Cancel</button>
+              {sleepTimer.mode !== 'off' ? (
+                <button className="ghost-button sleep-timer-btn" onClick={cancelSleepTimer}>Cancel</button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {showBookmarks ? (
+          <div className="player-action-panel">
+            <div className="bookmark-form">
+              <input
+                value={bookmarkTitle}
+                onChange={(event) => setBookmarkTitle(event.target.value)}
+                placeholder="Name this moment"
+                className="bookmark-input"
+              />
+              <button className="primary-button bookmark-add-btn" onClick={() => void addBookmark()}>
+                Save {formatDuration(playbackTime)}
+              </button>
+            </div>
+            <div className="player-action-panel-meta">
+              <span className="muted bookmark-meta">
+                {mergedBookmarks.length === 0
+                  ? 'No bookmarks yet'
+                  : `${mergedBookmarks.length} saved`}
+              </span>
+            </div>
+            {mergedBookmarks.length > 0 ? (
+              <div className="chapter-list">
+                {mergedBookmarks.map((bm) => (
+                  <div key={`${bm.time}-${bm.title}`} className="bookmark-row">
+                    <button
+                      className="chapter-row bookmark-jump-btn"
+                      onClick={() => seekTo(bm.time)}
+                    >
+                      <span className="bookmark-copy">
+                        <strong>{bm.title}</strong>
+                        <span className="bookmark-source">
+                          {bm.source === 'local' ? 'Local only' : bm.source === 'both' ? 'Synced' : 'Server'}
+                        </span>
+                      </span>
+                      <span>{formatDuration(bm.time)}</span>
+                    </button>
+                    <button
+                      className="ghost-button bookmark-delete-btn"
+                      onClick={() => void removeBookmark(bm)}
+                      aria-label={`Delete bookmark ${bm.title}`}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
             ) : null}
           </div>
-        </section>
-      ) : null}
-
-      {showBookmarks ? (
-        <section className="card">
-          <div className="section-heading">
-            <h2>Bookmarks</h2>
-            <span className="muted bookmark-meta">{mergedBookmarks.length} saved</span>
-          </div>
-          <div className="bookmark-form">
-            <input
-              value={bookmarkTitle}
-              onChange={(event) => setBookmarkTitle(event.target.value)}
-              placeholder="Name this moment"
-              className="bookmark-input"
-            />
-            <button className="primary-button bookmark-add-btn" onClick={() => void addBookmark()}>
-              Save {formatDuration(playbackTime)}
-            </button>
-          </div>
-          <div className="chapter-list">
-            {mergedBookmarks.map((bm) => (
-              <div key={`${bm.time}-${bm.title}`} className="bookmark-row">
-                <button
-                  className="chapter-row bookmark-jump-btn"
-                  onClick={() => seekTo(bm.time)}
-                >
-                  <span className="bookmark-copy">
-                    <strong>{bm.title}</strong>
-                    <span className="bookmark-source">
-                      {bm.source === 'local' ? 'Local only' : bm.source === 'both' ? 'Synced' : 'Server'}
-                    </span>
-                  </span>
-                  <span>{formatDuration(bm.time)}</span>
-                </button>
-                <button
-                  className="ghost-button bookmark-delete-btn"
-                  onClick={() => void removeBookmark(bm)}
-                  aria-label={`Delete bookmark ${bm.title}`}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
+        ) : null}
+      </section>
 
       <section className="card">
         <div className="section-heading">

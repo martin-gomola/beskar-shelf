@@ -2,14 +2,16 @@
 
 Downloads YouTube audio, derives author/title metadata, splits by chapters or fixed length, and outputs Audiobookshelf-ready folder structures.
 
+The `grab` binary is a thin shim that delegates to
+`beskar_tools.cli.grab` in the sibling `beskar-tools` Python package.
+See [`tools/README.md`](../README.md) for the full tooling overview.
+
 ## Prerequisites
 
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- [ffmpeg](https://ffmpeg.org/)
-
-```bash
-brew install yt-dlp ffmpeg
-```
+- [ffmpeg](https://ffmpeg.org/) on `PATH`
+- Python 3.11+
+- Run `make install-tools` from the repo root to create `tools/.venv` and
+  install `beskar-tools` (which vendors `yt-dlp` via pip)
 
 ## Setup
 
