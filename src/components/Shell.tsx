@@ -39,7 +39,7 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function Shell() {
-  const { server, session } = useAppContext()
+  const { server, session, playbackState } = useAppContext()
   const { activePlayback } = usePlayerContext()
   const { updateAvailable, reload } = useServiceWorkerUpdate()
   useTheme()
@@ -79,7 +79,7 @@ export function Shell() {
       </Routes>
 
       {!publicRoute && <BottomNav />}
-      {!publicRoute && activePlayback && <MiniPlayer />}
+      {!publicRoute && (activePlayback || playbackState) && <MiniPlayer />}
     </div>
   )
 }

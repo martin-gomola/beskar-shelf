@@ -167,30 +167,9 @@ export function usePlayback(
     startTransition(() => navigate('/player'))
   }, [client, createSourcesForItem, navigate, playbackState, setPlaybackState])
 
-  useEffect(() => {
-    if (!client.hasSession() || !playbackState || activePlayback) {
-      return
-    }
-
-    void (async () => {
-      try {
-        const item = await client.getItem(playbackState.itemId)
-        if (item.audioTracks.length === 0) {
-          savePlaybackState(null)
-          setPlaybackState(null)
-          return
-        }
-        await startBook(item)
-        if (audioRef.current) {
-          audioRef.current.currentTime = playbackState.currentTime
-        }
-      } catch (error) {
-        savePlaybackState(null)
-        setPlaybackState(null)
-        console.error(error)
-      }
-    })()
-  }, [activePlayback, client, playbackState, setPlaybackState, startBook])
+  // No auto-resume on mount: saved playback state stays in localStorage
+  // so the UI can offer a "Resume" affordance, but we never reopen the
+  // session or navigate to /player without explicit user intent.
 
   function setPlaybackRate(rate: number) {
     setPlaybackRateState(rate)
