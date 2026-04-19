@@ -1360,7 +1360,7 @@ h3 {
 
 .cover-player {
   width: min(72vw, 280px);
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 1 / 1;
   margin: 0 auto;
   border-radius: var(--radius-lg);
   box-shadow: var(--glass-shadow-lg);
