@@ -98,7 +98,7 @@ Covers are the primary visual element with soft shadows:
 
 ```css
 .cover {
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 1 / 1;
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
