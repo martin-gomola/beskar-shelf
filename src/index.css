@@ -815,7 +815,7 @@ h3 {
   max-width: 240px;
   aspect-ratio: 1 / 1;
   border-radius: var(--radius-sm);
-  background: var(--surface-dark) center / cover no-repeat;
+  background: var(--surface-dark) center / contain no-repeat;
   box-shadow: none;
 }
 
@@ -1107,7 +1107,7 @@ h3 {
 .book-list-cover img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .book-list-info {
@@ -1311,6 +1311,7 @@ h3 {
   gap: 8px;
   min-width: 0;
   padding: 0;
+  text-align: center;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -1369,7 +1370,7 @@ h3 {
 .cover-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: inherit;
   opacity: 0;
   transition: opacity 300ms ease, transform 300ms ease;
@@ -2280,7 +2281,7 @@ h3 {
 .mini-player-cover img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .mini-player-info {
@@ -2601,7 +2602,7 @@ h3 {
 .downloads-cover img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
