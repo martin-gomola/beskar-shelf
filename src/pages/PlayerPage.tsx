@@ -238,7 +238,6 @@ function PlayerPage() {
             {coverUrl ? <img className="cover-img cover-img-loaded" src={coverUrl} alt={activePlayback.item.title} /> : null}
           </div>
         </div>
-        <p className="eyebrow">Now playing</p>
         <h1>{activePlayback.item.title}</h1>
         <p className="author-line">{activePlayback.item.author}</p>
         <label className="scrubber">
