@@ -376,11 +376,12 @@ function ReaderPage() {
 
   return (
     <div className="reader-fullscreen" data-reader-theme={theme} style={{ background: currentTheme.bg }}>
-      {/* Floating toggle — only visible when chrome is hidden */}
+      {/* Floating toggle — only visible when chrome is hidden. Color and
+          background come from --reader-chrome-* tokens in CSS so the icon
+          stays legible across every app-theme x reader-theme combination. */}
       {!showUI && (
         <button
           className="reader-fab"
-          style={{ color: currentTheme.fg }}
           onClick={toggleUI}
           aria-label="Show controls"
         >
