@@ -50,6 +50,7 @@ and make requests against `ABS_EFFECTIVE_URL`.
 - create or fix series and sequence numbers
 - clean titles or authors
 - export and apply missing descriptions
+- audit and rebuild chapter metadata from audio track boundaries
 - trigger a library scan after metadata changes
 
 ## API Patterns
@@ -92,6 +93,60 @@ curl -sS \
   --data '{"libraryId":"'"$ABS_LIBRARY_ID"'","name":"Collection Name","books":["'"$ITEM_ID"'"]}'
 ```
 
+### Audit & rebuild chapters
+
+ABS occasionally ships books to the library with `media.chapters` that only
+covers a fraction of `media.duration` (manual half-import, interrupted scan,
+etc.) — the UI then shows e.g. "2 chapters" for a 7-track book. The PWA
+faithfully renders whatever ABS returns, so the fix has to happen on the
+metadata side.
+
+Audit pattern — flag any multi-track item where chapter coverage drops below
+~95%:
+
+```bash
+curl -sS -H "Authorization: Bearer $ABS_TOKEN" \
+  "$ABS_EFFECTIVE_URL/api/libraries/$ABS_LIBRARY_ID/items?limit=200&minified=1" \
+  | jq -r '.results[].id' \
+  | while read -r ID; do
+      curl -sS -H "Authorization: Bearer $ABS_TOKEN" \
+        "$ABS_EFFECTIVE_URL/api/items/$ID?expanded=1" | jq -r '
+          (.media.duration // 0) as $dur
+          | (.media.tracks // []) as $t
+          | (.media.chapters // []) as $c
+          | (if ($c|length) == 0 then 0 else ($c|last|.end) end) as $covEnd
+          | (if $dur == 0 then 0 else ($covEnd / $dur) end) as $cov
+          | if ($t|length) > 1 and $cov < 0.95
+            then "BROKEN \($cov*100|floor)% \($t|length)t/\($c|length)c \(.media.metadata.title) \(.id)"
+            else empty end'
+    done
+```
+
+Rebuild — derive chapters straight from track boundaries and POST them. ABS
+exposes a dedicated chapters endpoint (it is not a `PATCH /media` field):
+
+```bash
+PAYLOAD=$(curl -sS -H "Authorization: Bearer $ABS_TOKEN" \
+  "$ABS_EFFECTIVE_URL/api/items/$ITEM_ID?expanded=1" \
+  | jq '{chapters: [.media.tracks[] | {
+      id: (.index - 1),
+      start: .startOffset,
+      end: (.startOffset + .duration),
+      title: (.title | sub("\\.[^.]+$"; ""))
+    }]}')
+
+curl -sS -X POST \
+  -H "Authorization: Bearer $ABS_TOKEN" \
+  -H "Content-Type: application/json" \
+  "$ABS_EFFECTIVE_URL/api/items/$ITEM_ID/chapters" \
+  --data "$PAYLOAD"
+# → {"success": true, "updated": true}
+```
+
+No library scan is needed afterwards — the write goes straight to ABS's
+metadata DB. PWA clients see the new chapters as soon as their item query
+restales (default `staleTime: 60s` on `BookPage.tsx`).
+
 ## Workflow
 
 1. Read the target library inventory first.
@@ -125,3 +180,9 @@ Recommended process:
   `authors` array.
 - `coverPath` is not a stable public API contract for repo tooling.
 - Keep secrets in `.env`, never in committed scripts.
+- For chapter rebuilds: use `media.tracks[]`, **not** `media.audioFiles[]`.
+  `audioFiles[].startOffset` is `null` even with `?expanded=1`; only
+  `tracks[]` carries `startOffset`, `duration`, and a usable `title`.
+- Single-track audiobooks (`tracks.length == 1`) cannot be auto-rebuilt from
+  this audit — there are no boundaries to derive chapters from. They need
+  embedded ID3 chapter tags or manual chapter editing in the ABS UI.
