@@ -813,7 +813,7 @@ h3 {
 .bd-cover {
   width: 60%;
   max-width: 240px;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-sm);
   background: var(--surface-dark) center / cover no-repeat;
   box-shadow: none;
