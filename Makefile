@@ -125,6 +125,7 @@ optimize-pdf-lossless:
 		$(if $(OUT),--output "$(OUT)")
 
 deploy:
+	@npm update @mgomola/shelf-pdf-reader 2>/dev/null || true
 	@if [ ! -f .env ]; then \
 		echo "No .env found — copying from .env.example"; \
 		cp .env.example .env; \
