@@ -1,10 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { PdfViewer, configurePdfWorker } from '@mgomola/shelf-pdf-reader'
+import '@mgomola/shelf-pdf-reader/styles.css'
+// `?url` returns a fingerprinted /assets/ URL Vite emits at build time, so
+// the pdf.js worker is cache-busted on every deploy alongside the main JS
+// bundle. Importing here (the lazy ReaderPage chunk) instead of in main.tsx
+// keeps ~700 kB of pdf.js out of the initial app bundle.
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 import { useClient } from '../contexts/ClientContext'
 import { getOfflineBook } from '../lib/storage'
 import { formatProgress } from '../lib/utils'
+
+// Module-level so it runs exactly once when the reader chunk first loads,
+// not once per render. configurePdfWorker is idempotent at the pdf.js level
+// but there's no point re-setting it.
+configurePdfWorker(pdfWorkerUrl)
 
 type ReaderTheme = 'light' | 'sepia' | 'dark'
 
@@ -303,8 +315,43 @@ function ReaderPage() {
     )
   }
 
+  // PDFs render through @mgomola/shelf-pdf-reader, which ships its own
+  // navigation chrome (back, outline menu, page input, zoom, focus mode).
+  // Skipping the EPUB-specific topbar/bottombar/settings UI keeps the two
+  // reader experiences from fighting each other for screen space.
+  if (isPdf) {
+    const savedPage = Number.parseInt(item.ebookLocation ?? '', 10)
+    const initialPage = Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1
+    const pdfSource = pdfSrc ?? client.ebookUrl(item.id)
+    return (
+      <PdfViewer
+        src={pdfSource}
+        bookTitle={item.title}
+        initialPage={initialPage}
+        onBack={() => navigate(`/book/${item.id}`, { replace: true })}
+        onPageChange={(page, numPages) => {
+          // Coalesce rapid Prev/Next taps so we POST progress at most once
+          // every 3 seconds. The pendingPayloadRef + cleanup effect already
+          // flushes the latest payload on unmount, so closing the reader
+          // mid-debounce still saves the last page the user landed on.
+          const payload = {
+            cfi: String(page),
+            progress: numPages > 0 ? page / numPages : 0,
+          }
+          pendingPayloadRef.current = payload
+          if (debounceRef.current) clearTimeout(debounceRef.current)
+          debounceRef.current = setTimeout(() => {
+            debounceRef.current = null
+            pendingPayloadRef.current = null
+            void commitReaderProgress(payload)
+          }, 3000)
+        }}
+      />
+    )
+  }
+
   const currentTheme = THEMES[theme]
-  const isBootingEpub = !isPdf && !ready
+  const isBootingEpub = !ready
   const footerProgressPct = isBootingEpub ? bootProgress : Math.round((readerProgress || item.ebookProgress) * 100)
 
   return (
@@ -372,29 +419,20 @@ function ReaderPage() {
       )}
 
       {/* Reading area */}
-      {isPdf ? (
-        <iframe
-          className="reader-content-frame"
-          src={pdfSrc ?? client.ebookUrl(item.id)}
-          title={item.title}
-          style={{ background: currentTheme.bg }}
+      <div className="reader-content">
+        <div ref={containerRef} className="reader-epub-container" />
+        {/* Tap zones overlay — sit above the shadow DOM */}
+        <div
+          className="reader-tap-zone reader-tap-prev"
+          onClick={() => viewRef.current?.prev()}
+          aria-label="Previous page"
         />
-      ) : (
-        <div className="reader-content">
-          <div ref={containerRef} className="reader-epub-container" />
-          {/* Tap zones overlay — sit above the shadow DOM */}
-          <div
-            className="reader-tap-zone reader-tap-prev"
-            onClick={() => viewRef.current?.prev()}
-            aria-label="Previous page"
-          />
-          <div
-            className="reader-tap-zone reader-tap-next"
-            onClick={() => viewRef.current?.next()}
-            aria-label="Next page"
-          />
-        </div>
-      )}
+        <div
+          className="reader-tap-zone reader-tap-next"
+          onClick={() => viewRef.current?.next()}
+          aria-label="Next page"
+        />
+      </div>
 
       {/* Bottom bar — progress */}
       <footer className={`reader-bottombar ${(showUI || isBootingEpub) ? 'reader-bottombar-visible' : ''}`}>
