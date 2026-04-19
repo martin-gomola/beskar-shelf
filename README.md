@@ -122,11 +122,14 @@ make download         # forge the audiobooks
 
 ## Ebook Utilities
 
-`tools/fix-ebooks` moves flat ebook files into per-book subdirectories so Audiobookshelf can scan them:
+`tools/fix-ebooks` moves flat ebook files into per-book subdirectories so Audiobookshelf can scan them. Every PDF it moves is also linearised in place via `qpdf` so the in-app reader can stream the first page without downloading the whole file:
 
 ```bash
-./tools/fix-ebooks /path/to/author-directory
+./tools/fix-ebooks /path/to/author-directory                  # move + linearise PDFs
+./tools/fix-ebooks /path/to/author-directory --no-linearise   # move only
 ```
+
+If `qpdf` isn't installed (`brew install qpdf` / `apt install qpdf`), `fix-ebooks` warns once and falls back to plain moves.
 
 ## Library Management
 

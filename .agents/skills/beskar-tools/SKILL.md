@@ -4,18 +4,19 @@ description: >-
   Use the beskar-tools Python package under tools/ for all local audiobook
   pipeline work in this repo: downloading from YouTube, normalizing folder
   layout for Audiobookshelf, fixing ebook folders, filling missing ABS
-  descriptions, and fetching an ABS API token. Use when the user asks to
+  descriptions, fetching an ABS API token, and shrinking/linearising book
+  PDFs for streaming + offline reading. Use when the user asks to
   grab/download audiobooks, organize or clean the downloads tree, merge
-  multi-part books, prep ebooks for ABS, backfill descriptions, or obtain an
-  ABS token.
+  multi-part books, prep ebooks for ABS, backfill descriptions, obtain an
+  ABS token, or compress a book PDF.
 ---
 
 # beskar-tools
 
 Python package at `tools/beskar_tools/` that powers every CLI under `tools/`.
 The shell files in `tools/` (`grab/grab`, `abs-organize`, `fix-ebooks`,
-`fill-abs-descriptions`, `get-abs-token`) are thin shims that `exec` into
-`tools/.venv/bin/python -m beskar_tools.cli.<name>`.
+`fill-abs-descriptions`, `get-abs-token`, `optimize-pdf`) are thin shims
+that `exec` into `tools/.venv/bin/python -m beskar_tools.cli.<name>`.
 
 Prefer these shims over hand-rolled `curl`/`yt-dlp`/`ffmpeg` invocations.
 
@@ -47,6 +48,7 @@ make tools-lint   # ruff check beskar_tools tests
 | Flat ebook files need per-book subfolders | `tools/fix-ebooks` |
 | Find/backfill books missing ABS descriptions | `tools/fill-abs-descriptions` |
 | Produce an `ABS_TOKEN` from username/password | `tools/get-abs-token` |
+| Shrink/linearise a book PDF for ABS reader | `tools/optimize-pdf` |
 | Metadata updates, collections, series via ABS REST | use the `abs-library-manager` skill |
 
 Rule of thumb: **filesystem work → beskar-tools; REST metadata work →
@@ -115,12 +117,25 @@ before applying.
 ### fix-ebooks — one author folder at a time
 
 ```bash
-tools/fix-ebooks /path/to/Author
+tools/fix-ebooks /path/to/Author                    # move + auto-linearise PDFs
+tools/fix-ebooks /path/to/Author --no-linearise     # move only, leave PDFs alone
 ```
 
-Moves every top-level file under `Author/` into `Author/<stem>/<file>`. Pure
-filesystem; no API calls. Run once per author directory that still has flat
-files, then trigger an ABS scan.
+Moves every top-level file under `Author/` into `Author/<stem>/<file>`.
+
+After each move, every `.pdf` is also linearised in place via
+`qpdf --linearize --object-streams=generate --replace-input`. That's the
+streaming win: a linearised PDF lets the in-app `pdfjs-dist` reader render
+page 1 without downloading the whole file (HTTP Range requests). EPUB / MOBI
+/ TXT files are moved as-is.
+
+If `qpdf` isn't on PATH, `fix-ebooks` prints a single warning and continues
+moving files - the `--no-linearise` path is the same code path with the qpdf
+call elided. Per-file qpdf failures (damaged PDFs) are also non-fatal: the
+move still succeeds and the failure is reported next to the move line.
+
+Run once per author directory that still has flat files, then trigger an ABS
+scan.
 
 ### fill-abs-descriptions — missing ABS descriptions
 
@@ -143,6 +158,40 @@ tools/get-abs-token --url https://abs.example.com --username alice
 
 Password is read with `getpass` (never echoed, never logged). Paste the
 resulting token into `.env` as `ABS_TOKEN=…`; never into a tracked file.
+
+### optimize-pdf — shrink + linearise a book PDF
+
+```bash
+tools/optimize-pdf path/to/book.pdf                       # default lossy q=85
+tools/optimize-pdf path/to/book.pdf --quality 90          # higher fidelity
+tools/optimize-pdf path/to/book.pdf --lossless            # qpdf-only, visually identical
+tools/optimize-pdf path/to/book.pdf --output out.pdf      # explicit destination
+```
+
+Modes:
+
+- **lossy (default)**: pymupdf re-encodes raster images as JPEG `quality=N`,
+  subsets fonts, drops unused objects, then qpdf linearises. Typical 60-90%
+  smaller for image-heavy PDFs. Skips images <50 KB and any re-encode that
+  doesn't shave at least 10% (JPEG header overhead would otherwise grow
+  small images).
+- **--lossless**: qpdf-only object-stream pack + linearise. Visually
+  identical to source. Modest size win (~5-15%) but linearisation lets the
+  ABS reader render page 1 without downloading the whole file.
+
+Output defaults to `<stem>.opt.pdf` next to the source. Each unique image
+xref is re-encoded once even if used on multiple pages. Exotic colourspaces
+(CMYK, DeviceN, image masks) are left untouched.
+
+Requires `qpdf` on PATH (`brew install qpdf` on macOS) and `pymupdf` in the
+tools venv (already pinned in `pyproject.toml`).
+
+Makefile aliases:
+
+```bash
+make optimize-pdf PDF=book.pdf [QUALITY=85] [OUT=out.pdf]
+make optimize-pdf-lossless PDF=book.pdf [OUT=out.pdf]
+```
 
 ## Package layout (for debugging / extension)
 
@@ -192,6 +241,8 @@ under `tools/tests/` before shipping the fix.
 
 - The shims require `tools/.venv`. CI and fresh clones must run
   `make install-tools` first.
+- `optimize-pdf` additionally needs `qpdf` on PATH. macOS:
+  `brew install qpdf`; Debian/Ubuntu: `apt install qpdf`.
 - `links.txt` and `.env` files are gitignored — never stage them, even during
   troubleshooting.
 - `grab` mutates `links.txt` on success; run `--dry-run` first if you need to

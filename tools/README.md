@@ -7,8 +7,9 @@ Python package that powers the audiobookshelf-oriented tooling in this repo:
 | `./tools/grab/grab` | Fetch YouTube audiobooks with `yt-dlp`, split with `ffmpeg`, tag with `mutagen`, organize into `Author/Title/` |
 | `./tools/abs-organize` | Normalize existing download trees into Audiobookshelf layout (data-driven rules) |
 | `./tools/fill-abs-descriptions` | List/export/apply missing ABS descriptions |
-| `./tools/fix-ebooks` | Move flat ebooks into per-book subdirectories |
+| `./tools/fix-ebooks` | Move flat ebooks into per-book subdirectories (auto-linearises PDFs via qpdf; `--no-linearise` to skip) |
 | `./tools/get-abs-token` | Interactive token fetch against ABS `/login` |
+| `./tools/optimize-pdf` | Shrink + linearise a book PDF (pymupdf + qpdf) |
 
 All commands are thin shebang shims around the `beskar_tools` Python package.
 
@@ -21,6 +22,13 @@ make install-tools
 ```
 
 This creates `tools/.venv`, installs `beskar_tools` in editable mode with pinned deps, and wires the shims to use that venv automatically.
+
+`optimize-pdf` additionally needs the `qpdf` binary on PATH:
+
+```bash
+brew install qpdf       # macOS
+sudo apt install qpdf   # Debian/Ubuntu
+```
 
 If you prefer managing the environment yourself:
 
