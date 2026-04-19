@@ -4,6 +4,15 @@ RUN apk add --no-cache git
 COPY package*.json ./
 RUN sed -i 's|git+ssh://git@github.com/|git+https://github.com/|g' package-lock.json
 RUN npm ci
+# Force a fresh pull of @mgomola/shelf-pdf-reader on top of whatever the
+# lockfile pinned. The Makefile resolves the current main SHA on the host
+# via `git ls-remote` and passes it as READER_SHA so this layer cache-busts
+# precisely when (and only when) main moves. --no-save means we don't try
+# to mutate the lockfile inside the container — npm ci above already gave
+# us a coherent tree, this just upgrades the one package we want fresh.
+ARG READER_SHA=main
+RUN npm install --no-save \
+    @mgomola/shelf-pdf-reader@github:martin-gomola/shelf-pdf-reader#${READER_SHA}
 COPY . .
 ARG VITE_APP_NAME="Beskar Shelf"
 ARG VITE_DEFAULT_SERVER_URL=""

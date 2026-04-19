@@ -114,17 +114,35 @@ optimize-pdf-lossless:
 		$(if $(OUT),--output "$(OUT)")
 
 deploy:
-	@npm update @mgomola/shelf-pdf-reader 2>/dev/null || true
 	@if [ ! -f .env ]; then \
 		echo "No .env found — copying from .env.example"; \
 		cp .env.example .env; \
 		echo "Edit .env with your app and runtime settings, then run make deploy again."; \
 		exit 1; \
 	fi
-	@container_name="$$(sed -n 's/^CONTAINER_NAME=//p' .env | head -n1)"; \
-		container_name="$${container_name:-beskar-shelf-pwa}" && \
-		docker rm -f "$$container_name" >/dev/null 2>&1 || true
-	docker compose up -d --build
+	@# Resolve the *current* tip of shelf-pdf-reader's main branch on the host
+	@# and hand it to the Docker build as READER_SHA. The Dockerfile runs
+	@# `npm install --no-save @mgomola/shelf-pdf-reader@github:...#$$READER_SHA`
+	@# in a layer that cache-busts on the SHA, so the deployed image always
+	@# contains the latest reader code without needing the host's lockfile to
+	@# be refreshed (and without silently failing the way the old `npm update
+	@# 2>/dev/null || true` line did).
+	@set -e; \
+		echo "→ Resolving latest @mgomola/shelf-pdf-reader main SHA..."; \
+		READER_SHA=$$(git ls-remote https://github.com/martin-gomola/shelf-pdf-reader.git main | head -n1 | cut -f1); \
+		if [ -z "$$READER_SHA" ] || [ $${#READER_SHA} -ne 40 ]; then \
+			echo "✗ git ls-remote returned no SHA for shelf-pdf-reader main (got: '$$READER_SHA')"; \
+			exit 1; \
+		fi; \
+		echo "  → $$READER_SHA"; \
+		LOCK_SHA=$$(grep -m1 '"resolved":.*shelf-pdf-reader\.git#' package-lock.json 2>/dev/null | sed 's/.*#\([a-f0-9]*\).*/\1/'); \
+		if [ -n "$$LOCK_SHA" ] && [ "$$READER_SHA" != "$$LOCK_SHA" ]; then \
+			echo "  ⚠ lockfile pins $$LOCK_SHA — Docker will pull $$READER_SHA fresh on top"; \
+		fi; \
+		container_name="$$(sed -n 's/^CONTAINER_NAME=//p' .env | head -n1)"; \
+		container_name="$${container_name:-beskar-shelf-pwa}"; \
+		docker rm -f "$$container_name" >/dev/null 2>&1 || true; \
+		READER_SHA="$$READER_SHA" docker compose up -d --build
 	@echo ""
 	@container_name="$$(sed -n 's/^CONTAINER_NAME=//p' .env | head -n1)"; \
 		image_name="$$(sed -n 's/^IMAGE_NAME=//p' .env | head -n1)"; \

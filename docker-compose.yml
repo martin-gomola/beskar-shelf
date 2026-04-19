@@ -9,6 +9,11 @@ services:
         VITE_APP_NAME: ${VITE_APP_NAME:-Beskar Shelf}
         VITE_DEFAULT_SERVER_URL: ${VITE_DEFAULT_SERVER_URL:-}
         VITE_ABS_PROXY_BASE: ${VITE_ABS_PROXY_BASE:-/abs}
+        # `make deploy` resolves the latest shelf-pdf-reader main SHA via
+        # git ls-remote and exports READER_SHA so the Docker build pulls
+        # the fresh package on top of npm ci. Falls back to `main` for
+        # ad-hoc `docker compose build` runs without the Makefile.
+        READER_SHA: ${READER_SHA:-main}
     environment:
       ABS_UPSTREAM: ${ABS_UPSTREAM:-http://host.docker.internal:13378}
     ports:
