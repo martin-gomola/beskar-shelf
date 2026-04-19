@@ -12,7 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mgomola/shelf-pdf-reader": "git+ssh://git@github.com/martin-gomola/shelf-pdf-reader.git#main",
+    "@mgomola/shelf-pdf-reader": "github:martin-gomola/shelf-pdf-reader#main",
     "@tanstack/react-query": "^5.99.0",
     "clsx": "^2.1.1",
     "foliate-js": "^1.0.1",
