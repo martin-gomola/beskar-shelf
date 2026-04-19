@@ -2,6 +2,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 RUN apk add --no-cache git
 COPY package*.json ./
+RUN sed -i 's|git+ssh://git@github.com/|git+https://github.com/|g' package-lock.json
 RUN npm ci
 COPY . .
 ARG VITE_APP_NAME="Beskar Shelf"
