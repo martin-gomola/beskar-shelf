@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop build test lint deploy deploy-down deploy-logs abs-token abs-descriptions
+.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop build test lint deploy deploy-down deploy-logs abs-token abs-descriptions optimize-pdf optimize-pdf-lossless
 
 help:
 	@echo "beskar-shelf commands"
@@ -27,6 +27,10 @@ help:
 	@echo "  make download-dry-run Fetch metadata and print the plan without downloading"
 	@echo "  make abs-token        Prompt for ABS credentials and print an API token"
 	@echo "  make abs-descriptions Export books with missing ABS descriptions to JSON"
+	@echo "  make optimize-pdf PDF=<path> [QUALITY=85] [OUT=<output.pdf>]"
+	@echo "                        Lossy compress + linearise (typical 60-90% smaller). Default Q=85."
+	@echo "  make optimize-pdf-lossless PDF=<path> [OUT=<output.pdf>]"
+	@echo "                        qpdf-only: object-stream pack + linearise. Visually identical."
 
 setup:
 	@if [ ! -f .env ]; then cp .env.example .env; echo "Created .env"; else echo ".env already exists"; fi
@@ -84,6 +88,31 @@ abs-token:
 
 abs-descriptions:
 	@./tools/fill-abs-descriptions --export-missing descriptions.todo.json
+
+optimize-pdf:
+	@if [ -z "$(PDF)" ]; then \
+		echo "Usage: make optimize-pdf PDF=<path/to/book.pdf> [QUALITY=85] [OUT=<output.pdf>]"; \
+		echo ""; \
+		echo "Re-encodes embedded raster images as JPEG quality=N (default 85) and"; \
+		echo "linearises the result. Typical 60-90% smaller for image-heavy art books,"; \
+		echo "5-15% on text-mostly PDFs (still wins from linearisation for streaming)."; \
+		exit 2; \
+	fi
+	@./tools/optimize-pdf "$(PDF)" \
+		$(if $(QUALITY),--quality $(QUALITY)) \
+		$(if $(OUT),--output "$(OUT)")
+
+optimize-pdf-lossless:
+	@if [ -z "$(PDF)" ]; then \
+		echo "Usage: make optimize-pdf-lossless PDF=<path/to/book.pdf> [OUT=<output.pdf>]"; \
+		echo ""; \
+		echo "qpdf-only: object-stream packing + linearisation. Visually identical to"; \
+		echo "the source. Modest size win (~5-15%), but linearisation lets the ABS"; \
+		echo "reader render page 1 without downloading the entire file."; \
+		exit 2; \
+	fi
+	@./tools/optimize-pdf "$(PDF)" --lossless \
+		$(if $(OUT),--output "$(OUT)")
 
 deploy:
 	@if [ ! -f .env ]; then \

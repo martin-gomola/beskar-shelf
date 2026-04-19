@@ -18,6 +18,7 @@ dependencies = [
   "rapidfuzz>=3.14",
   "mutagen>=1.47",
   "lingua-language-detector>=2.2",
+  "pymupdf>=1.24,<2",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +34,7 @@ beskar-organize = "beskar_tools.cli.organize:main"
 beskar-fill-descriptions = "beskar_tools.cli.fill_descriptions:main"
 beskar-fix-ebooks = "beskar_tools.cli.fix_ebooks:main"
 beskar-get-abs-token = "beskar_tools.cli.get_abs_token:main"
+beskar-optimize-pdf = "beskar_tools.cli.optimize_pdf:main"
 
 [tool.setuptools.packages.find]
 include = ["beskar_tools*"]
