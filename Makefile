@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop build test lint deploy deploy-down deploy-logs abs-token abs-descriptions optimize-pdf optimize-pdf-lossless
+.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop build test lint deploy deploy-down deploy-logs abs-token abs-descriptions optimize-pdf optimize-pdf-lossless update-reader
 
 help:
 	@echo "beskar-shelf commands"
@@ -12,6 +12,9 @@ help:
 	@echo "  make build            Build the PWA production bundle"
 	@echo "  make test             Run tests"
 	@echo "  make lint             Run linter"
+	@echo ""
+	@echo "  Dependencies:"
+	@echo "  make update-reader    Pull latest shelf-pdf-reader from GitHub and commit lockfile"
 	@echo ""
 	@echo "  Deploy:"
 	@echo "  make deploy           Build and run the Beskar Shelf app container"
@@ -39,6 +42,13 @@ setup:
 
 install:
 	@npm install
+
+update-reader:
+	@echo "Pulling latest @mgomola/shelf-pdf-reader from GitHub..."
+	@npm update @mgomola/shelf-pdf-reader
+	@git add package-lock.json
+	@git commit -m "deps: bump shelf-pdf-reader to $$(node -p \"require('./node_modules/@mgomola/shelf-pdf-reader/package.json').version\")"
+	@echo "Done. Run 'make deploy' to ship it."
 
 dev:
 	@set -a && [ -f .env ] && . ./.env; export VITE_ABS_PROXY_BASE="$${VITE_ABS_PROXY_BASE:-/abs}" && set +a && npm run dev
