@@ -11,6 +11,7 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 import { useClient } from '../contexts/ClientContext'
 import { getOfflineBook } from '../lib/storage'
+import type { BookItem } from '../lib/types'
 import { formatProgress } from '../lib/utils'
 
 // Module-level so it runs exactly once when the reader chunk first loads,
@@ -83,7 +84,16 @@ function ReaderPage() {
         ebookProgress: payload.progress,
         startedAt: Date.now(),
       })
-      await queryClient.invalidateQueries({ queryKey: ['item', currentItem.id] })
+      // Patch the cached item in place instead of invalidating the query.
+      // Invalidation forces TanStack to refetch and hand back a brand-new
+      // `item` object reference, which would re-run the EPUB/PDF loading
+      // effects below and tear down the open book mid-read.
+      queryClient.setQueryData<BookItem | undefined>(
+        ['item', currentItem.id],
+        (prev) => (prev
+          ? { ...prev, ebookLocation: payload.cfi, ebookProgress: payload.progress }
+          : prev),
+      )
     } catch {
       // offline — progress queued elsewhere
     }
@@ -235,7 +245,13 @@ function ReaderPage() {
       setToc([])
       setActiveTocHref(null)
     }
-  }, [applyTheme, client, commitReaderProgress, item])
+    // Re-init the reader only when the *book itself* changes (id or format).
+    // Other fields on `item` (progress, location, etc.) update on every save
+    // and would otherwise tear down the open foliate view mid-read. The
+    // callbacks below are read via closure / itemRef and don't need to be in
+    // the dep array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id, item?.ebookFormat])
 
   useEffect(() => {
     if (ready) applyTheme(theme, fontSize)
@@ -269,7 +285,11 @@ function ReaderPage() {
         URL.revokeObjectURL(objectUrl)
       }
     }
-  }, [client, item])
+    // Same reasoning as the EPUB effect above: don't recompute the PDF blob
+    // URL every time the item record gets a new reference, only when the
+    // actual file changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id, item?.ebookFormat])
 
   // Flatten nested TOC for rendering (preserving depth for indent)
   const flatToc = useMemo(() => {
