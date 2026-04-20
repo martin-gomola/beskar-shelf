@@ -23,10 +23,6 @@ export function SetupPage() {
             <h1>Your audiobooks,<br />anywhere.</h1>
           </div>
         </div>
-        <p className="lede">
-          A richer mobile shelf for Audiobookshelf with fast resume, offline-ready listening,
-          and a reading mode that feels closer to a polished native app.
-        </p>
       </section>
 
       <section className="card form-card" style={{ width: '100%' }}>

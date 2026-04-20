@@ -44,9 +44,6 @@ export function LoginPage() {
               </button>
             </div>
           </div>
-          <p className="muted">
-            Sign in to sync progress, restore downloads, and pick up exactly where you left off.
-          </p>
         </div>
         <label className="field">
           <span>Username</span>
