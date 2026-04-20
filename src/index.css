@@ -811,12 +811,16 @@ h3 {
 }
 
 .bd-cover {
+  position: relative;
   width: 60%;
   max-width: 240px;
   aspect-ratio: 1 / 1;
   border-radius: var(--radius-sm);
-  background: var(--surface-dark) center / contain no-repeat;
+  background: var(--surface-dark);
+  overflow: hidden;
   box-shadow: none;
+  /* Same isolation trick as .cover so the blur backdrop stays clipped. */
+  isolation: isolate;
 }
 
 .bd-title-block {
@@ -1353,6 +1357,9 @@ h3 {
   background: var(--surface-dark);
   overflow: hidden;
   box-shadow: none;
+  /* Contain z-index of the blurred backdrop so it can never escape this card
+     and bleed onto sibling elements. */
+  isolation: isolate;
 }
 
 .cover::after {
@@ -1367,7 +1374,29 @@ h3 {
   box-shadow: var(--glass-shadow-lg);
 }
 
+/* Apple Music-style ambient backdrop: a heavily blurred, scaled-up copy of the
+   cover sitting behind the contained foreground image. Fills the letterbox
+   bars on non-1:1 covers with colour derived from the cover itself, no JS or
+   colour-extraction library needed. The browser dedupes the network fetch
+   because both <img> tags share the same src. */
+.cover-img-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Scale > 1 hides the transparent feathered edge that blur() introduces
+     around the image bounds; saturate boosts the colour so the backdrop
+     actually reads as the cover's palette. */
+  filter: blur(36px) saturate(1.35);
+  transform: scale(1.35);
+  z-index: 0;
+  pointer-events: none;
+}
+
 .cover-img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   object-fit: contain;

@@ -130,12 +130,18 @@ export function BookPage() {
         Back
       </button>
 
-      {/* Cover hero — full-width, centered */}
+      {/* Cover hero — full-width, centered. Two <img> tags so non-1:1 covers
+          get the same blurred-backdrop fill as the library grid and player,
+          instead of the bare --surface-dark letterbox bars. */}
       <div className="bd-cover-wrap">
-        <div
-          className="bd-cover"
-          style={{ backgroundImage: item.coverPath ? `url(${client.coverUrl(item.id)})` : undefined }}
-        />
+        <div className="bd-cover">
+          {item.coverPath ? (
+            <>
+              <img className="cover-img-bg" src={client.coverUrl(item.id)} alt="" aria-hidden="true" />
+              <img className="cover-img cover-img-loaded" src={client.coverUrl(item.id)} alt={item.title} />
+            </>
+          ) : null}
+        </div>
       </div>
 
       {/* Title block */}

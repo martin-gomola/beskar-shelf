@@ -235,7 +235,15 @@ function PlayerPage() {
       <section className="player-card">
         <div className="player-cover">
           <div className="cover cover-player">
-            {coverUrl ? <img className="cover-img cover-img-loaded" src={coverUrl} alt={activePlayback.item.title} /> : null}
+            {coverUrl ? (
+              <>
+                {/* Blurred ambient backdrop fills the letterbox on non-1:1 art
+                    (e.g. wide audiobook banners) with colour from the cover
+                    itself. Browser dedupes the fetch since src matches. */}
+                <img className="cover-img-bg" src={coverUrl} alt="" aria-hidden="true" />
+                <img className="cover-img cover-img-loaded" src={coverUrl} alt={activePlayback.item.title} />
+              </>
+            ) : null}
           </div>
         </div>
         <h1>{activePlayback.item.title}</h1>

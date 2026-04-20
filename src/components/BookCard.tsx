@@ -18,15 +18,27 @@ export const BookCard = memo(function BookCard({ item, eager }: { item: BookItem
     <Link className="book-card" to={`/book/${item.id}`}>
       <div className="cover">
         {coverUrl && !failed ? (
-          <img
-            ref={imgRef}
-            className={`cover-img${loaded ? ' cover-img-loaded' : ''}`}
-            src={coverUrl}
-            alt={item.title}
-            loading={eager ? 'eager' : 'lazy'}
-            onLoad={() => setLoaded(true)}
-            onError={() => setFailed(true)}
-          />
+          <>
+            {/* Decorative blurred copy of the cover that fills any letterbox
+                bars on non-1:1 art. Same src as the foreground img so the
+                browser only does one network fetch per card. */}
+            <img
+              className="cover-img-bg"
+              src={coverUrl}
+              alt=""
+              aria-hidden="true"
+              loading={eager ? 'eager' : 'lazy'}
+            />
+            <img
+              ref={imgRef}
+              className={`cover-img${loaded ? ' cover-img-loaded' : ''}`}
+              src={coverUrl}
+              alt={item.title}
+              loading={eager ? 'eager' : 'lazy'}
+              onLoad={() => setLoaded(true)}
+              onError={() => setFailed(true)}
+            />
+          </>
         ) : null}
       </div>
       <strong>{item.title}</strong>
