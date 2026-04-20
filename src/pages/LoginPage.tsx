@@ -6,11 +6,10 @@ import { useAppContext } from '../contexts/AppContext'
 import { AudiobookshelfClient } from '../lib/api'
 
 export function LoginPage() {
-  const { server, setSession } = useAppContext()
+  const { server, setSession, setServer } = useAppContext()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [apiToken, setApiToken] = useState('')
   const [error, setError] = useState('')
 
   const passwordMutation = useMutation({
@@ -27,20 +26,6 @@ export function LoginPage() {
     },
   })
 
-  const tokenMutation = useMutation({
-    mutationFn: async () => {
-      const client = new AudiobookshelfClient(server, null)
-      return client.loginWithToken(apiToken)
-    },
-    onSuccess: (nextSession) => {
-      setSession(nextSession)
-      navigate('/home')
-    },
-    onError: (failure) => {
-      setError(failure instanceof Error ? failure.message : 'Token login failed.')
-    },
-  })
-
   return (
     <main className="screen auth-screen">
       <section className="card form-card" style={{ width: '100%' }}>
@@ -50,6 +35,13 @@ export function LoginPage() {
             <div>
               <p className="eyebrow">Server</p>
               <h2>{server?.baseUrl}</h2>
+              <button
+                type="button"
+                className="link-inline-button"
+                onClick={() => setServer(null)}
+              >
+                Change server
+              </button>
             </div>
           </div>
           <p className="muted">
@@ -71,21 +63,6 @@ export function LoginPage() {
         {error ? <p className="error-text">{error}</p> : null}
         <button className="primary-button" disabled={passwordMutation.isPending} onClick={() => passwordMutation.mutate()}>
           {passwordMutation.isPending ? 'Signing in...' : 'Sign in'}
-        </button>
-        <div className="token-divider">
-          <span>or use an API token</span>
-        </div>
-        <label className="field">
-          <span>API token</span>
-          <textarea
-            rows={4}
-            value={apiToken}
-            onChange={(event) => setApiToken(event.target.value)}
-            placeholder="Paste an Audiobookshelf API token"
-          />
-        </label>
-        <button className="ghost-button" disabled={tokenMutation.isPending} onClick={() => tokenMutation.mutate()}>
-          {tokenMutation.isPending ? 'Validating token...' : 'Continue with token'}
         </button>
       </section>
     </main>

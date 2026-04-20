@@ -27,11 +27,6 @@ export function SetupPage() {
           A richer mobile shelf for Audiobookshelf with fast resume, offline-ready listening,
           and a reading mode that feels closer to a polished native app.
         </p>
-        <div className="feature-strip" aria-label="Product highlights">
-          <span className="feature-chip">Offline ready</span>
-          <span className="feature-chip">Reader built in</span>
-          <span className="feature-chip">Cinematic playback</span>
-        </div>
       </section>
 
       <section className="card form-card" style={{ width: '100%' }}>

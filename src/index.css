@@ -349,25 +349,6 @@ h3 {
   height: 48px;
 }
 
-.feature-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-}
-
-.feature-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 var(--sp-4);
-  border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 247, 235, 0.92);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
 /* ─── Text styles ─── */
 
 .eyebrow,
@@ -548,6 +529,32 @@ h3 {
   background: var(--accent-500);
   color: #fff;
   border-color: var(--accent-500);
+}
+
+/* Inline text link that behaves like a button. Used for secondary flows
+   such as "Change server" on the login screen where a full ghost-button
+   would overpower the primary action. */
+.link-inline-button {
+  justify-self: start;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: var(--sp-1);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-inline-button:hover {
+  color: var(--text);
+}
+
+.link-inline-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .icon-button {
@@ -2576,30 +2583,6 @@ h3 {
   background: color-mix(in srgb, var(--accent-500) 12%, transparent);
 }
 
-/* ─── Token divider ─── */
-
-.token-divider {
-  position: relative;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-}
-
-.token-divider::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: 1px solid var(--line);
-}
-
-.token-divider span {
-  position: relative;
-  background: var(--surface);
-  padding: 0 var(--sp-3);
-}
-
 /* ─── Download list ─── */
 
 .download-list {
@@ -3125,7 +3108,6 @@ h3 {
     height: 44px;
   }
 
-  .feature-strip,
   .library-toolbar {
     width: 100%;
   }

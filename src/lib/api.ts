@@ -347,26 +347,6 @@ export class AudiobookshelfClient {
     } satisfies UserSession
   }
 
-  async loginWithToken(token: string) {
-    const probe = new AudiobookshelfClient(this.server, {
-      token,
-      user: {
-        id: '',
-        username: '',
-      },
-    })
-    const user = await probe.getMe()
-
-    return {
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        type: user.type,
-      },
-    } satisfies UserSession
-  }
-
   async getMe() {
     const response = asRecord(await this.request('/api/me'))
     return {

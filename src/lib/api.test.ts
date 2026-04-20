@@ -48,29 +48,6 @@ describe('AudiobookshelfClient', () => {
     await expect(client.login('mando', 'secret')).resolves.toEqual(session)
   })
 
-  it('hydrates a session from a pasted token by validating /api/me', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        id: 'user_1',
-        username: 'mando',
-        type: 'admin',
-      }),
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const client = new AudiobookshelfClient(server, null)
-    await expect(client.loginWithToken('token-123')).resolves.toEqual({
-      token: 'token-123',
-      user: {
-        id: 'user_1',
-        username: 'mando',
-        type: 'admin',
-      },
-    })
-  })
-
   it('treats plain-text OK mutation responses as success', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
