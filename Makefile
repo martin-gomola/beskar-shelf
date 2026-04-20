@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop build test lint deploy deploy-down deploy-logs abs-token abs-descriptions optimize-pdf optimize-pdf-lossless
+.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop kill build test lint deploy deploy-down deploy-logs abs-token abs-descriptions optimize-pdf optimize-pdf-lossless
 help:
 	@echo "beskar-shelf commands"
 	@echo ""
@@ -6,8 +6,9 @@ help:
 	@echo "  make setup            Create .env files and links.txt from examples when missing"
 	@echo "  make install          Install frontend dependencies"
 	@echo "  make dev              Run the PWA dev server"
-	@echo "  make down             Stop the PWA dev server if it is running"
+	@echo "  make down             Stop any vite dev server started from this repo"
 	@echo "  make stop             Stop the deployed app container"
+	@echo "  make kill             Stop vite dev server AND the deployed container"
 	@echo "  make build            Build the PWA production bundle"
 	@echo "  make test             Run tests"
 	@echo "  make lint             Run linter"
@@ -43,12 +44,18 @@ dev:
 	@set -a && [ -f .env ] && . ./.env; export VITE_ABS_PROXY_BASE="$${VITE_ABS_PROXY_BASE:-/abs}" && set +a && npm run dev
 
 down:
-	@pid=$$(lsof -ti :5173 2>/dev/null || true); \
-		if [ -n "$$pid" ]; then \
-			kill $$pid && echo "Dev server stopped (pid $$pid)"; \
+	@# Match by binary path, not port: catches vite on any fallback port
+	@# (5173, 5174, ...) while ignoring vite dev servers from other repos.
+	@pids=$$(pgrep -f "$(CURDIR)/node_modules/.bin/vite" 2>/dev/null || true); \
+		if [ -n "$$pids" ]; then \
+			kill $$pids 2>/dev/null; \
+			echo "Dev server(s) stopped: $$(echo $$pids | tr '\n' ' ')"; \
 		else \
-			echo "No dev server running on port 5173"; \
+			echo "No dev server running for this repo"; \
 		fi
+
+kill: down deploy-down
+	@echo "Local beskar-shelf processes cleaned up."
 
 build:
 	@npm run build
