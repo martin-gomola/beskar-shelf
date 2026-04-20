@@ -246,8 +246,15 @@ function PlayerPage() {
             ) : null}
           </div>
         </div>
-        <h1>{activePlayback.item.title}</h1>
-        <p className="author-line">{activePlayback.item.author}</p>
+        {/* Title + author coupled as a single meta block so they read as
+            "this book / this author", not two independent labels separated
+            by the same 22px gap as the cover→meta and meta→scrubber gaps.
+            Gap inside the block is tight (4px); the block itself still
+            participates in the player-card grid spacing. */}
+        <div className="player-meta">
+          <h1>{activePlayback.item.title}</h1>
+          <p className="author-line">{activePlayback.item.author}</p>
+        </div>
         <label className="scrubber">
           <input
             type="range"
@@ -397,9 +404,6 @@ function PlayerPage() {
                     >
                       <span className="bookmark-copy">
                         <strong>{bm.title}</strong>
-                        <span className="bookmark-source">
-                          {bm.source === 'local' ? 'Local only' : bm.source === 'both' ? 'Synced' : 'Server'}
-                        </span>
                       </span>
                       <span>{formatDuration(bm.time)}</span>
                     </button>

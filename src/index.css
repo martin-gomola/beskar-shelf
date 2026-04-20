@@ -61,8 +61,10 @@
   /* ── Text ── */
   --text: #1a2230;
   --text-secondary: #4e5a68;
-  --text-muted: #7a6f64;
-  --text-hint: #aa9f93;
+  /* WCAG AA on --canvas (#f3ede3): muted ≈ 5.3:1 (AA normal), hint ≈ 3.1:1
+     (AA large/label only — used for placeholders, eyebrows, count badges). */
+  --text-muted: #6b5d50;
+  --text-hint: #8e8275;
 
   /* ── Borders ── */
   --line: rgba(42, 28, 8, 0.08);
@@ -386,7 +388,25 @@ h3 {
 .author-line {
   font-size: var(--fs-md);
   color: var(--text-secondary);
-  line-height: 1.65;
+  /* Was 1.65 — way too airy for a single-line label sitting directly under
+     the title. 1.2 keeps it readable while letting .player-meta control
+     the title↔author distance via grid gap. */
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* Title + author live in a tight grid pair inside the player card so the
+   two labels read as one unit, instead of inheriting the player-card's
+   22px child gap. */
+.player-meta {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.player-meta h1 {
+  margin: 0;
+  line-height: 1.15;
 }
 
 .error-text {
@@ -585,8 +605,12 @@ h3 {
   gap: var(--sp-4);
   padding: 18px 20px;
   border-radius: 20px;
-  background: #101922;
-  border: 1px solid rgba(215, 182, 109, 0.12);
+  /* Use the elevated cream surface so the header sits *with* the content
+     instead of fighting it. The previous navy slab read as the heaviest UI
+     element on the page even though it's only a greeting/avatar. Real shelf
+     content (covers) should be the focal point. */
+  background: var(--surface-elevated);
+  border: 1px solid var(--glass-border);
   box-shadow: none;
 }
 
@@ -605,18 +629,17 @@ h3 {
   height: 38px;
 }
 
-.home-header .eyebrow,
 .home-header h1 {
-  color: #fff7eb;
-}
-
-.home-header h1 {
+  color: var(--text);
   font-size: clamp(1.25rem, 4vw, 1.5rem);
   line-height: 1.05;
 }
 
+/* Eyebrow inherits its default --text-muted (now WCAG AA on cream); no
+   override needed since the header is no longer dark. */
+
 .home-subtitle {
-  color: rgba(247, 242, 232, 0.68);
+  color: var(--text-muted);
   font-size: var(--fs-sm);
 }
 
@@ -1063,6 +1086,13 @@ h3 {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 4px;
+  /* Right-edge feather signals "scroll for more" without showing a
+     scrollbar. The mask runs from fully-opaque for ~92% of the row to
+     transparent at the edge, so the rightmost cover gets clipped into a
+     soft fade instead of slamming against the viewport gutter. -webkit-
+     prefix keeps Safari/iOS happy. */
+  mask-image: linear-gradient(to right, #000 0%, #000 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 92%, transparent 100%);
 }
 
 .cover-row::-webkit-scrollbar { display: none; }
@@ -1312,10 +1342,13 @@ h3 {
 
 .book-card {
   display: grid;
-  gap: 8px;
+  /* Tight gap so title and author read as a coupled pair (music-app style).
+     Cover-to-text spacing is handled separately via .cover margin-bottom
+     below, so the cover still gets visual breathing room. */
+  gap: 2px;
   min-width: 0;
   padding: 0;
-  text-align: center;
+  text-align: left;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -1323,28 +1356,43 @@ h3 {
 }
 
 .book-card .cover {
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 
 .book-card:hover {
   transform: translateY(-2px);
 }
 
+/* Touch press-state: slight scale-down + accent ring confirm the tap on
+   mobile where there is no hover. The ring uses the same accent token as
+   focus state so it feels like a single design language. Transition is
+   shorter than hover so it reads as a snap, not a glide. */
+.book-card:active {
+  transform: scale(0.98);
+  transition-duration: 80ms;
+}
+
 .book-card strong {
-  font-size: var(--fs-sm);
+  /* 0.9375rem ≈ 15px — above the 14px label/body floor. Was --fs-sm (12.8px)
+     which read as caption text rather than primary card metadata. */
+  font-size: var(--fs-base);
   font-weight: 600;
   line-height: 1.35;
   color: var(--text);
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  min-height: 2.7em;
+  /* Single-line title with ellipsis matches the author below it, so every
+     card is exactly the same height regardless of title length. The previous
+     2-line clamp + min-height: 2.7em padded short titles with empty space to
+     reserve a 2nd line that almost never came, which read as a gap. */
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .book-card span {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  /* 0.8rem ≈ 12.8px — readable label tier. Was --fs-xs (11.2px), too small
+     for sustained reading even as secondary metadata. */
+  font-size: var(--fs-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1433,9 +1481,102 @@ h3 {
   gap: 12px;
 }
 
+.shelf-block .section-heading {
+  /* Tuck the count badge directly next to the title instead of pushing it to
+     the opposite edge (default .section-heading is space-between). Keeps the
+     pair anchored to the left where the eye lands first. */
+  justify-content: flex-start;
+  align-items: baseline;
+}
+
 .shelf-block .section-heading h3 {
   font-size: var(--fs-lg);
   font-weight: 700;
+}
+
+/* Subtle count beside each shelf title — answers "how many in this row" at
+   a glance without needing horizontal scroll. Uses --text-hint (AA-large
+   compliant on cream) since this is decorative metadata, not body text. */
+.shelf-count {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-hint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Loading skeletons ─── */
+
+/* Shared shimmer surface — a base muted block with a moving highlight bar.
+   Animation is GPU-cheap (transform + opacity on a pseudo-element) and is
+   automatically suppressed by the global prefers-reduced-motion guard. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-dark);
+  border-radius: 8px;
+  isolation: isolate;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.32) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+[data-theme="dark"] .skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
+  );
+}
+
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* Match BookCard layout exactly so the loading state lands in the same
+   slots the real cards will fill — zero layout shift on data arrival. */
+.skeleton-card {
+  display: grid;
+  gap: 2px;
+  flex: 0 0 160px;
+  scroll-snap-align: start;
+}
+
+.skeleton-cover {
+  aspect-ratio: 1 / 1;
+  border-radius: 18px;
+  margin-bottom: 10px;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 6px;
+}
+
+.skeleton-line-title {
+  width: 80%;
+}
+
+.skeleton-line-author {
+  width: 55%;
+  height: 12px;
+  margin-top: 4px;
+}
+
+.skeleton-heading {
+  width: 140px;
+  height: 22px;
 }
 
 /* ─── Search field ─── */
@@ -1758,15 +1899,7 @@ h3 {
 
 .bookmark-copy {
   display: grid;
-  gap: 4px;
   min-width: 0;
-}
-
-.bookmark-source {
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-hint);
 }
 
 .bookmark-delete-btn {
@@ -2391,6 +2524,11 @@ h3 {
   color: var(--text);
 }
 
+/* Bottom nav links use semantic tokens so both light and dark themes are
+   served by a single rule set. The previous implementation hardcoded warm
+   brown literals for the light theme and re-overrode them for dark, which
+   meant any token bump (e.g. WCAG contrast fix on --text-muted) silently
+   skipped the nav. */
 .nav-link {
   flex: 1;
   display: flex;
@@ -2401,7 +2539,7 @@ h3 {
   border-radius: var(--radius);
   font-size: 0.625rem;
   font-weight: 600;
-  color: #65594d;
+  color: var(--text-muted);
   transition: color 180ms ease, background 180ms ease, transform 180ms ease;
   text-decoration: none;
 }
@@ -2412,8 +2550,8 @@ h3 {
 }
 
 .nav-link:hover {
-  color: #1f2d3d;
-  background: rgba(42, 28, 8, 0.08);
+  color: var(--text);
+  background: var(--hover-bg-strong);
 }
 
 .nav-link:hover svg {
@@ -2421,27 +2559,21 @@ h3 {
 }
 
 .nav-link.active {
-  color: #0f8d48;
+  color: var(--accent-600);
   font-weight: 600;
-  background: rgba(36, 199, 104, 0.18);
+  /* Slightly stronger tint than --hover-bg-strong so "active" reads as
+     persistent state, not hover. accent-500 with low alpha keeps the same
+     brand hue across themes. */
+  background: color-mix(in srgb, var(--accent-500) 18%, transparent);
 }
 
 .nav-link.active svg {
   opacity: 1;
 }
 
-[data-theme="dark"] .nav-link {
-  color: var(--text-muted);
-}
-
-[data-theme="dark"] .nav-link:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
-}
-
 [data-theme="dark"] .nav-link.active {
-  color: var(--accent-500);
-  background: rgba(36, 199, 104, 0.12);
+  /* Dark surface absorbs more chroma — reduce tint to avoid neon look. */
+  background: color-mix(in srgb, var(--accent-500) 12%, transparent);
 }
 
 /* ─── Token divider ─── */

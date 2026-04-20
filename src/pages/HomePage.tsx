@@ -9,21 +9,57 @@ import { QueryState } from '../components/QueryState'
 import type { BookItem } from '../lib/types'
 import { formatDuration } from '../lib/utils'
 
-function ShelfSection({ shelves }: { shelves: { id: string; label: string; entities: BookItem[] }[] }) {
+/**
+ * Loading state placeholder that mimics the final shelf shape. Showing two
+ * skeleton rows (instead of "Loading…" text) means the layout doesn't shift
+ * on first paint and the user can already see *where* content will land.
+ * Repeats are static so the shimmer comes from CSS animation, not React.
+ */
+function ShelfSkeleton() {
   return (
     <>
-      {shelves.map((shelf) => (
-        <section key={shelf.id} className="shelf-block">
+      {[0, 1].map((row) => (
+        <section key={row} className="shelf-block" aria-busy="true">
           <div className="section-heading">
-            <h3>{shelf.label}</h3>
+            <div className="skeleton skeleton-heading" />
           </div>
           <div className="cover-row">
-            {shelf.entities.slice(0, 12).map((item) => (
-              <BookCard key={item.id} item={item} eager />
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="skeleton-card">
+                <div className="skeleton skeleton-cover" />
+                <div className="skeleton skeleton-line skeleton-line-title" />
+                <div className="skeleton skeleton-line skeleton-line-author" />
+              </div>
             ))}
           </div>
         </section>
       ))}
+    </>
+  )
+}
+
+function ShelfSection({ shelves }: { shelves: { id: string; label: string; entities: BookItem[] }[] }) {
+  return (
+    <>
+      {shelves.map((shelf) => {
+        // Cap matches the .cover-row .slice(0, 12) below — shows "12+" when
+        // truncated so the user knows there's more than what's visible.
+        const total = shelf.entities.length
+        const display = total > 12 ? '12+' : String(total)
+        return (
+          <section key={shelf.id} className="shelf-block">
+            <div className="section-heading">
+              <h3>{shelf.label}</h3>
+              {total > 0 ? <span className="shelf-count">{display}</span> : null}
+            </div>
+            <div className="cover-row">
+              {shelf.entities.slice(0, 12).map((item) => (
+                <BookCard key={item.id} item={item} eager />
+              ))}
+            </div>
+          </section>
+        )
+      })}
     </>
   )
 }
@@ -68,6 +104,7 @@ export function HomePage() {
       <QueryState
         isPending={librariesQuery.isPending || personalizedQuery.isPending && !personalizedQuery.isError}
         error={librariesQuery.error ?? personalizedQuery.error as Error | null}
+        pendingFallback={<ShelfSkeleton />}
       >
         {personalizedQuery.data?.length
           ? <ShelfSection shelves={personalizedQuery.data} />
