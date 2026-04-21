@@ -5,6 +5,9 @@
 tools/grab/.env
 book-yt-links.txt
 
+# Runtime caches
+tools/.cache/
+
 # Python build artifacts
 __pycache__/
 *.py[cod]
