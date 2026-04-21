@@ -17,9 +17,10 @@ See [`tools/README.md`](../README.md) for the full tooling overview.
 
 ```bash
 cp .env.example .env
-cp links.txt.example links.txt
+# Links file lives at repo root for easy access:
+cp ../../book-yt-links.txt.example ../../book-yt-links.txt
 $EDITOR .env
-$EDITOR links.txt
+$EDITOR ../../book-yt-links.txt
 ```
 
 ## Configuration
@@ -37,7 +38,7 @@ Relative paths in `OUTPUT_DIR` are resolved against the repo root.
 ```bash
 ./tools/grab/grab --doctor        # preflight checks
 ./tools/grab/grab --dry-run       # validate + print plan
-./tools/grab/grab                 # download everything in links.txt
+./tools/grab/grab                 # download everything in book-yt-links.txt
 ./tools/grab/grab --limit 1       # process only the first URL
 ./tools/grab/grab --links-file /path/to/urls.txt
 ```
@@ -52,13 +53,13 @@ make doctor
 
 ## Download Behavior
 
-For each valid URL in `links.txt`, grab:
+For each valid URL in `book-yt-links.txt`, grab:
 
 - fetches video metadata and derives `Author/Title/`
 - splits by YouTube chapters when available
 - otherwise downloads a single MP3 and splits by fixed length when it exceeds `SPLIT_THRESHOLD`
 - converts the thumbnail into `cover.jpg` for Audiobookshelf
 - removes leftover source audio artifacts
-- removes successfully handled URLs from `links.txt` so the queue stays clean
+- removes successfully handled URLs from `book-yt-links.txt` so the queue stays clean
 
 Generated media lands in `OUTPUT_DIR/Author/Title/`. Point your Audiobookshelf library at that root and trigger a scan.

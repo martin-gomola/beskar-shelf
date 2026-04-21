@@ -3,7 +3,7 @@
 .venv
 *.local
 tools/grab/.env
-tools/grab/links.txt
+book-yt-links.txt
 
 # Python build artifacts
 __pycache__/

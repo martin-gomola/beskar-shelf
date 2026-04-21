@@ -33,7 +33,7 @@ class BeskarConfig(BaseModel):
         description="Where grab writes downloads before ABS import",
     )
     links_file: Path = Field(
-        default_factory=lambda: GRAB_DIR / "links.txt",
+        default_factory=lambda: REPO_ROOT / "book-yt-links.txt",
         description="Newline-separated list of YouTube URLs to process",
     )
     review_dir: Path = Field(

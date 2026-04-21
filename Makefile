@@ -3,7 +3,7 @@ help:
 	@echo "beskar-shelf commands"
 	@echo ""
 	@echo "  Development:"
-	@echo "  make setup            Create .env files and links.txt from examples when missing"
+	@echo "  make setup            Create .env files and book-yt-links.txt from examples when missing"
 	@echo "  make install          Install frontend dependencies"
 	@echo "  make dev              Run the PWA dev server"
 	@echo "  make down             Stop any vite dev server started from this repo"
@@ -23,7 +23,7 @@ help:
 	@echo "  make tools-test       Run beskar-tools pytest suite"
 	@echo "  make tools-lint       Run ruff over beskar-tools"
 	@echo "  make doctor           Validate grab tools, config, links file, and output directory"
-	@echo "  make download         Download and process links from links.txt"
+	@echo "  make download         Download and process links from book-yt-links.txt"
 	@echo "  make download-dry-run Fetch metadata and print the plan without downloading"
 	@echo "  make abs-token        Prompt for ABS credentials and print an API token"
 	@echo "  make abs-descriptions Export books with missing ABS descriptions to JSON"
@@ -35,7 +35,7 @@ help:
 setup:
 	@if [ ! -f .env ]; then cp .env.example .env; echo "Created .env"; else echo ".env already exists"; fi
 	@if [ ! -f tools/grab/.env ]; then cp tools/grab/.env.example tools/grab/.env; echo "Created tools/grab/.env"; else echo "tools/grab/.env already exists"; fi
-	@if [ ! -f tools/grab/links.txt ]; then cp tools/grab/links.txt.example tools/grab/links.txt; echo "Created tools/grab/links.txt"; else echo "tools/grab/links.txt already exists"; fi
+	@if [ ! -f book-yt-links.txt ]; then cp book-yt-links.txt.example book-yt-links.txt; echo "Created book-yt-links.txt"; else echo "book-yt-links.txt already exists"; fi
 
 install:
 	@npm install

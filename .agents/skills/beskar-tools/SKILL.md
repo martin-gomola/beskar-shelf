@@ -68,7 +68,7 @@ ABS API).
 | `ABS_LIBRARY_ID` | abs-organize, fill-descriptions | Target library |
 | `ABS_USERNAME` | get-abs-token | Prompt default |
 | `OUTPUT_DIR` | grab, abs-organize | Default: `./downloads` |
-| `LINKS_FILE` | grab | Default: `tools/grab/links.txt` |
+| `LINKS_FILE` | grab | Default: `book-yt-links.txt` (repo root) |
 | `REVIEW_DIR` | grab | Low-confidence downloads land here |
 | `SPLIT_HOURS` / `MIN_SPLIT_HOURS` | grab | Long-file chunking |
 
@@ -82,7 +82,7 @@ local/LAN URLs to tracked files.
 ```bash
 tools/grab/grab --doctor                # preflight checks
 tools/grab/grab --dry-run               # fetch metadata, print plan, no I/O
-tools/grab/grab                         # process all links.txt
+tools/grab/grab                         # process all book-yt-links.txt
 tools/grab/grab --limit 1               # process only first URL
 tools/grab/grab --links-file path.txt
 tools/grab/grab --output-dir /other     # override OUTPUT_DIR
@@ -95,7 +95,7 @@ Behavior:
 - Splits by YouTube chapters when present; otherwise fixed-length splits if the
   file exceeds `split-threshold`.
 - Writes ID3 tags with `mutagen`, saves `cover.jpg`, and on successful handling
-  removes the URL from `links.txt` so the queue stays clean.
+  removes the URL from `book-yt-links.txt` so the queue stays clean.
 - If `ABS_URL` + `ABS_TOKEN` are set, matches the parsed title against the live
   library and **merges multi-part books** into the existing folder instead of
   creating a duplicate.
@@ -218,7 +218,7 @@ under `tools/tests/` before shipping the fix.
 
 **New batch of YouTube URLs**
 
-1. Append URLs to `tools/grab/links.txt` (gitignored).
+1. Append URLs to `book-yt-links.txt` (repo root, gitignored).
 2. `tools/grab/grab --doctor` → fix any preflight failure.
 3. `tools/grab/grab --dry-run` → review parsed Author/Title for each URL.
 4. `tools/grab/grab` → download.
@@ -243,10 +243,10 @@ under `tools/tests/` before shipping the fix.
   `make install-tools` first.
 - `optimize-pdf` additionally needs `qpdf` on PATH. macOS:
   `brew install qpdf`; Debian/Ubuntu: `apt install qpdf`.
-- `links.txt` and `.env` files are gitignored — never stage them, even during
-  troubleshooting.
-- `grab` mutates `links.txt` on success; run `--dry-run` first if you need to
-  keep the queue intact.
+- `book-yt-links.txt` and `.env` files are gitignored — never stage them, even
+  during troubleshooting.
+- `grab` mutates `book-yt-links.txt` on success; run `--dry-run` first if you
+  need to keep the queue intact.
 - Multi-part merge only kicks in when both `ABS_URL` and `ABS_TOKEN` are set.
   Without them, grab falls back to a fresh folder per URL.
 - Ruff config ignores Unicode ambiguity warnings (`RUF001`–`003`) on purpose;

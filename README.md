@@ -1,15 +1,16 @@
 # beskar-shelf
 
-A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) armory. Browse libraries, play audiobooks, read ebooks, sync progress, stash content offline. This is the Way.
+A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) armory. Focused on **YouTube → mp3 processing** and audiobook library management — download, organise, play, read, sync progress, stash offline. This is the Way.
 
 ## The Armory
 
-- Login and server onboarding
+- **YouTube → MP3 pipeline** — download playlists, tag, organise into Audiobookshelf-ready folders
 - Library browsing with home shelves
 - Chapter list, resume state, item detail
 - Player with rate control, seek, queue, progress sync
-- EPUB/PDF reader via the Audiobookshelf ebook endpoint
+- EPUB/PDF reader via shared `shelf-pdf-reader` component
 - Offline downloads stored in IndexedDB
+- Library metadata management (titles, authors, collections, series)
 
 ## Layout
 

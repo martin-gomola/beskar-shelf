@@ -24,7 +24,14 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    TextColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 
 from .. import audio, tag, yt
 from ..abs_client import ABSClient
@@ -155,6 +162,7 @@ def _process_video(
     split_threshold_s: int,
     segment_length_s: int,
     dry_run: bool,
+    progress: Progress | None = None,
 ) -> ProcessOutcome | None:
     """Run the full fetch→parse→resolve→organize pipeline for a single video."""
 
@@ -197,12 +205,33 @@ def _process_video(
     workdir = root / book.author / book.title / "_download"
     workdir.mkdir(parents=True, exist_ok=True)
 
+    dl_task = None
+    if progress is not None:
+        dl_task = progress.add_task("Downloading audio…", total=None)
+
+    def _dl_hook(d: dict) -> None:
+        if dl_task is None or progress is None:
+            return
+        if d.get("status") == "downloading":
+            total = d.get("total_bytes") or d.get("total_bytes_estimate")
+            downloaded_bytes = d.get("downloaded_bytes", 0)
+            if total:
+                progress.update(dl_task, total=total, completed=downloaded_bytes)
+            else:
+                progress.update(dl_task, completed=downloaded_bytes)
+        elif d.get("status") == "finished":
+            progress.update(dl_task, description="Post-processing…")
+
     downloaded = yt.download_audio(
         video_url,
         workdir,
         audio_format=config.audio_format,
         audio_quality=config.audio_quality,
+        progress_hook=_dl_hook,
     )
+
+    if progress is not None and dl_task is not None:
+        progress.remove_task(dl_task)
     duration = audio.probe_duration_seconds(downloaded)
     stem = downloaded.stem
 
@@ -342,22 +371,23 @@ def main(
         with Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
-            TextColumn("{task.completed}/{task.total}"),
+            DownloadColumn(),
+            TransferSpeedColumn(),
             TimeRemainingColumn(),
             console=console,
         ) as progress:
-            # Expand playlist entries up-front so the progress total is correct.
             expanded: list[tuple[str, str]] = []
             for url in urls:
                 for video_url in _expand_playlist(url):
                     if video_url:
                         expanded.append((url, video_url))
 
-            task = progress.add_task("Downloading", total=len(expanded))
             completed_source_urls: set[str] = set()
 
-            for source_url, video_url in expanded:
-                progress.update(task, description=f"Fetching {video_url}")
+            for idx, (source_url, video_url) in enumerate(expanded, 1):
+                console.print(
+                    f"[bold]\\[{idx}/{len(expanded)}][/bold] {video_url}"
+                )
                 try:
                     outcome = _process_video(
                         video_url,
@@ -368,10 +398,10 @@ def main(
                         split_threshold_s=split_threshold,
                         segment_length_s=segment_length,
                         dry_run=dry_run,
+                        progress=progress,
                     )
                 except Exception as exc:
                     console.print(f"[red]failed:[/red] {video_url}: {exc}")
-                    progress.update(task, advance=1)
                     continue
 
                 if outcome and outcome.merged:
@@ -380,7 +410,6 @@ def main(
                     console.print(f"[green]wrote:[/green] {outcome.book_dir}")
 
                 completed_source_urls.add(source_url)
-                progress.update(task, advance=1)
 
             if not dry_run:
                 for source_url in completed_source_urls:
