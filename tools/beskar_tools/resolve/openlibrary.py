@@ -36,6 +36,12 @@ class OpenLibraryResolver:
         self._cache = cache
         self._client = client or httpx.Client(timeout=_TIMEOUT, headers={"User-Agent": "beskar-tools/0.1"})
 
+    def __enter__(self) -> OpenLibraryResolver:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
     def close(self) -> None:
         self._client.close()
 
