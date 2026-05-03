@@ -52,6 +52,15 @@ function IconSquare() {
   )
 }
 
+function trackIndexForChapterStart(tracks: AudioTrack[], start: number, fallbackIndex: number) {
+  if (tracks.length === 0) {
+    return fallbackIndex
+  }
+
+  const track = tracks.find((entry) => start >= entry.startOffset && start < entry.startOffset + entry.duration)
+  return track?.index ?? fallbackIndex
+}
+
 export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
@@ -92,6 +101,19 @@ export function BookPage() {
   const currentItem = item
   const progressPct = Math.round((item.progress ?? 0) * 100)
   const hasProgress = progressPct > 0
+  const downloadedTrackIndices = new Set(offline?.tracks.map((track) => track.trackIndex) ?? [])
+  const downloadedTrackCount = offline?.tracks.length ?? 0
+  const knownDownloadableTrackCount = offline?.totalTracks
+    ?? (currentItem.audioTracks.length > 0 ? currentItem.audioTracks.length : currentItem.chapters.length)
+  const downloadableTrackCount = Math.max(knownDownloadableTrackCount, downloadedTrackCount)
+  const offlineProgressPct = downloadableTrackCount > 0
+    ? Math.min(100, Math.round((downloadedTrackCount / downloadableTrackCount) * 100))
+    : isDownloaded ? 100 : 0
+  const hasOfflineProgress = canPlay && Boolean(offline) && (offline?.status === 'downloading' || downloadedTrackCount > 0)
+  const downloadUnit = downloadableTrackCount === currentItem.chapters.length ? 'chapters' : 'tracks'
+  const offlineProgressLabel = offline?.status === 'downloading'
+    ? `Downloading ${downloadedTrackCount} of ${downloadableTrackCount} ${downloadUnit}`
+    : `${downloadedTrackCount} of ${downloadableTrackCount} ${downloadUnit} saved`
 
   function toggleTrack(index: number) {
     setSelectedTrackIndices((current) => (
@@ -218,28 +240,47 @@ export function BookPage() {
         <div className="bd-track-picker">
           <div className="section-heading">
             <h3 className="bd-section-title">Select tracks to download</h3>
-            <span className="muted">{selectedTrackIndices.length} selected</span>
+            <span className="muted">
+              {selectedTrackIndices.length} selected
+              {downloadedTrackCount > 0 ? ` · ${downloadedTrackCount} downloaded` : ''}
+            </span>
           </div>
           <div className="chapter-list">
             {downloadTracks.map((track, index) => {
               const isSelected = selectedTrackIndices.includes(index)
+              const isSaved = downloadedTrackIndices.has(track.index)
               return (
                 <button
                   key={`${track.index}-${track.title}`}
-                  className={clsx('chapter-row', 'bd-download-row', { active: isSelected })}
+                  className={clsx('chapter-row', 'bd-download-row', {
+                    active: isSelected,
+                    downloaded: isSaved,
+                  })}
                   onClick={() => toggleTrack(index)}
                 >
                   <span className="bd-download-copywrap">
                     <strong>{track.title}</strong>
-                    <span>{formatDuration(track.duration)}</span>
+                    <span>
+                      {formatDuration(track.duration)}
+                      {isSaved ? ' · Downloaded' : ''}
+                    </span>
                   </span>
                   <span className="bd-download-check" aria-hidden="true">
-                    {isSelected ? <IconCheck /> : <IconSquare />}
+                    {isSelected || isSaved ? <IconCheck /> : <IconSquare />}
                   </span>
                 </button>
               )
             })}
           </div>
+        </div>
+      ) : null}
+
+      {hasOfflineProgress ? (
+        <div className="bd-progress-section bd-offline-progress-section" aria-label="Offline download progress">
+          <div className="bd-progress-track">
+            <div className="bd-progress-fill" style={{ width: `${offlineProgressPct}%` }} />
+          </div>
+          <span className="bd-progress-label">{offlineProgressPct}% offline · {offlineProgressLabel}</span>
         </div>
       ) : null}
 
@@ -268,7 +309,7 @@ export function BookPage() {
         <div className="bd-stat">
           <span className="bd-stat-value">
             {canPlay
-              ? (offline?.status === 'downloaded' ? '✓' : '—')
+              ? (hasOfflineProgress ? `${offlineProgressPct}%` : (offline?.status === 'downloaded' ? '✓' : '—'))
               : formatProgress(item.ebookProgress)}
           </span>
           <span className="bd-stat-label">{canPlay ? 'Offline' : 'Read'}</span>
@@ -316,22 +357,35 @@ export function BookPage() {
         <div className="bd-chapters">
           <h3 className="bd-section-title">Chapters</h3>
           <div className="chapter-list">
-            {item.chapters.map((chapter) => (
-              <button
-                key={chapter.id}
-                className="chapter-row"
-                onClick={() => {
-                  if (activePlayback?.item.id === item.id) {
-                    seekTo(chapter.start)
-                  } else {
-                    void startBook(item, chapter.start)
-                  }
-                }}
-              >
-                <strong>{chapter.title}</strong>
-                <span>{formatDuration(chapter.start)}</span>
-              </button>
-            ))}
+            {item.chapters.map((chapter, index) => {
+              const chapterTrackIndex = trackIndexForChapterStart(currentItem.audioTracks, chapter.start, index)
+              const isChapterSaved = downloadedTrackIndices.has(chapterTrackIndex)
+
+              return (
+                <button
+                  key={chapter.id}
+                  className={clsx('chapter-row', { downloaded: isChapterSaved })}
+                  onClick={() => {
+                    if (activePlayback?.item.id === item.id) {
+                      seekTo(chapter.start)
+                    } else {
+                      void startBook(item, chapter.start)
+                    }
+                  }}
+                >
+                  <strong>{chapter.title}</strong>
+                  <span className="bd-chapter-meta">
+                    {isChapterSaved ? (
+                      <span className="bd-chapter-saved">
+                        <IconCheck />
+                        Downloaded
+                      </span>
+                    ) : null}
+                    <span>{formatDuration(chapter.start)}</span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       ) : null}

@@ -136,6 +136,87 @@ describe('downloadBook', () => {
     expect(result.tracks).toHaveLength(1)
   })
 
+  it('persists completed tracks while an audiobook is still downloading', async () => {
+    const firstBlob = new Blob(['first-track'], { type: 'audio/mpeg' })
+    const secondBlob = new Blob(['second-track'], { type: 'audio/mpeg' })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: async () => firstBlob,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: async () => secondBlob,
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const client = {
+      startPlayback: vi.fn().mockResolvedValue({
+        audioTracks: [
+          { index: 0, title: 'Chapter 1', duration: 60, mimeType: 'audio/mpeg', contentUrl: '/stream/ch1.mp3' },
+          { index: 1, title: 'Chapter 2', duration: 60, mimeType: 'audio/mpeg', contentUrl: '/stream/ch2.mp3' },
+        ],
+      }),
+      downloadEbook: vi.fn(),
+      streamUrl: vi.fn((path: string) => `https://books.example.com${path}`),
+    }
+
+    const item: BookItem = {
+      id: 'audio-progress',
+      libraryId: 'lib-audio',
+      title: 'Progressive Download',
+      author: 'Archivist',
+      narrator: 'Din',
+      description: '',
+      coverPath: null,
+      duration: 120,
+      size: 0,
+      genres: [],
+      progress: 0,
+      currentTime: 0,
+      isFinished: false,
+      chapters: [],
+      audioTracks: [
+        { index: 0, title: 'Chapter 1', duration: 60, startOffset: 0, mimeType: 'audio/mpeg', contentUrl: '/stream/ch1.mp3' },
+        { index: 1, title: 'Chapter 2', duration: 60, startOffset: 60, mimeType: 'audio/mpeg', contentUrl: '/stream/ch2.mp3' },
+      ],
+      ebookFormat: null,
+      ebookLocation: null,
+      ebookProgress: 0,
+    }
+
+    const progressSpy = vi.fn()
+    const result = await downloadBook(client as unknown as AudiobookshelfClient, item, undefined, progressSpy)
+    const storedBooks = storageMocks.putOfflineBook.mock.calls.map(([book]) => book)
+
+    expect(storedBooks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        status: 'downloading',
+        totalTracks: 2,
+        tracks: expect.arrayContaining([
+          expect.objectContaining({ trackIndex: 0 }),
+        ]),
+      }),
+      expect.objectContaining({
+        status: 'downloading',
+        totalTracks: 2,
+        tracks: expect.arrayContaining([
+          expect.objectContaining({ trackIndex: 1 }),
+        ]),
+      }),
+    ]))
+    expect(result).toMatchObject({
+      status: 'downloaded',
+      totalTracks: 2,
+    })
+    expect(result.tracks).toHaveLength(2)
+    expect(progressSpy).toHaveBeenCalledWith(expect.objectContaining({
+      completedTracks: 2,
+      totalTracks: 2,
+      completedTrackIndices: [0, 1],
+    }))
+  })
+
   it('downloads only the selected audiobook tracks', async () => {
     const firstBlob = new Blob(['first'], { type: 'audio/mpeg' })
     const secondBlob = new Blob(['second'], { type: 'audio/mpeg' })

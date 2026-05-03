@@ -9,7 +9,7 @@ import { AppContext, type AppContextValue } from '../contexts/AppContext'
 import { ClientContext } from '../contexts/ClientContext'
 import { PlayerContext, type PlayerContextValue } from '../contexts/PlayerContext'
 import type { AudiobookshelfClient } from '../lib/api'
-import type { BookItem } from '../lib/types'
+import type { BookItem, OfflineBook } from '../lib/types'
 
 const ebookOnlyItem: BookItem = {
   id: 'ebook-1',
@@ -55,6 +55,15 @@ const audiobookItem: BookItem = {
   ebookFormat: null,
   ebookLocation: null,
   ebookProgress: 0,
+}
+
+const audiobookItemWithChapters: BookItem = {
+  ...audiobookItem,
+  chapters: [
+    { id: 1, title: 'Chapter 1', start: 0, end: 60 },
+    { id: 2, title: 'Chapter 2', start: 60, end: 120 },
+    { id: 3, title: 'Chapter 3', start: 120, end: 180 },
+  ],
 }
 
 const audiobookItemWithoutTrackMetadata: BookItem = {
@@ -124,7 +133,7 @@ function renderBookPage({
       <ClientContext.Provider value={client}>
         <AppContext.Provider value={appContextValue}>
           <PlayerContext.Provider value={playerContextValue}>
-            <MemoryRouter initialEntries={['/book/ebook-1']}>
+            <MemoryRouter initialEntries={[`/book/${item.id}`]}>
               <Routes>
                 <Route path="/book/:itemId" element={<BookPage />} />
               </Routes>
@@ -218,5 +227,38 @@ describe('BookPage', () => {
         { selectedTrackIndices: [1] },
       )
     })
+  })
+
+  it('shows offline download progress and marks downloaded chapters', async () => {
+    const partialOfflineBook: OfflineBook = {
+      itemId: 'audio-1',
+      title: 'Beskar Rising',
+      author: 'Archivist',
+      coverPath: null,
+      status: 'downloaded',
+      totalBytes: 6,
+      totalTracks: 3,
+      updatedAt: Date.now(),
+      tracks: [
+        {
+          trackIndex: 1,
+          title: 'Chapter 2',
+          duration: 60,
+          mimeType: 'audio/mpeg',
+          blob: new Blob(['second'], { type: 'audio/mpeg' }),
+        },
+      ],
+    }
+
+    renderBookPage({
+      item: audiobookItemWithChapters,
+      appOverrides: {
+        offlineBooks: [partialOfflineBook],
+      },
+    })
+
+    expect(await screen.findByLabelText(/offline download progress/i)).toHaveTextContent('33% offline')
+    expect(screen.getByLabelText(/offline download progress/i)).toHaveTextContent('1 of 3 chapters saved')
+    expect(screen.getByRole('button', { name: /chapter 2.*downloaded/i })).toBeInTheDocument()
   })
 })

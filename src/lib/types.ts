@@ -101,6 +101,7 @@ export interface OfflineBook {
   coverPath: string | null
   status: 'idle' | 'downloading' | 'downloaded' | 'error'
   totalBytes: number
+  totalTracks?: number
   updatedAt: number
   tracks: OfflineTrack[]
   ebookBlob?: Blob | null

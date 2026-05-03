@@ -950,6 +950,15 @@ h3 {
   color: var(--accent-500);
 }
 
+.bd-download-row.downloaded {
+  border-color: rgba(40, 167, 69, 0.5);
+  background: rgba(40, 167, 69, 0.06);
+}
+
+.bd-download-row.downloaded .bd-download-check {
+  color: var(--accent-500);
+}
+
 .bd-progress-track {
   height: 4px;
   border-radius: 2px;
@@ -968,6 +977,10 @@ h3 {
   font-size: var(--fs-xs);
   color: var(--text-muted);
   text-align: right;
+}
+
+.bd-offline-progress-section .bd-progress-fill {
+  background: var(--accent-500);
 }
 
 .bd-stats {
@@ -1632,10 +1645,40 @@ h3 {
   background: rgba(40, 167, 69, 0.08);
 }
 
+.chapter-row.downloaded {
+  border-color: rgba(40, 167, 69, 0.42);
+}
+
+.bd-chapter-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  min-width: max-content;
+}
+
+.bd-chapter-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent-500);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.bd-chapter-saved svg {
+  width: 13px;
+  height: 13px;
+}
+
 .chapter-row span,
 .download-row p,
 .mini-player span {
   color: var(--text-muted);
+}
+
+.chapter-row.downloaded .bd-chapter-saved {
+  color: var(--accent-500);
 }
 
 /* ─── Player ─── */

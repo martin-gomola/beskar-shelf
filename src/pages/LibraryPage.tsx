@@ -50,18 +50,16 @@ export function LibraryPage() {
   const [activeCollection, setActiveCollection] = useState<string | null>(
     searchParams.get('collection'),
   )
+  const [activeCollectionLibraryId, setActiveCollectionLibraryId] = useState(libraryId)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [offlineOnly, setOfflineOnly] = useState<boolean>(searchParams.get('offline') === '1')
   const deferredSearch = useDeferredValue(search)
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const prevLibraryId = useRef(libraryId)
 
-  useEffect(() => {
-    if (prevLibraryId.current !== libraryId) {
-      setActiveCollection(null)
-      prevLibraryId.current = libraryId
-    }
-  }, [libraryId])
+  if (activeCollectionLibraryId !== libraryId) {
+    setActiveCollectionLibraryId(libraryId)
+    setActiveCollection(null)
+  }
 
   const selectCollection = useCallback((id: string | null) => {
     setActiveCollection(id)
