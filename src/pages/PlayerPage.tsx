@@ -75,6 +75,7 @@ function PlayerPage() {
   const client = useClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { offlineBooks } = useAppContext()
   const { showToast } = useToast()
   const {
     activePlayback,
@@ -194,6 +195,8 @@ function PlayerPage() {
   const coverUrl = activePlayback.item.coverPath
     ? client.coverUrl(activePlayback.item.id)
     : null
+  const offlineBook = offlineBooks.find((book) => book.itemId === activeItem.id)
+  const downloadedTrackIndices = new Set(offlineBook?.tracks.map((track) => track.trackIndex) ?? [])
 
   async function addBookmark() {
     const bookmark: Bookmark = {
@@ -427,18 +430,26 @@ function PlayerPage() {
           <h2>Track queue</h2>
         </div>
         <div className="chapter-list">
-          {activePlayback.session.audioTracks.map((track) => (
-            <button
-              key={`${track.index}-${track.title}`}
-              className={clsx('chapter-row', {
-                active: track.index === activePlayback.trackIndex,
-              })}
-              onClick={() => jumpToTrack(track.index)}
-            >
-              <strong>{track.title}</strong>
-              <span>{formatDuration(track.duration)}</span>
-            </button>
-          ))}
+          {activePlayback.session.audioTracks.map((track, queueIndex) => {
+            const isDownloaded = downloadedTrackIndices.has(track.index)
+
+            return (
+              <button
+                key={`${track.index}-${track.title}`}
+                className={clsx('chapter-row', {
+                  active: queueIndex === activePlayback.trackIndex,
+                  downloaded: isDownloaded,
+                })}
+                onClick={() => jumpToTrack(queueIndex)}
+              >
+                <strong>{track.title}</strong>
+                <span className="player-track-meta">
+                  {isDownloaded ? <span className="player-track-saved">Downloaded</span> : null}
+                  <span>{formatDuration(track.duration)}</span>
+                </span>
+              </button>
+            )
+          })}
         </div>
       </section>
     </main>

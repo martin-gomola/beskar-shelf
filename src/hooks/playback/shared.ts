@@ -26,6 +26,15 @@ export function totalTimeFromTrack(activePlayback: ActivePlayback | null, audioT
   return (track?.startOffset ?? 0) + audioTime
 }
 
+export function hasCompleteOfflineTracks(item: BookItem, offline: OfflineBook) {
+  if (offline.status !== 'downloaded' || offline.tracks.length === 0) {
+    return false
+  }
+
+  const expectedTracks = offline.totalTracks ?? item.audioTracks.length
+  return expectedTracks === 0 || offline.tracks.length >= expectedTracks
+}
+
 export function buildOfflineSession(item: BookItem, offline: OfflineBook): PlaybackSession {
   let offset = 0
   return {

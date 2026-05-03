@@ -12,7 +12,7 @@ import type { AudiobookshelfClient } from '../lib/api'
 import { getOfflineBook, savePlaybackState } from '../lib/storage'
 import type { BookItem, PersistedPlaybackState, PlaybackSession } from '../lib/types'
 import { clamp } from '../lib/utils'
-import { buildOfflineSession, revokePlaybackSources, trackForTime, type ActivePlayback } from './playback/shared'
+import { buildOfflineSession, hasCompleteOfflineTracks, revokePlaybackSources, trackForTime, type ActivePlayback } from './playback/shared'
 import { usePlaybackEffects } from './playback/usePlaybackEffects'
 import { usePlaybackProgress } from './playback/usePlaybackProgress'
 
@@ -127,7 +127,7 @@ export function usePlayback(
   const startBook = useCallback(async (item: BookItem, startTime?: number) => {
     const offline = await getOfflineBook(item.id)
     let playbackSession
-    if (offline?.status === 'downloaded' && offline.tracks.length > 0) {
+    if (offline && hasCompleteOfflineTracks(item, offline)) {
       playbackSession = buildOfflineSession(item, offline)
     } else {
       playbackSession = await client.startPlayback(item.id)

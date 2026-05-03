@@ -1808,6 +1808,12 @@ h3 {
   font-feature-settings: 'tnum' 1;
 }
 
+.scrubber .time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .time-row span {
   white-space: nowrap;
 }
@@ -1862,6 +1868,20 @@ h3 {
 .player-action-panel-meta {
   display: flex;
   justify-content: flex-end;
+}
+
+.player-track-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  min-width: max-content;
+}
+
+.player-track-saved {
+  color: var(--accent-500);
+  font-size: var(--fs-xs);
+  font-weight: 700;
 }
 
 @media (max-width: 560px) {

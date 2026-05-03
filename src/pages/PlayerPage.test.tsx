@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PlayerPage from './PlayerPage'
+import { AppContext, type AppContextValue } from '../contexts/AppContext'
 import { ClientContext } from '../contexts/ClientContext'
 import { PlayerContext, PlayerTimeContext, type PlayerContextValue } from '../contexts/PlayerContext'
 import { ToastContext } from '../contexts/ToastContext'
@@ -59,9 +60,11 @@ const activePlayback: ActivePlayback = {
 function renderPlayerPage({
   isPlaying = true,
   playbackTime = 123,
+  appOverrides = {},
 }: {
   isPlaying?: boolean
   playbackTime?: number
+  appOverrides?: Partial<AppContextValue>
 } = {}) {
   const queryClient = new QueryClient()
   const client = {
@@ -84,19 +87,36 @@ function renderPlayerPage({
     setIsSeeking: vi.fn(),
     audioRef: { current: null },
   }
+  const appContextValue: AppContextValue = {
+    server: null,
+    setServer: vi.fn(),
+    session: null,
+    setSession: vi.fn(),
+    isOnline: true,
+    offlineBooks: [],
+    refreshBooks: vi.fn().mockResolvedValue(undefined),
+    refreshOfflineBooks: vi.fn().mockResolvedValue(undefined),
+    playbackState: null,
+    startBook: vi.fn().mockResolvedValue(undefined),
+    downloadCurrentBook: vi.fn().mockResolvedValue(undefined),
+    removeOfflineBook: vi.fn().mockResolvedValue(undefined),
+    ...appOverrides,
+  }
 
   render(
     <QueryClientProvider client={queryClient}>
       <ClientContext.Provider value={client}>
-        <ToastContext.Provider value={{ showToast }}>
-          <PlayerContext.Provider value={playerContextValue}>
-            <PlayerTimeContext.Provider value={{ playbackTime, currentTrackDuration: 120 }}>
-              <MemoryRouter>
-                <PlayerPage />
-              </MemoryRouter>
-            </PlayerTimeContext.Provider>
-          </PlayerContext.Provider>
-        </ToastContext.Provider>
+        <AppContext.Provider value={appContextValue}>
+          <ToastContext.Provider value={{ showToast }}>
+            <PlayerContext.Provider value={playerContextValue}>
+              <PlayerTimeContext.Provider value={{ playbackTime, currentTrackDuration: 120 }}>
+                <MemoryRouter>
+                  <PlayerPage />
+                </MemoryRouter>
+              </PlayerTimeContext.Provider>
+            </PlayerContext.Provider>
+          </ToastContext.Provider>
+        </AppContext.Provider>
       </ClientContext.Provider>
     </QueryClientProvider>,
   )
@@ -111,6 +131,7 @@ describe('PlayerPage sleep timer', () => {
   })
 
   afterEach(() => {
+    cleanup()
     vi.useRealTimers()
   })
 
@@ -129,5 +150,36 @@ describe('PlayerPage sleep timer', () => {
     expect(client.createBookmark).toHaveBeenCalledWith(item.id, 123, 'Sleep timer at 2:03')
     expect(playerContextValue.togglePlayback).toHaveBeenCalledTimes(1)
     expect(showToast).toHaveBeenCalledWith('Sleep bookmark saved', 'success')
+  })
+
+  it('keeps every queue track visible and marks the downloaded ones', () => {
+    renderPlayerPage({
+      appOverrides: {
+        offlineBooks: [
+          {
+            itemId: item.id,
+            title: item.title,
+            author: item.author,
+            coverPath: null,
+            status: 'downloaded',
+            totalBytes: 5,
+            totalTracks: 2,
+            updatedAt: Date.now(),
+            tracks: [
+              {
+                trackIndex: 1,
+                title: 'Track 2',
+                duration: 180,
+                mimeType: 'audio/mpeg',
+                blob: new Blob(['track'], { type: 'audio/mpeg' }),
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    expect(screen.getByRole('button', { name: /track 1.*2:00/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /track 2.*downloaded.*3:00/i })).toBeInTheDocument()
   })
 })
