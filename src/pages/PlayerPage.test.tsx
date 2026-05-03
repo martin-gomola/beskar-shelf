@@ -60,10 +60,12 @@ const activePlayback: ActivePlayback = {
 function renderPlayerPage({
   isPlaying = true,
   playbackTime = 123,
+  activePlaybackValue = activePlayback,
   appOverrides = {},
 }: {
   isPlaying?: boolean
   playbackTime?: number
+  activePlaybackValue?: ActivePlayback
   appOverrides?: Partial<AppContextValue>
 } = {}) {
   const queryClient = new QueryClient()
@@ -75,7 +77,7 @@ function renderPlayerPage({
   } as unknown as AudiobookshelfClient
   const showToast = vi.fn()
   const playerContextValue: PlayerContextValue = {
-    activePlayback,
+    activePlayback: activePlaybackValue,
     isPlaying,
     playbackRate: 1,
     togglePlayback: vi.fn().mockResolvedValue(undefined),
@@ -182,5 +184,26 @@ describe('PlayerPage sleep timer', () => {
 
     expect(screen.getByRole('button', { name: /track 1.*2:00/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /track 2.*downloaded.*3:00/i })).toBeInTheDocument()
+  })
+
+  it('uses the current track as the scrubber range for precise seeking', () => {
+    const secondTrackPlayback: ActivePlayback = {
+      ...activePlayback,
+      trackIndex: 1,
+    }
+    const { playerContextValue } = renderPlayerPage({
+      activePlaybackValue: secondTrackPlayback,
+      playbackTime: 135,
+    })
+
+    const scrubber = screen.getByRole('slider')
+
+    expect(scrubber).toHaveValue('15')
+    expect(scrubber).toHaveAttribute('max', '180')
+    expect(screen.getByText('0:15')).toBeInTheDocument()
+
+    fireEvent.change(scrubber, { target: { value: '45' } })
+
+    expect(playerContextValue.seekTo).toHaveBeenCalledWith(165)
   })
 })

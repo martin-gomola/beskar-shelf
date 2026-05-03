@@ -219,6 +219,48 @@ h3 {
   background: var(--canvas-spotlight);
 }
 
+.pull-refresh-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  touch-action: pan-y;
+}
+
+.pull-refresh-indicator {
+  position: fixed;
+  top: max(var(--sp-3), env(safe-area-inset-top, 0px));
+  left: 50%;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: opacity 160ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.pull-refresh-indicator span {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid var(--accent-500);
+  border-top-color: transparent;
+}
+
+.pull-refresh-indicator[data-refreshing="true"] span {
+  animation: pull-refresh-spin 700ms linear infinite;
+}
+
+@keyframes pull-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .screen {
   width: min(720px, 100%);
   margin: 0 auto;

@@ -10,7 +10,7 @@ import { useToast } from '../contexts/ToastContext'
 import { useSleepTimer } from '../hooks/useSleepTimer'
 import { deleteBookmark as deleteLocalBookmark, loadBookmarks, upsertBookmark } from '../lib/storage'
 import type { Bookmark } from '../lib/types'
-import { formatDuration, formatProgress } from '../lib/utils'
+import { clamp, formatDuration, formatProgress } from '../lib/utils'
 
 function IconRewind() {
   return (
@@ -197,6 +197,11 @@ function PlayerPage() {
     : null
   const offlineBook = offlineBooks.find((book) => book.itemId === activeItem.id)
   const downloadedTrackIndices = new Set(offlineBook?.tracks.map((track) => track.trackIndex) ?? [])
+  const activeTrack = activePlayback.session.audioTracks[activePlayback.trackIndex]
+  const activeTrackStart = activeTrack?.startOffset ?? 0
+  const activeTrackDuration = activeTrack?.duration ?? currentTrackDuration
+  const localPlaybackTime = clamp(playbackTime - activeTrackStart, 0, activeTrackDuration)
+  const localSeekTime = seekPreview ?? localPlaybackTime
 
   async function addBookmark() {
     const bookmark: Bookmark = {
@@ -262,8 +267,8 @@ function PlayerPage() {
           <input
             type="range"
             min={0}
-            max={Math.max(activePlayback.duration, 1)}
-            value={seekPreview ?? playbackTime}
+            max={Math.max(activeTrackDuration, 1)}
+            value={localSeekTime}
             onInput={(event) => {
               setIsSeeking(true)
               setSeekPreview(Number((event.target as HTMLInputElement).value))
@@ -271,13 +276,13 @@ function PlayerPage() {
             onChange={(event) => {
               const value = Number(event.target.value)
               setIsSeeking(false)
-              seekTo(value)
+              seekTo(activeTrackStart + value)
               setSeekPreview(null)
             }}
           />
           <div className="time-row">
-            <span>{formatDuration(seekPreview ?? playbackTime)}</span>
-            <span>{formatDuration(activePlayback.duration)}</span>
+            <span>{formatDuration(localSeekTime)}</span>
+            <span>{formatDuration(activeTrackDuration)}</span>
           </div>
         </label>
 

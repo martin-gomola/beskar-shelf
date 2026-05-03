@@ -7,6 +7,7 @@ import { useServiceWorkerUpdate } from '../hooks/useServiceWorkerUpdate'
 import { useTheme } from '../hooks/useTheme'
 import { BottomNav } from './BottomNav'
 import { MiniPlayer } from './MiniPlayer'
+import { PullToRefresh } from './PullToRefresh'
 
 import { SetupPage } from '../pages/SetupPage'
 import { LoginPage } from '../pages/LoginPage'
@@ -39,15 +40,24 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function Shell() {
-  const { server, session, playbackState } = useAppContext()
+  const { server, session, playbackState, refreshBooks, refreshOfflineBooks } = useAppContext()
   const { activePlayback } = usePlayerContext()
-  const { updateAvailable, reload } = useServiceWorkerUpdate()
+  const { updateAvailable, reload, checkForUpdate } = useServiceWorkerUpdate()
   useTheme()
   const location = useLocation()
 
   const needsSetup = !server?.baseUrl
   const needsLogin = Boolean(server?.baseUrl) && !session
   const publicRoute = location.pathname === '/' || location.pathname === '/login'
+  const pullRefreshDisabled = publicRoute || location.pathname.startsWith('/read/')
+
+  async function refreshApp() {
+    await Promise.all([
+      refreshBooks(),
+      refreshOfflineBooks(),
+      checkForUpdate(),
+    ])
+  }
 
   if (needsSetup && location.pathname !== '/') {
     return <Navigate to="/" replace />
@@ -59,6 +69,8 @@ export function Shell() {
 
   return (
     <div className="app-shell">
+      <PullToRefresh disabled={pullRefreshDisabled} onRefresh={refreshApp} />
+
       {updateAvailable && (
         <div className="update-banner">
           <span>A new version is available</span>
