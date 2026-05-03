@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { AudiobookshelfClient } from '../lib/api'
 import { downloadBook } from '../lib/downloads'
-import { deleteOfflineBook, listOfflineBooks } from '../lib/storage'
+import { deleteOfflineBook, listOfflineBooks, removeOfflineTracks as removeStoredOfflineTracks } from '../lib/storage'
 import type { BookItem, DownloadBookOptions, OfflineBook } from '../lib/types'
 
 export function useOffline(client: AudiobookshelfClient) {
@@ -57,10 +57,16 @@ export function useOffline(client: AudiobookshelfClient) {
     await refreshOfflineBooks()
   }
 
+  async function removeOfflineTracks(itemId: string, trackIndices: number[]) {
+    await removeStoredOfflineTracks(itemId, trackIndices)
+    await refreshOfflineBooks()
+  }
+
   return {
     offlineBooks,
     refreshOfflineBooks,
     downloadCurrentBook,
     removeOfflineBook,
+    removeOfflineTracks,
   }
 }

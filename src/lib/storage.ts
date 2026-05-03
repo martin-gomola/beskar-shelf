@@ -135,6 +135,43 @@ export async function putOfflineBook(book: OfflineBook) {
   await db.put(BOOK_STORE, book)
 }
 
+export function removeOfflineTracksFromBook(book: OfflineBook, trackIndices: number[]) {
+  const removeSet = new Set(trackIndices)
+  const tracks = book.tracks.filter((track) => !removeSet.has(track.trackIndex))
+
+  if (tracks.length === book.tracks.length) {
+    return book
+  }
+
+  const ebookBlob = book.ebookBlob ?? null
+  if (tracks.length === 0 && !ebookBlob) {
+    return null
+  }
+
+  return {
+    ...book,
+    totalBytes: tracks.reduce((total, track) => total + track.blob.size, 0) + (ebookBlob?.size ?? 0),
+    updatedAt: Date.now(),
+    tracks,
+    ebookBlob,
+  } satisfies OfflineBook
+}
+
+export async function removeOfflineTracks(itemId: string, trackIndices: number[]) {
+  const db = await openOfflineDb()
+  const book = await db.get(BOOK_STORE, itemId) as OfflineBook | undefined
+  if (!book) {
+    return
+  }
+
+  const next = removeOfflineTracksFromBook(book, trackIndices)
+  if (next) {
+    await db.put(BOOK_STORE, next)
+  } else {
+    await db.delete(BOOK_STORE, itemId)
+  }
+}
+
 export async function deleteOfflineBook(itemId: string) {
   const db = await openOfflineDb()
   await db.delete(BOOK_STORE, itemId)

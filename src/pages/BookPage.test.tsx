@@ -111,6 +111,7 @@ function renderBookPage({
     startBook: vi.fn().mockResolvedValue(undefined),
     downloadCurrentBook: vi.fn().mockResolvedValue(undefined),
     removeOfflineBook: vi.fn().mockResolvedValue(undefined),
+    removeOfflineTracks: vi.fn().mockResolvedValue(undefined),
     ...appOverrides,
   }
 
@@ -260,5 +261,42 @@ describe('BookPage', () => {
     expect(await screen.findByLabelText(/offline download progress/i)).toHaveTextContent('33% offline')
     expect(screen.getByLabelText(/offline download progress/i)).toHaveTextContent('1 of 3 chapters saved')
     expect(screen.getByRole('button', { name: /chapter 2.*downloaded/i })).toBeInTheDocument()
+  })
+
+  it('removes a downloaded track from the download picker', async () => {
+    const user = userEvent.setup()
+    const partialOfflineBook: OfflineBook = {
+      itemId: 'audio-1',
+      title: 'Beskar Rising',
+      author: 'Archivist',
+      coverPath: null,
+      status: 'downloaded',
+      totalBytes: 6,
+      totalTracks: 3,
+      updatedAt: Date.now(),
+      tracks: [
+        {
+          trackIndex: 1,
+          title: 'Chapter 2',
+          duration: 60,
+          mimeType: 'audio/mpeg',
+          blob: new Blob(['second'], { type: 'audio/mpeg' }),
+        },
+      ],
+    }
+    const removeOfflineTracks = vi.fn().mockResolvedValue(undefined)
+
+    renderBookPage({
+      item: audiobookItemWithChapters,
+      appOverrides: {
+        offlineBooks: [partialOfflineBook],
+        removeOfflineTracks,
+      },
+    })
+
+    await user.click(await screen.findByRole('button', { name: /redownload/i }))
+    await user.click(screen.getByRole('button', { name: /remove/i }))
+
+    expect(removeOfflineTracks).toHaveBeenCalledWith('audio-1', [1])
   })
 })

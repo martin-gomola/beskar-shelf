@@ -15,6 +15,7 @@ export interface AppContextValue {
   startBook: (item: BookItem, startTime?: number) => Promise<void>
   downloadCurrentBook: (item: BookItem, options?: DownloadBookOptions) => Promise<void>
   removeOfflineBook: (itemId: string) => Promise<void>
+  removeOfflineTracks: (itemId: string, trackIndices: number[]) => Promise<void>
 }
 
 export const AppContext = createContext<AppContextValue | null>(null)

@@ -65,7 +65,7 @@ export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
   const navigate = useNavigate()
-  const { startBook, downloadCurrentBook, offlineBooks, isOnline } = useAppContext()
+  const { startBook, downloadCurrentBook, removeOfflineTracks, offlineBooks, isOnline } = useAppContext()
   const { activePlayback, seekTo } = usePlayerContext()
   const [descExpanded, setDescExpanded] = useState(false)
   const [showDownloadPicker, setShowDownloadPicker] = useState(false)
@@ -143,6 +143,11 @@ export function BookPage() {
     setShowDownloadPicker(false)
     setSelectedTrackIndices([])
     setDownloadTracks([])
+  }
+
+  async function handleRemoveDownloadedTrack(track: AudioTrack) {
+    setSelectedTrackIndices((current) => current.filter((index) => downloadTracks[index]?.index !== track.index))
+    await removeOfflineTracks(currentItem.id, [track.index])
   }
 
   return (
@@ -249,24 +254,42 @@ export function BookPage() {
             {downloadTracks.map((track, index) => {
               const isSelected = selectedTrackIndices.includes(index)
               const isSaved = downloadedTrackIndices.has(track.index)
+
+              if (isSaved) {
+                return (
+                  <div
+                    key={`${track.index}-${track.title}`}
+                    className="chapter-row bd-download-row downloaded"
+                  >
+                    <span className="bd-download-copywrap">
+                      <strong>{track.title}</strong>
+                      <span>{formatDuration(track.duration)} · Downloaded</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="ghost-button danger-button bd-download-remove"
+                      onClick={() => void handleRemoveDownloadedTrack(track)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )
+              }
+
               return (
                 <button
                   key={`${track.index}-${track.title}`}
                   className={clsx('chapter-row', 'bd-download-row', {
                     active: isSelected,
-                    downloaded: isSaved,
                   })}
                   onClick={() => toggleTrack(index)}
                 >
                   <span className="bd-download-copywrap">
                     <strong>{track.title}</strong>
-                    <span>
-                      {formatDuration(track.duration)}
-                      {isSaved ? ' · Downloaded' : ''}
-                    </span>
+                    <span>{formatDuration(track.duration)}</span>
                   </span>
                   <span className="bd-download-check" aria-hidden="true">
-                    {isSelected || isSaved ? <IconCheck /> : <IconSquare />}
+                    {isSelected ? <IconCheck /> : <IconSquare />}
                   </span>
                 </button>
               )

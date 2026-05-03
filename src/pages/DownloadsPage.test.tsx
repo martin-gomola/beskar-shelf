@@ -53,6 +53,7 @@ function renderDownloadsPage(
     startBook: vi.fn().mockResolvedValue(undefined),
     downloadCurrentBook: vi.fn().mockResolvedValue(undefined),
     removeOfflineBook: vi.fn().mockResolvedValue(undefined),
+    removeOfflineTracks: vi.fn().mockResolvedValue(undefined),
     ...appOverrides,
   }
 

@@ -953,10 +953,17 @@ h3 {
 .bd-download-row.downloaded {
   border-color: rgba(40, 167, 69, 0.5);
   background: rgba(40, 167, 69, 0.06);
+  cursor: default;
 }
 
 .bd-download-row.downloaded .bd-download-check {
   color: var(--accent-500);
+}
+
+.bd-download-remove {
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
 }
 
 .bd-progress-track {

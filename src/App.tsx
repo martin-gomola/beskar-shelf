@@ -61,6 +61,7 @@ function App() {
     refreshOfflineBooks,
     downloadCurrentBook,
     removeOfflineBook,
+    removeOfflineTracks,
   } = useOffline(client)
 
   async function refreshBooks() {
@@ -102,6 +103,7 @@ function App() {
     startBook,
     downloadCurrentBook,
     removeOfflineBook,
+    removeOfflineTracks,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [server, session, isOnline, offlineBooks, playbackState])
 
