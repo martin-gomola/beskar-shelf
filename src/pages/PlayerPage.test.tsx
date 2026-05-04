@@ -86,6 +86,8 @@ function renderPlayerPage({
     seekBy: vi.fn(),
     setPlaybackRate: vi.fn(),
     jumpToTrack: vi.fn(),
+    jumpToPreviousTrack: vi.fn(),
+    jumpToNextTrack: vi.fn(),
     setIsSeeking: vi.fn(),
     audioRef: { current: null },
   }
@@ -205,5 +207,25 @@ describe('PlayerPage sleep timer', () => {
     fireEvent.change(scrubber, { target: { value: '45' } })
 
     expect(playerContextValue.seekTo).toHaveBeenCalledWith(165)
+  })
+
+  it('shows the current audiobook part and exposes chapter skip controls', () => {
+    const secondTrackPlayback: ActivePlayback = {
+      ...activePlayback,
+      trackIndex: 1,
+    }
+    const { playerContextValue } = renderPlayerPage({
+      activePlaybackValue: secondTrackPlayback,
+      playbackTime: 135,
+    })
+
+    expect(screen.getByText('Chapter 1')).toBeInTheDocument()
+    expect(screen.getByText('2/2')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /previous track/i }))
+    fireEvent.click(screen.getByRole('button', { name: /next track/i }))
+
+    expect(playerContextValue.jumpToPreviousTrack).toHaveBeenCalledTimes(1)
+    expect(playerContextValue.jumpToNextTrack).not.toHaveBeenCalled()
   })
 })

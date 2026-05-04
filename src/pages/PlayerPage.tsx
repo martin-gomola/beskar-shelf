@@ -30,6 +30,24 @@ function IconForward() {
   )
 }
 
+function IconSkipBack() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="19 20 9 12 19 4 19 20" />
+      <line x1="5" y1="19" x2="5" y2="5" />
+    </svg>
+  )
+}
+
+function IconSkipForward() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="5 4 15 12 5 20 5 4" />
+      <line x1="19" y1="5" x2="19" y2="19" />
+    </svg>
+  )
+}
+
 function IconPlay() {
   return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -87,6 +105,8 @@ function PlayerPage() {
     seekTo,
     setPlaybackRate,
     jumpToTrack,
+    jumpToPreviousTrack,
+    jumpToNextTrack,
     setIsSeeking,
   } = usePlayerContext()
   const { playbackTime, currentTrackDuration } = usePlayerTime()
@@ -202,6 +222,15 @@ function PlayerPage() {
   const activeTrackDuration = activeTrack?.duration ?? currentTrackDuration
   const localPlaybackTime = clamp(playbackTime - activeTrackStart, 0, activeTrackDuration)
   const localSeekTime = seekPreview ?? localPlaybackTime
+  const activeChapter = activePlayback.item.chapters.find(
+    (chapter) => playbackTime >= chapter.start && playbackTime < chapter.end,
+  )
+  const activeTrackTitle = activeTrack?.title ?? `Track ${activePlayback.trackIndex + 1}`
+  const activePartLabel = activeChapter?.title ?? activeTrackTitle
+  const bookRemaining = Math.max(activePlayback.duration - playbackTime, 0)
+  const trackRemaining = Math.max(activeTrackDuration - localSeekTime, 0)
+  const canGoPrevious = activePlayback.trackIndex > 0
+  const canGoNext = activePlayback.trackIndex < activePlayback.session.audioTracks.length - 1
 
   async function addBookmark() {
     const bookmark: Bookmark = {
@@ -263,6 +292,12 @@ function PlayerPage() {
           <h1>{activePlayback.item.title}</h1>
           <p className="author-line">{activePlayback.item.author}</p>
         </div>
+
+        <div className="player-part-row" aria-label="Current audiobook part">
+          <span className="player-part-kicker">Now playing</span>
+          <strong>{activePartLabel}</strong>
+        </div>
+
         <label className="scrubber">
           <input
             type="range"
@@ -280,13 +315,22 @@ function PlayerPage() {
               setSeekPreview(null)
             }}
           />
-          <div className="time-row">
+          <div className="time-row player-time-row">
             <span>{formatDuration(localSeekTime)}</span>
-            <span>{formatDuration(activeTrackDuration)}</span>
+            <strong>{formatDuration(bookRemaining)} left</strong>
+            <span>-{formatDuration(trackRemaining)}</span>
           </div>
         </label>
 
         <div className="player-controls">
+          <button
+            className="player-skip-btn"
+            onClick={jumpToPreviousTrack}
+            aria-label="Previous track"
+            disabled={!canGoPrevious}
+          >
+            <IconSkipBack />
+          </button>
           <button className="player-seek-btn" onClick={() => seekBy(-30)} aria-label="Rewind 30 seconds">
             <IconRewind />
           </button>
@@ -295,6 +339,14 @@ function PlayerPage() {
           </button>
           <button className="player-seek-btn" onClick={() => seekBy(30)} aria-label="Forward 30 seconds">
             <IconForward />
+          </button>
+          <button
+            className="player-skip-btn"
+            onClick={jumpToNextTrack}
+            aria-label="Next track"
+            disabled={!canGoNext}
+          >
+            <IconSkipForward />
           </button>
         </div>
 
@@ -315,7 +367,7 @@ function PlayerPage() {
           <span className="player-stat-divider" />
           <span className="player-stat-inline">
             <span className="stat-label">Track</span>
-            <strong>{formatDuration(currentTrackDuration)}</strong>
+            <strong>{activePlayback.trackIndex + 1}/{activePlayback.session.audioTracks.length}</strong>
           </span>
         </div>
 

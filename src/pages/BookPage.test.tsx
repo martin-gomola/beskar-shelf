@@ -125,6 +125,8 @@ function renderBookPage({
     seekBy: vi.fn(),
     setPlaybackRate: vi.fn(),
     jumpToTrack: vi.fn(),
+    jumpToPreviousTrack: vi.fn(),
+    jumpToNextTrack: vi.fn(),
     setIsSeeking: vi.fn(),
     audioRef: { current: null },
   }

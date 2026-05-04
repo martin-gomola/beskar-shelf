@@ -218,6 +218,20 @@ export function usePlayback(
     void audioRef.current.play()
   }
 
+  function jumpToPreviousTrack() {
+    if (!activePlayback) {
+      return
+    }
+    jumpToTrack(Math.max(0, activePlayback.trackIndex - 1))
+  }
+
+  function jumpToNextTrack() {
+    if (!activePlayback) {
+      return
+    }
+    jumpToTrack(Math.min(activePlayback.session.audioTracks.length - 1, activePlayback.trackIndex + 1))
+  }
+
   function setIsSeeking(value: boolean) {
     isSeekingRef.current = value
   }
@@ -235,6 +249,8 @@ export function usePlayback(
     seekBy,
     setPlaybackRate,
     jumpToTrack,
+    jumpToPreviousTrack,
+    jumpToNextTrack,
     setIsSeeking,
     audioRef,
   }

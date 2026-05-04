@@ -86,6 +86,8 @@ function App() {
     seekBy,
     setPlaybackRate,
     jumpToTrack,
+    jumpToPreviousTrack,
+    jumpToNextTrack,
     setIsSeeking,
     audioRef,
   } = usePlayback(client, session, playbackState, setPlaybackState)
@@ -117,6 +119,8 @@ function App() {
     seekBy,
     setPlaybackRate,
     jumpToTrack,
+    jumpToPreviousTrack,
+    jumpToNextTrack,
     setIsSeeking,
     audioRef,
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -68,12 +68,26 @@ export function HomePage() {
   const { librariesQuery, primary } = usePrimaryLibrary()
   const client = useClient()
   const { playbackState } = useAppContext()
+  const resumeItemId = playbackState?.itemId ?? null
   const personalizedQuery = useQuery({
     queryKey: ['personalized', primary?.id],
     queryFn: () => client.getPersonalized(primary!.id),
     enabled: Boolean(primary?.id),
     staleTime: 2 * 60 * 1000,
   })
+  const resumeItemQuery = useQuery({
+    queryKey: ['item', resumeItemId],
+    queryFn: () => client.getItem(resumeItemId as string),
+    enabled: Boolean(resumeItemId) && client.hasSession(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  })
+
+  const resumeItem = resumeItemQuery.data
+  const resumeDuration = resumeItem?.duration || playbackState?.duration || 0
+  const resumeTime = playbackState?.currentTime ?? 0
+  const resumeProgress = resumeDuration > 0 ? Math.min(100, Math.round((resumeTime / resumeDuration) * 100)) : 0
+  const resumeRemaining = Math.max(resumeDuration - resumeTime, 0)
 
   return (
     <main className="screen home-screen">
@@ -91,13 +105,28 @@ export function HomePage() {
       </section>
 
       {playbackState ? (
-        <section className="resume-banner card">
-          <div>
-            <p className="eyebrow">Resume listening</p>
-            <p style={{ fontWeight: 600 }}>{formatDuration(playbackState.currentTime)} logged</p>
-            <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Jump straight back into your current session.</p>
+        <section className="resume-banner card" aria-label="Continue listening">
+          <div className="resume-cover">
+            {resumeItem?.coverPath ? (
+              <>
+                <img className="cover-img-bg" src={client.coverUrl(resumeItem.id)} alt="" aria-hidden="true" />
+                <img className="cover-img cover-img-loaded" src={client.coverUrl(resumeItem.id)} alt="" />
+              </>
+            ) : null}
           </div>
-          <Link className="primary-button" to="/player">Open player</Link>
+          <div className="resume-copy">
+            <p className="eyebrow">Continue listening</p>
+            <h2>{resumeItem?.title ?? 'Last session'}</h2>
+            <p className="resume-author">{resumeItem?.author ?? `${formatDuration(resumeTime)} logged`}</p>
+            <div className="resume-progress" aria-label={`${resumeProgress}% complete`}>
+              <div className="resume-progress-fill" style={{ width: `${resumeProgress}%` }} />
+            </div>
+            <p className="muted resume-meta">
+              {formatDuration(resumeTime)} listened
+              {resumeRemaining > 0 ? ` · ${formatDuration(resumeRemaining)} left` : ''}
+            </p>
+          </div>
+          <Link className="primary-button resume-action" to="/player">Resume</Link>
         </section>
       ) : null}
 
