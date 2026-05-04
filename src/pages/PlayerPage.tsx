@@ -294,7 +294,6 @@ function PlayerPage() {
         </div>
 
         <div className="player-part-row" aria-label="Current audiobook part">
-          <span className="player-part-kicker">Now playing</span>
           <strong>{activePartLabel}</strong>
         </div>
 
