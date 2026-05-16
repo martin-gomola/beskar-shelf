@@ -90,8 +90,17 @@ export interface OfflineTrack {
   blob?: Blob
 }
 
+export interface DownloadProgress {
+  completedTracks: number
+  totalTracks: number
+  completedBytes: number
+  totalBytes: number
+  completedTrackIndices: number[]
+}
+
 export interface DownloadBookOptions {
   selectedTrackIndices?: number[]
+  onProgress?: (progress: DownloadProgress) => void
 }
 
 export interface OfflineBook {

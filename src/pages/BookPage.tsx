@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
@@ -6,7 +6,7 @@ import clsx from 'clsx'
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext } from '../contexts/PlayerContext'
-import type { AudioTrack } from '../lib/types'
+import type { AudioTrack, DownloadProgress } from '../lib/types'
 import { formatDuration, formatProgress, formatBytes } from '../lib/utils'
 
 function IconChevronLeft() {
@@ -73,6 +73,8 @@ export function BookPage() {
   const [downloadTracks, setDownloadTracks] = useState<AudioTrack[]>([])
   const [downloadPending, setDownloadPending] = useState(false)
   const [pendingDownloadTrackCount, setPendingDownloadTrackCount] = useState<number | null>(null)
+  const [downloadProgress, setDownloadProgress] = useState<(DownloadProgress & { speedBytesPerSecond: number }) | null>(null)
+  const downloadSpeedRef = useRef<{ bytes: number, time: number, speedBytesPerSecond: number } | null>(null)
   const query = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => client.getItem(itemId),
@@ -120,6 +122,17 @@ export function BookPage() {
   const offlineProgressLabel = isDownloadInProgress
     ? `Downloading ${downloadedTrackCount} of ${progressTrackCount} ${downloadUnit}`
     : `${downloadedTrackCount} of ${progressTrackCount} ${downloadUnit} saved`
+  const downloadBytes = downloadProgress?.completedBytes ?? offline?.totalBytes ?? 0
+  const downloadTotalBytes = downloadProgress?.totalBytes ?? (isDownloadInProgress ? item.size : offline?.totalBytes) ?? 0
+  const downloadSizeLabel = downloadBytes > 0 || downloadTotalBytes > 0
+    ? downloadTotalBytes > downloadBytes
+      ? `${formatBytes(downloadBytes)} of ${formatBytes(downloadTotalBytes)}`
+      : formatBytes(downloadBytes)
+    : ''
+  const downloadSpeedLabel = isDownloadInProgress && downloadProgress && downloadProgress.speedBytesPerSecond > 0
+    ? `${formatBytes(downloadProgress.speedBytesPerSecond)}/s`
+    : ''
+  const offlineTransferLabel = [downloadSizeLabel, downloadSpeedLabel].filter(Boolean).join(' · ')
 
   function toggleTrack(index: number) {
     setSelectedTrackIndices((current) => (
@@ -148,15 +161,38 @@ export function BookPage() {
     const tracksToDownload = selectedTrackIndices
     setDownloadPending(true)
     setPendingDownloadTrackCount(tracksToDownload.length)
+    setDownloadProgress(null)
+    downloadSpeedRef.current = null
     setShowDownloadPicker(false)
     setSelectedTrackIndices([])
     setDownloadTracks([])
     try {
-      await downloadCurrentBook(currentItem, { selectedTrackIndices: tracksToDownload })
+      await downloadCurrentBook(currentItem, {
+        selectedTrackIndices: tracksToDownload,
+        onProgress: handleDownloadProgress,
+      })
     } finally {
       setDownloadPending(false)
       setPendingDownloadTrackCount(null)
+      downloadSpeedRef.current = null
     }
+  }
+
+  function handleDownloadProgress(progress: DownloadProgress) {
+    const now = performance.now()
+    const previous = downloadSpeedRef.current
+    const secondsSincePrevious = previous ? (now - previous.time) / 1000 : 0
+    const bytesSincePrevious = previous ? progress.completedBytes - previous.bytes : 0
+    const speedBytesPerSecond = secondsSincePrevious > 0 && bytesSincePrevious > 0
+      ? bytesSincePrevious / secondsSincePrevious
+      : previous?.speedBytesPerSecond ?? 0
+
+    downloadSpeedRef.current = {
+      bytes: progress.completedBytes,
+      time: now,
+      speedBytesPerSecond,
+    }
+    setDownloadProgress({ ...progress, speedBytesPerSecond })
   }
 
   async function handleRemoveDownloadedTrack(track: AudioTrack) {
@@ -317,11 +353,14 @@ export function BookPage() {
       ) : null}
 
       {hasOfflineProgress ? (
-        <div className="bd-progress-section bd-offline-progress-section" aria-label="Offline download progress">
+        <div className={clsx('bd-progress-section', 'bd-offline-progress-section', { downloading: isDownloadInProgress })} aria-label="Offline download progress">
           <div className="bd-progress-track">
             <div className="bd-progress-fill" style={{ width: `${offlineProgressPct}%` }} />
           </div>
-          <span className="bd-progress-label">{offlineProgressPct}% offline · {offlineProgressLabel}</span>
+          <span className="bd-progress-label">
+            {offlineProgressPct}% offline · {offlineProgressLabel}
+            {offlineTransferLabel ? ` · ${offlineTransferLabel}` : ''}
+          </span>
         </div>
       ) : null}
 

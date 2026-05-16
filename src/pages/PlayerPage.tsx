@@ -108,6 +108,7 @@ function PlayerPage() {
     jumpToPreviousTrack,
     jumpToNextTrack,
     setIsSeeking,
+    audioRef,
   } = usePlayerContext()
   const { playbackTime, currentTrackDuration } = usePlayerTime()
 
@@ -115,6 +116,7 @@ function PlayerPage() {
   const [showBookmarks, setShowBookmarks] = useState(false)
   const [showSleepTimer, setShowSleepTimer] = useState(false)
   const [seekPreview, setSeekPreview] = useState<number | null>(null)
+  const [bufferedTrackTime, setBufferedTrackTime] = useState(0)
   const [localBookmarkVersion, setLocalBookmarkVersion] = useState(0)
 
   const currentChapterEnd = useMemo(() => {
@@ -206,6 +208,49 @@ function PlayerPage() {
     playbackTime,
   )
 
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!activePlayback || !audio) {
+      return
+    }
+
+    const activeTrack = activePlayback.session.audioTracks[activePlayback.trackIndex]
+    const trackDuration = activeTrack?.duration ?? currentTrackDuration
+    let frame = 0
+
+    function updateBufferedTime() {
+      let nextBuffered = 0
+      try {
+        if (audio && audio.buffered.length > 0) {
+          nextBuffered = audio.buffered.end(audio.buffered.length - 1)
+        } else if (audio && audio.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+          nextBuffered = audio.duration || 0
+        }
+      } catch {
+        nextBuffered = 0
+      }
+      setBufferedTrackTime(clamp(nextBuffered, 0, trackDuration))
+    }
+
+    frame = window.requestAnimationFrame(updateBufferedTime)
+    audio.addEventListener('progress', updateBufferedTime)
+    audio.addEventListener('loadedmetadata', updateBufferedTime)
+    audio.addEventListener('canplay', updateBufferedTime)
+    audio.addEventListener('canplaythrough', updateBufferedTime)
+    audio.addEventListener('durationchange', updateBufferedTime)
+    audio.addEventListener('emptied', updateBufferedTime)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      audio.removeEventListener('progress', updateBufferedTime)
+      audio.removeEventListener('loadedmetadata', updateBufferedTime)
+      audio.removeEventListener('canplay', updateBufferedTime)
+      audio.removeEventListener('canplaythrough', updateBufferedTime)
+      audio.removeEventListener('durationchange', updateBufferedTime)
+      audio.removeEventListener('emptied', updateBufferedTime)
+    }
+  }, [activePlayback, audioRef, currentTrackDuration])
+
   if (!activePlayback) {
     return <PlayerResumeGate />
   }
@@ -222,6 +267,8 @@ function PlayerPage() {
   const activeTrackDuration = activeTrack?.duration ?? currentTrackDuration
   const localPlaybackTime = clamp(playbackTime - activeTrackStart, 0, activeTrackDuration)
   const localSeekTime = seekPreview ?? localPlaybackTime
+  const localSeekPct = activeTrackDuration > 0 ? Math.min(100, (localSeekTime / activeTrackDuration) * 100) : 0
+  const bufferedPct = activeTrackDuration > 0 ? Math.min(100, (bufferedTrackTime / activeTrackDuration) * 100) : 0
   const activeChapter = activePlayback.item.chapters.find(
     (chapter) => playbackTime >= chapter.start && playbackTime < chapter.end,
   )
@@ -301,7 +348,11 @@ function PlayerPage() {
           <strong>{activePartLabel}</strong>
         </div>
 
-        <label className="scrubber">
+        <label className={clsx('scrubber', { seeking: seekPreview !== null })}>
+          <span className="scrubber-track" aria-hidden="true">
+            <span className="scrubber-buffer" style={{ width: `${Math.max(bufferedPct, localSeekPct)}%` }} />
+            <span className="scrubber-progress" style={{ width: `${localSeekPct}%` }} />
+          </span>
           <input
             type="range"
             min={0}

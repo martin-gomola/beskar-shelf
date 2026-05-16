@@ -92,15 +92,32 @@ export function usePlayback(
 
   const seekTo = useCallback((seconds: number) => {
     const ap = activePlaybackRef.current
-    if (!ap || !audioRef.current) {
+    const audio = audioRef.current
+    if (!ap || !audio) {
       return
     }
     const clamped = clamp(seconds, 0, ap.duration)
     const nextTrackIndex = trackForTime(ap.session.audioTracks, clamped)
     const track = ap.session.audioTracks[nextTrackIndex]
-    setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
-    audioRef.current.src = ap.sources[nextTrackIndex]
-    audioRef.current.currentTime = clamped - track.startOffset
+    const nextSource = ap.sources[nextTrackIndex]
+    const nextTime = clamped - track.startOffset
+    const wasPlaying = !audio.paused
+    const isChangingTrack = nextTrackIndex !== ap.trackIndex
+
+    if (isChangingTrack) {
+      setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
+      if (!sourcesMatch(audio.src, nextSource)) {
+        audio.src = nextSource
+      }
+    }
+
+    audio.currentTime = nextTime
+    playbackTimeRef.current = clamped
+    setPlaybackTime(clamped)
+
+    if (wasPlaying && isChangingTrack) {
+      void audio.play().catch(() => undefined)
+    }
   }, [])
 
   const seekBy = useCallback((delta: number) => {
@@ -256,5 +273,17 @@ export function usePlayback(
     jumpToNextTrack,
     setIsSeeking,
     audioRef,
+  }
+}
+
+function sourcesMatch(currentSource: string, nextSource: string) {
+  if (currentSource === nextSource) {
+    return true
+  }
+
+  try {
+    return currentSource === new URL(nextSource, window.location.href).href
+  } catch {
+    return false
   }
 }

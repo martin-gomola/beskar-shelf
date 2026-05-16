@@ -1,14 +1,6 @@
 import type { AudiobookshelfClient } from './api'
 import { getOfflineBook, putOfflineBook } from './storage'
-import type { BookItem, DownloadBookOptions, OfflineBook, OfflineTrack } from './types'
-
-interface DownloadProgress {
-  completedTracks: number
-  totalTracks: number
-  completedBytes: number
-  totalBytes: number
-  completedTrackIndices: number[]
-}
+import type { BookItem, DownloadBookOptions, DownloadProgress, OfflineBook, OfflineTrack } from './types'
 
 const CONCURRENCY = 3
 
@@ -22,6 +14,8 @@ export async function downloadBook(
   const savedTracks = new Map<number, OfflineTrack>(
     (existing?.tracks ?? []).map((track) => [track.trackIndex, track]),
   )
+  const inFlightTrackBytes = new Map<number, number>()
+  const expectedTrackBytes = new Map<number, number>()
 
   const shell: OfflineBook = {
     itemId: item.id,
@@ -38,13 +32,6 @@ export async function downloadBook(
   }
 
   await putOfflineBook(shell)
-  onProgress?.({
-    completedTracks: savedTracks.size,
-    totalTracks: shell.totalTracks ?? 0,
-    completedBytes: shell.totalBytes,
-    totalBytes: item.size || shell.totalBytes,
-    completedTrackIndices: Array.from(savedTracks.keys()).sort((a, b) => a - b),
-  })
 
   const shouldDownloadAudio = item.audioTracks.length > 0 || !item.ebookFormat
   const playback = shouldDownloadAudio
@@ -55,6 +42,12 @@ export async function downloadBook(
     : []
   const totalTracks = playback.audioTracks.length
   const selectedTracks = selectedTrackIndices.map((selectedIndex) => ({ selectedIndex }))
+
+  for (const track of savedTracks.values()) {
+    if (track.blob) {
+      expectedTrackBytes.set(track.trackIndex, track.blob.size)
+    }
+  }
 
   function orderedTracks() {
     const playbackOrder = playback.audioTracks
@@ -73,6 +66,34 @@ export async function downloadBook(
     return trackBytes + (ebookBlob?.size ?? 0)
   }
 
+  function currentProgressBytes(ebookBlob: Blob | null = shell.ebookBlob ?? null) {
+    const inFlightBytes = Array.from(inFlightTrackBytes.values()).reduce((total, bytes) => total + bytes, 0)
+    return currentBytes(ebookBlob) + inFlightBytes
+  }
+
+  function knownTotalBytes(ebookBlob: Blob | null = shell.ebookBlob ?? null) {
+    const expectedBytes = Array.from(expectedTrackBytes.values()).reduce((total, bytes) => total + bytes, 0) + (ebookBlob?.size ?? 0)
+    return Math.max(expectedBytes, currentProgressBytes(ebookBlob), selectedTrackIndices.length === totalTracks ? item.size : 0)
+  }
+
+  function buildProgress(ebookBlob: Blob | null = shell.ebookBlob ?? null): DownloadProgress {
+    return {
+      completedTracks: orderedTracks().length,
+      totalTracks,
+      completedBytes: currentProgressBytes(ebookBlob),
+      totalBytes: knownTotalBytes(ebookBlob),
+      completedTrackIndices: orderedTracks().map((track) => track.trackIndex),
+    }
+  }
+
+  function emitProgress(ebookBlob: Blob | null = shell.ebookBlob ?? null, persisted = false) {
+    const progress = buildProgress(ebookBlob)
+    options?.onProgress?.(progress)
+    if (persisted) {
+      onProgress?.(progress)
+    }
+  }
+
   async function persistProgress(status: OfflineBook['status'], ebookBlob: Blob | null = shell.ebookBlob ?? null) {
     const partial: OfflineBook = {
       ...shell,
@@ -86,13 +107,7 @@ export async function downloadBook(
     }
 
     await putOfflineBook(partial)
-    onProgress?.({
-      completedTracks: partial.tracks.length,
-      totalTracks,
-      completedBytes: partial.totalBytes,
-      totalBytes: item.size || partial.totalBytes,
-      completedTrackIndices: partial.tracks.map((track) => track.trackIndex),
-    })
+    emitProgress(ebookBlob, true)
   }
 
   await persistProgress('downloading')
@@ -104,7 +119,13 @@ export async function downloadBook(
       throw new Error(`Failed downloading ${track.title}`)
     }
 
-    const blob = await response.blob()
+    const contentLength = Number(response.headers?.get('content-length') ?? 0)
+    if (contentLength > 0) {
+      expectedTrackBytes.set(track.index, contentLength)
+      emitProgress()
+    }
+
+    const blob = await readResponseBlob(response, track.index, track.mimeType)
 
     savedTracks.set(track.index, {
       trackIndex: track.index,
@@ -113,8 +134,41 @@ export async function downloadBook(
       mimeType: track.mimeType,
       blob,
     })
+    expectedTrackBytes.set(track.index, blob.size)
+    inFlightTrackBytes.delete(track.index)
 
     await persistProgress('downloading')
+  }
+
+  async function readResponseBlob(response: Response, trackIndex: number, mimeType: string) {
+    if (!response.body) {
+      const blob = await response.blob()
+      inFlightTrackBytes.set(trackIndex, blob.size)
+      emitProgress()
+      return blob
+    }
+
+    const reader = response.body.getReader()
+    const chunks: ArrayBuffer[] = []
+    let receivedBytes = 0
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      const chunk = new ArrayBuffer(value.byteLength)
+      new Uint8Array(chunk).set(value)
+      chunks.push(chunk)
+      receivedBytes += value.byteLength
+      inFlightTrackBytes.set(trackIndex, receivedBytes)
+      emitProgress()
+    }
+
+    return new Blob(chunks, {
+      type: response.headers?.get('content-type') || mimeType,
+    })
   }
 
   let nextTrack = 0

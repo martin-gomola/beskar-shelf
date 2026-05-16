@@ -9,7 +9,7 @@ import { AppContext, type AppContextValue } from '../contexts/AppContext'
 import { ClientContext } from '../contexts/ClientContext'
 import { PlayerContext, type PlayerContextValue } from '../contexts/PlayerContext'
 import type { AudiobookshelfClient } from '../lib/api'
-import type { BookItem, OfflineBook } from '../lib/types'
+import type { BookItem, DownloadBookOptions, OfflineBook } from '../lib/types'
 
 const ebookOnlyItem: BookItem = {
   id: 'ebook-1',
@@ -153,6 +153,7 @@ function renderBookPage({
 describe('BookPage', () => {
   afterEach(() => {
     cleanup()
+    vi.restoreAllMocks()
   })
 
   it('shows a download action for ebook-only titles', async () => {
@@ -196,7 +197,10 @@ describe('BookPage', () => {
     await waitFor(() => {
       expect(appContextValue.downloadCurrentBook).toHaveBeenCalledWith(
         audiobookItem,
-        { selectedTrackIndices: [1, 2] },
+        expect.objectContaining({
+          selectedTrackIndices: [1, 2],
+          onProgress: expect.any(Function),
+        }),
       )
     })
   })
@@ -204,7 +208,21 @@ describe('BookPage', () => {
   it('shows selected download progress immediately while the download runs', async () => {
     const user = userEvent.setup()
     let finishDownload!: () => void
-    const downloadCurrentBook = vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
+    const downloadCurrentBook = vi.fn().mockImplementation((_item: BookItem, options?: DownloadBookOptions) => new Promise<void>((resolve) => {
+      options?.onProgress?.({
+        completedTracks: 0,
+        totalTracks: 3,
+        completedBytes: 1024,
+        totalBytes: 4096,
+        completedTrackIndices: [],
+      })
+      options?.onProgress?.({
+        completedTracks: 0,
+        totalTracks: 3,
+        completedBytes: 3072,
+        totalBytes: 4096,
+        completedTrackIndices: [],
+      })
       finishDownload = resolve
     }))
 
@@ -222,12 +240,20 @@ describe('BookPage', () => {
     const progress = await screen.findByLabelText(/offline download progress/i)
     expect(progress).toHaveTextContent('0% offline')
     expect(progress).toHaveTextContent('Downloading 0 of 1 tracks')
+    expect(progress).toHaveTextContent('3.0 KB of 4.0 KB')
+    expect(progress.textContent).toMatch(/\/s/)
     expect(screen.queryByText(/select tracks to download/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /downloading/i })).toBeDisabled()
 
     finishDownload()
     await waitFor(() => {
-      expect(downloadCurrentBook).toHaveBeenCalledWith(audiobookItem, { selectedTrackIndices: [1] })
+      expect(downloadCurrentBook).toHaveBeenCalledWith(
+        audiobookItem,
+        expect.objectContaining({
+          selectedTrackIndices: [1],
+          onProgress: expect.any(Function),
+        }),
+      )
     })
   })
 
@@ -257,7 +283,10 @@ describe('BookPage', () => {
       expect(client.startPlayback).toHaveBeenCalledWith(audiobookItemWithoutTrackMetadata.id)
       expect(appContextValue.downloadCurrentBook).toHaveBeenCalledWith(
         audiobookItemWithoutTrackMetadata,
-        { selectedTrackIndices: [1] },
+        expect.objectContaining({
+          selectedTrackIndices: [1],
+          onProgress: expect.any(Function),
+        }),
       )
     })
   })
