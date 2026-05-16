@@ -54,6 +54,9 @@ export function usePlayback(
         if (!stored) {
           return client.streamUrl(track.contentUrl)
         }
+        if (!stored.blob) {
+          return client.streamUrl(track.contentUrl)
+        }
         return URL.createObjectURL(stored.blob)
       })
     }

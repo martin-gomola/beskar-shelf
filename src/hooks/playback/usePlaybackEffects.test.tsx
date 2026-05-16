@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { AudioTrack, BookItem, PersistedPlaybackState, PlaybackSession } from '../../lib/types'
 import type { AudiobookshelfClient } from '../../lib/api'
@@ -63,6 +63,10 @@ function buildActivePlayback(): ActivePlayback {
 }
 
 describe('usePlaybackEffects', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('does not replay audio when persisted playback state changes after pausing', async () => {
     const activePlayback = buildActivePlayback()
     const playbackStateRef = {
@@ -78,6 +82,7 @@ describe('usePlaybackEffects', () => {
     const audio = document.createElement('audio')
     const play = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(audio, 'play', { configurable: true, value: play })
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
 
     const props = {
       activePlayback,
@@ -123,5 +128,6 @@ describe('usePlaybackEffects', () => {
     })
 
     expect(play).toHaveBeenCalledTimes(1)
+    expect(audio.preload).toBe('auto')
   })
 })

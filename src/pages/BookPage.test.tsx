@@ -201,6 +201,36 @@ describe('BookPage', () => {
     })
   })
 
+  it('shows selected download progress immediately while the download runs', async () => {
+    const user = userEvent.setup()
+    let finishDownload!: () => void
+    const downloadCurrentBook = vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
+      finishDownload = resolve
+    }))
+
+    renderBookPage({
+      item: audiobookItem,
+      appOverrides: {
+        downloadCurrentBook,
+      },
+    })
+
+    await user.click(await screen.findByRole('button', { name: /download/i }))
+    await user.click(screen.getByRole('button', { name: /chapter 2/i }))
+    await user.click(screen.getByRole('button', { name: /download selected/i }))
+
+    const progress = await screen.findByLabelText(/offline download progress/i)
+    expect(progress).toHaveTextContent('0% offline')
+    expect(progress).toHaveTextContent('Downloading 0 of 1 tracks')
+    expect(screen.queryByText(/select tracks to download/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /downloading/i })).toBeDisabled()
+
+    finishDownload()
+    await waitFor(() => {
+      expect(downloadCurrentBook).toHaveBeenCalledWith(audiobookItem, { selectedTrackIndices: [1] })
+    })
+  })
+
   it('loads downloadable tracks from playback when the item payload only contains chapters', async () => {
     const user = userEvent.setup()
     const { appContextValue, client } = renderBookPage({ item: audiobookItemWithoutTrackMetadata })

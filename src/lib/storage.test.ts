@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { removeOfflineTracksFromBook } from './storage'
+import { removeOfflineTracksFromBook, summarizeOfflineBook } from './storage'
 import type { OfflineBook } from './types'
 
 function buildOfflineBook(trackIndices: number[], ebookBlob: Blob | null = null): OfflineBook {
@@ -53,5 +53,24 @@ describe('removeOfflineTracksFromBook', () => {
       tracks: [],
       ebookBlob,
     })
+  })
+})
+
+describe('summarizeOfflineBook', () => {
+  it('keeps metadata while removing stored media blobs from list results', () => {
+    const ebookBlob = new Blob(['ebook'], { type: 'application/epub+zip' })
+    const book = buildOfflineBook([0, 1], ebookBlob)
+
+    const summary = summarizeOfflineBook(book)
+
+    expect(summary).toMatchObject({
+      itemId: 'book-1',
+      title: 'Test Book',
+      totalBytes: book.totalBytes,
+      totalTracks: 3,
+      ebookBlob: null,
+    })
+    expect(summary.tracks.map((track) => track.trackIndex)).toEqual([0, 1])
+    expect(summary.tracks[0]).not.toHaveProperty('blob')
   })
 })

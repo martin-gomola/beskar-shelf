@@ -71,6 +71,8 @@ export function BookPage() {
   const [showDownloadPicker, setShowDownloadPicker] = useState(false)
   const [selectedTrackIndices, setSelectedTrackIndices] = useState<number[]>([])
   const [downloadTracks, setDownloadTracks] = useState<AudioTrack[]>([])
+  const [downloadPending, setDownloadPending] = useState(false)
+  const [pendingDownloadTrackCount, setPendingDownloadTrackCount] = useState<number | null>(null)
   const query = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => client.getItem(itemId),
@@ -106,14 +108,18 @@ export function BookPage() {
   const knownDownloadableTrackCount = offline?.totalTracks
     ?? (currentItem.audioTracks.length > 0 ? currentItem.audioTracks.length : currentItem.chapters.length)
   const downloadableTrackCount = Math.max(knownDownloadableTrackCount, downloadedTrackCount)
-  const offlineProgressPct = downloadableTrackCount > 0
-    ? Math.min(100, Math.round((downloadedTrackCount / downloadableTrackCount) * 100))
+  const progressTrackCount = offline
+    ? downloadableTrackCount
+    : Math.max(pendingDownloadTrackCount ?? 0, downloadedTrackCount)
+  const offlineProgressPct = progressTrackCount > 0
+    ? Math.min(100, Math.round((downloadedTrackCount / progressTrackCount) * 100))
     : isDownloaded ? 100 : 0
-  const hasOfflineProgress = canPlay && Boolean(offline) && (offline?.status === 'downloading' || downloadedTrackCount > 0)
-  const downloadUnit = downloadableTrackCount === currentItem.chapters.length ? 'chapters' : 'tracks'
-  const offlineProgressLabel = offline?.status === 'downloading'
-    ? `Downloading ${downloadedTrackCount} of ${downloadableTrackCount} ${downloadUnit}`
-    : `${downloadedTrackCount} of ${downloadableTrackCount} ${downloadUnit} saved`
+  const isDownloadInProgress = downloadPending || offline?.status === 'downloading'
+  const hasOfflineProgress = canPlay && (Boolean(offline) || downloadPending) && (isDownloadInProgress || downloadedTrackCount > 0)
+  const downloadUnit = progressTrackCount === currentItem.chapters.length ? 'chapters' : 'tracks'
+  const offlineProgressLabel = isDownloadInProgress
+    ? `Downloading ${downloadedTrackCount} of ${progressTrackCount} ${downloadUnit}`
+    : `${downloadedTrackCount} of ${progressTrackCount} ${downloadUnit} saved`
 
   function toggleTrack(index: number) {
     setSelectedTrackIndices((current) => (
@@ -139,10 +145,18 @@ export function BookPage() {
   }
 
   async function confirmSelectedDownload() {
-    await downloadCurrentBook(currentItem, { selectedTrackIndices })
+    const tracksToDownload = selectedTrackIndices
+    setDownloadPending(true)
+    setPendingDownloadTrackCount(tracksToDownload.length)
     setShowDownloadPicker(false)
     setSelectedTrackIndices([])
     setDownloadTracks([])
+    try {
+      await downloadCurrentBook(currentItem, { selectedTrackIndices: tracksToDownload })
+    } finally {
+      setDownloadPending(false)
+      setPendingDownloadTrackCount(null)
+    }
   }
 
   async function handleRemoveDownloadedTrack(track: AudioTrack) {
@@ -232,10 +246,14 @@ export function BookPage() {
               </button>
             </div>
           ) : (
-            <button className="ghost-button bd-action-secondary" onClick={() => void handleDownload()}>
-              {offline?.status === 'downloaded'
-                ? <><IconRefresh /> Redownload</>
-                : <><IconDownload /> Download</>}
+            <button
+              className="ghost-button bd-action-secondary"
+              onClick={() => void handleDownload()}
+              disabled={isDownloadInProgress}
+            >
+              {isDownloadInProgress
+                ? 'Downloading…'
+                : offline?.status === 'downloaded' ? <><IconRefresh /> Redownload</> : <><IconDownload /> Download</>}
             </button>
           )
         ) : null}

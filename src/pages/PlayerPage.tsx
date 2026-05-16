@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 
@@ -289,7 +289,11 @@ function PlayerPage() {
             Gap inside the block is tight (4px); the block itself still
             participates in the player-card grid spacing. */}
         <div className="player-meta">
-          <h1>{activePlayback.item.title}</h1>
+          <h1>
+            <Link className="player-title-link" to={`/book/${activePlayback.item.id}`}>
+              {activePlayback.item.title}
+            </Link>
+          </h1>
           <p className="author-line">{activePlayback.item.author}</p>
         </div>
 

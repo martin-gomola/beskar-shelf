@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import type { PersistedPlaybackState } from '../../lib/types'
 import type { AudiobookshelfClient } from '../../lib/api'
@@ -41,12 +41,15 @@ export function usePlaybackEffects({
   playbackTimeRef,
   setPlaybackState,
 }: UsePlaybackEffectsOptions) {
+  const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
+
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {
       return
     }
 
     const audio = audioRef.current
+    audio.preload = 'auto'
     const currentSource = activePlayback.sources[activePlayback.trackIndex]
     if (audio.src !== currentSource) {
       const playbackState = playbackStateRef.current
@@ -103,6 +106,27 @@ export function usePlaybackEffects({
     setCurrentTrackDuration,
     setIsPlaying,
   ])
+
+  useEffect(() => {
+    let preloadAudio = preloadAudioRef.current
+    if (!preloadAudio) {
+      preloadAudio = document.createElement('audio')
+      preloadAudio.preload = 'auto'
+      preloadAudioRef.current = preloadAudio
+    }
+    const nextSource = activePlayback?.sources[activePlayback.trackIndex + 1] ?? ''
+
+    if (!nextSource) {
+      preloadAudio.removeAttribute('src')
+      preloadAudio.load()
+      return
+    }
+
+    if (preloadAudio.src !== nextSource) {
+      preloadAudio.src = nextSource
+      preloadAudio.load()
+    }
+  }, [activePlayback])
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {

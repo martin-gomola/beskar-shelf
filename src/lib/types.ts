@@ -87,7 +87,7 @@ export interface OfflineTrack {
   title: string
   duration: number
   mimeType: string
-  blob: Blob
+  blob?: Blob
 }
 
 export interface DownloadBookOptions {

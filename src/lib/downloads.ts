@@ -69,7 +69,7 @@ export async function downloadBook(
   }
 
   function currentBytes(ebookBlob: Blob | null = shell.ebookBlob ?? null) {
-    const trackBytes = orderedTracks().reduce((total, track) => total + track.blob.size, 0)
+    const trackBytes = orderedTracks().reduce((total, track) => total + (track.blob?.size ?? 0), 0)
     return trackBytes + (ebookBlob?.size ?? 0)
   }
 

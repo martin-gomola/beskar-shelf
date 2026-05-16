@@ -17,3 +17,8 @@ Object.defineProperty(window, 'localStorage', {
   },
   configurable: true,
 })
+
+Object.defineProperty(window.HTMLMediaElement.prototype, 'load', {
+  configurable: true,
+  value: () => undefined,
+})

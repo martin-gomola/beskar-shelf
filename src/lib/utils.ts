@@ -42,7 +42,7 @@ export function formatBytes(bytes: number) {
 }
 
 export function getOfflineBookBytes(book: Pick<OfflineBook, 'tracks' | 'ebookBlob' | 'totalBytes'>) {
-  const trackBytes = book.tracks.reduce((total, track) => total + track.blob.size, 0)
+  const trackBytes = book.tracks.reduce((total, track) => total + (track.blob?.size ?? 0), 0)
   const ebookBytes = book.ebookBlob?.size ?? 0
   const derivedBytes = trackBytes + ebookBytes
 

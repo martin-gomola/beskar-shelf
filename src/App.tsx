@@ -136,7 +136,7 @@ function App() {
       <AppContext.Provider value={appContextValue}>
         <PlayerContext.Provider value={playerContextValue}>
           <PlayerTimeContext.Provider value={playerTimeValue}>
-            <audio ref={audioRef} preload="metadata" />
+            <audio ref={audioRef} preload="auto" />
             <Shell />
           </PlayerTimeContext.Provider>
         </PlayerContext.Provider>

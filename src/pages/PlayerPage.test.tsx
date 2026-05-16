@@ -188,6 +188,12 @@ describe('PlayerPage sleep timer', () => {
     expect(screen.getByRole('button', { name: /track 2.*downloaded.*3:00/i })).toBeInTheDocument()
   })
 
+  it('links the playing book title to the book detail page', () => {
+    renderPlayerPage()
+
+    expect(screen.getByRole('link', { name: 'Beskar Rising' })).toHaveAttribute('href', '/book/audio-1')
+  })
+
   it('uses the current track as the scrubber range for precise seeking', () => {
     const secondTrackPlayback: ActivePlayback = {
       ...activePlayback,

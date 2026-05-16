@@ -30,6 +30,9 @@ export function hasCompleteOfflineTracks(item: BookItem, offline: OfflineBook) {
   if (offline.status !== 'downloaded' || offline.tracks.length === 0) {
     return false
   }
+  if (offline.tracks.some((track) => !track.blob)) {
+    return false
+  }
 
   const expectedTracks = offline.totalTracks ?? item.audioTracks.length
   return expectedTracks === 0 || offline.tracks.length >= expectedTracks
