@@ -2,6 +2,23 @@
 
 A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) armory. Focused on **YouTube → mp3 processing** and audiobook library management — download, organise, play, read, sync progress, stash offline. This is the Way.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/home-preview.png" width="200" alt="Home" /></td>
+    <td><img src="docs/screenshots/library-overview.png" width="200" alt="Library" /></td>
+    <td><img src="docs/screenshots/audio-player.png" width="200" alt="Player" /></td>
+    <td><img src="docs/screenshots/epub-reader.png" width="200" alt="Reader" /></td>
+  </tr>
+  <tr>
+    <td align="center">Home</td>
+    <td align="center">Library</td>
+    <td align="center">Player</td>
+    <td align="center">Reader</td>
+  </tr>
+</table>
+
 ## The Armory
 
 - **YouTube → MP3 pipeline** — download playlists, tag, organise into Audiobookshelf-ready folders

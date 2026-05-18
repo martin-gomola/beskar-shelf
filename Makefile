@@ -1,4 +1,4 @@
-.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop kill build test lint deploy deploy-down deploy-logs abs-token abs-descriptions optimize-pdf optimize-pdf-lossless
+.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop kill build test lint deploy deploy-down deploy-logs abs-token abs-descriptions optimize-pdf optimize-pdf-lossless screenshots
 help:
 	@echo "beskar-shelf commands"
 	@echo ""
@@ -168,3 +168,7 @@ stop: deploy-down
 
 deploy-logs:
 	docker compose logs -f
+
+screenshots:
+	@echo "Capturing mobile screenshots (make dev must be running)…"
+	node scripts/screenshots.mjs
