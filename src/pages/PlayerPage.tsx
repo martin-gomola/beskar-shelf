@@ -349,26 +349,30 @@ function PlayerPage() {
         </div>
 
         <label className={clsx('scrubber', { seeking: seekPreview !== null })}>
-          <span className="scrubber-track" aria-hidden="true">
-            <span className="scrubber-buffer" style={{ width: `${Math.max(bufferedPct, localSeekPct)}%` }} />
-            <span className="scrubber-progress" style={{ width: `${localSeekPct}%` }} />
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={Math.max(activeTrackDuration, 1)}
-            value={localSeekTime}
-            onInput={(event) => {
-              setIsSeeking(true)
-              setSeekPreview(Number((event.target as HTMLInputElement).value))
-            }}
-            onChange={(event) => {
-              const value = Number(event.target.value)
-              setIsSeeking(false)
-              seekTo(activeTrackStart + value)
-              setSeekPreview(null)
-            }}
-          />
+          <div className="scrubber-track-wrapper">
+            <span className="scrubber-track" aria-hidden="true">
+              <span className="scrubber-buffer" style={{ width: `${Math.max(bufferedPct, localSeekPct)}%` }} />
+              <span className="scrubber-progress" style={{ width: `${localSeekPct}%` }} />
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={Math.max(activeTrackDuration, 1)}
+              step={1}
+              value={localSeekTime}
+              aria-label="Seek position"
+              onInput={(event) => {
+                setIsSeeking(true)
+                setSeekPreview(Number((event.target as HTMLInputElement).value))
+              }}
+              onChange={(event) => {
+                const value = Number(event.target.value)
+                setIsSeeking(false)
+                seekTo(activeTrackStart + value)
+                setSeekPreview(null)
+              }}
+            />
+          </div>
           <div className="time-row player-time-row">
             <span>{formatDuration(localSeekTime)}</span>
             <strong>{formatDuration(bookRemaining)} left</strong>
