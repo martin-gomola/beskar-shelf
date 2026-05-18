@@ -328,8 +328,7 @@ h3 {
 
 /* ─── Cards ─── */
 
-.card,
-.player-card {
+.card {
   display: grid;
   gap: var(--sp-4);
   background: var(--glass-bg);
@@ -1826,9 +1825,11 @@ h3 {
   display: grid;
   gap: 20px;
   text-align: center;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(215, 182, 109, 0.14), transparent 34%),
-    var(--glass-bg);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .player-controls {
@@ -3105,6 +3106,20 @@ h3 {
 .downloads-size {
   font-variant-numeric: tabular-nums;
   font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.downloads-cached-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--hover-bg-strong);
+  color: var(--text-muted);
 }
 
 .downloads-row-remove {
@@ -3377,8 +3392,7 @@ h3 {
 }
 
 @media (max-width: 720px) {
-  .card,
-  .player-card {
+  .card {
     padding: var(--sp-4);
   }
 

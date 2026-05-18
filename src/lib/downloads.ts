@@ -1,5 +1,6 @@
 import type { AudiobookshelfClient } from './api'
 import { getOfflineBook, putOfflineBook } from './storage'
+import type { ActivePlayback } from '../hooks/playback/shared'
 import type { BookItem, DownloadBookOptions, DownloadProgress, OfflineBook, OfflineTrack } from './types'
 
 const CONCURRENCY = 3
@@ -23,6 +24,7 @@ export async function downloadBook(
     author: item.author,
     coverPath: item.coverPath,
     status: 'downloading',
+    source: 'download',
     totalBytes: existing?.totalBytes ?? 0,
     totalTracks: existing?.totalTracks,
     updatedAt: Date.now(),
@@ -203,6 +205,7 @@ export async function downloadBook(
     author: item.author,
     coverPath: item.coverPath,
     status: 'downloaded',
+    source: 'download',
     totalBytes,
     totalTracks,
     updatedAt: Date.now(),
@@ -213,4 +216,55 @@ export async function downloadBook(
 
   await putOfflineBook(result)
   return result
+}
+
+export async function cachePlayedTrack(
+  client: AudiobookshelfClient,
+  activePlayback: ActivePlayback,
+  trackIndex: number,
+) {
+  const track = activePlayback.session.audioTracks[trackIndex]
+  if (!track?.contentUrl) {
+    return
+  }
+
+  const existing = await getOfflineBook(activePlayback.item.id)
+  if (existing?.tracks.some((t) => t.trackIndex === track.index && t.blob)) {
+    return
+  }
+
+  const response = await fetch(client.streamUrl(track.contentUrl))
+  if (!response.ok) {
+    return
+  }
+
+  const blob = await response.blob()
+  const offlineTrack: OfflineTrack = {
+    trackIndex: track.index,
+    title: track.title,
+    duration: track.duration,
+    mimeType: track.mimeType,
+    blob,
+  }
+
+  const item = activePlayback.item
+  const tracks = [...(existing?.tracks ?? []).filter((t) => t.trackIndex !== track.index), offlineTrack]
+  const totalBytes = tracks.reduce((sum, t) => sum + (t.blob?.size ?? 0), 0)
+
+  const book: OfflineBook = {
+    itemId: item.id,
+    title: item.title,
+    author: item.author,
+    coverPath: item.coverPath,
+    status: 'downloaded',
+    source: existing?.source ?? 'cache',
+    totalBytes,
+    totalTracks: existing?.totalTracks ?? activePlayback.session.audioTracks.length,
+    updatedAt: Date.now(),
+    tracks,
+    ebookBlob: existing?.ebookBlob ?? null,
+    ebookFormat: item.ebookFormat,
+  }
+
+  await putOfflineBook(book)
 }

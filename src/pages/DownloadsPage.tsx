@@ -35,17 +35,20 @@ function IconCheck() {
 
 function DownloadsPage() {
   const client = useClient()
-  const { offlineBooks, removeOfflineBook } = useAppContext()
+  const { offlineBooks, removeOfflineBook, clearCachedBooks } = useAppContext()
   const { primary } = usePrimaryLibrary()
 
   const [editing, setEditing] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [removing, setRemoving] = useState(false)
+  const [clearingCache, setClearingCache] = useState(false)
 
   const summary = useMemo(() => {
     const downloaded = offlineBooks.filter((book) => book.status === 'downloaded')
     const totalBytes = downloaded.reduce((sum, book) => sum + getOfflineBookBytes(book), 0)
-    return { count: downloaded.length, totalBytes }
+    const cachedCount = downloaded.filter((book) => book.source === 'cache').length
+    const cachedBytes = downloaded.filter((book) => book.source === 'cache').reduce((sum, book) => sum + getOfflineBookBytes(book), 0)
+    return { count: downloaded.length, totalBytes, cachedCount, cachedBytes }
   }, [offlineBooks])
 
   // Reconcile selection set against book list (in case items disappear).
@@ -137,6 +140,20 @@ function DownloadsPage() {
               </span>
             </div>
           ) : null}
+          {summary.cachedCount > 0 && !editing ? (
+            <button
+              type="button"
+              className="ghost-button downloads-edit-btn"
+              onClick={async () => {
+                if (!window.confirm(`Clear ${summary.cachedCount} cached book${summary.cachedCount === 1 ? '' : 's'} (${formatBytes(summary.cachedBytes)})?`)) return
+                setClearingCache(true)
+                try { await clearCachedBooks() } finally { setClearingCache(false) }
+              }}
+              disabled={clearingCache}
+            >
+              {clearingCache ? 'Clearing…' : 'Clear cache'}
+            </button>
+          ) : null}
           {offlineBooks.length > 0 ? (
             <button
               type="button"
@@ -220,7 +237,10 @@ function DownloadsPage() {
                   <span className="downloads-info">
                     <strong>{book.title}</strong>
                     <span className="muted">{book.author}</span>
-                    <span className="muted downloads-size">{sizeLabel}</span>
+                    <span className="muted downloads-size">
+                      {sizeLabel}
+                      {book.source === 'cache' ? <span className="downloads-cached-badge">Cached</span> : null}
+                    </span>
                   </span>
                 </>
               )

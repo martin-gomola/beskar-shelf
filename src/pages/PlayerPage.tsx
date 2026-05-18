@@ -216,6 +216,13 @@ function PlayerPage() {
 
     const activeTrack = activePlayback.session.audioTracks[activePlayback.trackIndex]
     const trackDuration = activeTrack?.duration ?? currentTrackDuration
+    const currentSource = activePlayback.sources[activePlayback.trackIndex] ?? ''
+
+    if (currentSource.startsWith('blob:')) {
+      setBufferedTrackTime(trackDuration)
+      return
+    }
+
     let frame = 0
 
     function updateBufferedTime() {

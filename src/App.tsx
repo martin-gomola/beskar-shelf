@@ -62,6 +62,7 @@ function App() {
     downloadCurrentBook,
     removeOfflineBook,
     removeOfflineTracks,
+    clearCachedBooks,
   } = useOffline(client)
 
   async function refreshBooks() {
@@ -90,7 +91,7 @@ function App() {
     jumpToNextTrack,
     setIsSeeking,
     audioRef,
-  } = usePlayback(client, session, playbackState, setPlaybackState)
+  } = usePlayback(client, session, playbackState, setPlaybackState, refreshOfflineBooks)
 
   const appContextValue = useMemo(() => ({
     server,
@@ -106,6 +107,7 @@ function App() {
     downloadCurrentBook,
     removeOfflineBook,
     removeOfflineTracks,
+    clearCachedBooks,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [server, session, isOnline, offlineBooks, playbackState])
 

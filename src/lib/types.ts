@@ -109,6 +109,7 @@ export interface OfflineBook {
   author: string
   coverPath: string | null
   status: 'idle' | 'downloading' | 'downloaded' | 'error'
+  source?: 'download' | 'cache'
   totalBytes: number
   totalTracks?: number
   updatedAt: number

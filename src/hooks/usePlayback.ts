@@ -23,6 +23,7 @@ export function usePlayback(
   session: { token: string } | null,
   playbackState: PersistedPlaybackState | null,
   setPlaybackState: React.Dispatch<React.SetStateAction<PersistedPlaybackState | null>>,
+  refreshOfflineBooks?: () => Promise<void>,
 ) {
   const [activePlayback, setActivePlayback] = useState<ActivePlayback | null>(null)
   const [playbackTime, setPlaybackTime] = useState(0)
@@ -142,6 +143,7 @@ export function usePlayback(
     drainProgressQueue,
     playbackTimeRef,
     setPlaybackState,
+    refreshOfflineBooks,
   })
 
   const startBook = useCallback(async (item: BookItem, startTime?: number) => {

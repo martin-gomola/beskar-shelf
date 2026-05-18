@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import type { PersistedPlaybackState } from '../../lib/types'
 import type { AudiobookshelfClient } from '../../lib/api'
+import { cachePlayedTrack } from '../../lib/downloads'
 import { revokePlaybackSources, totalTimeFromTrack, type ActivePlayback } from './shared'
 
 interface UsePlaybackEffectsOptions {
@@ -21,6 +22,7 @@ interface UsePlaybackEffectsOptions {
   drainProgressQueue: () => Promise<void>
   playbackTimeRef: React.RefObject<number>
   setPlaybackState: React.Dispatch<React.SetStateAction<PersistedPlaybackState | null>>
+  refreshOfflineBooks?: () => Promise<void>
 }
 
 export function usePlaybackEffects({
@@ -40,6 +42,7 @@ export function usePlaybackEffects({
   drainProgressQueue,
   playbackTimeRef,
   setPlaybackState,
+  refreshOfflineBooks,
 }: UsePlaybackEffectsOptions) {
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -70,6 +73,13 @@ export function usePlaybackEffects({
     }
     const onLoaded = () => setCurrentTrackDuration(audio.duration || 0)
     const onEnded = () => {
+      const finishedSource = activePlayback.sources[activePlayback.trackIndex]
+      if (finishedSource && !finishedSource.startsWith('blob:')) {
+        void cachePlayedTrack(client, activePlayback, activePlayback.trackIndex)
+          .then(() => refreshOfflineBooks?.())
+          .catch(() => {})
+      }
+
       const nextIndex = activePlayback.trackIndex + 1
       if (nextIndex < activePlayback.sources.length) {
         const next = { ...activePlayback, trackIndex: nextIndex }
@@ -126,7 +136,7 @@ export function usePlaybackEffects({
       preloadAudio.src = nextSource
       preloadAudio.load()
     }
-  }, [activePlayback])
+  }, [activePlayback?.sources, activePlayback?.trackIndex])
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {

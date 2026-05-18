@@ -62,11 +62,20 @@ export function useOffline(client: AudiobookshelfClient) {
     await refreshOfflineBooks()
   }
 
+  async function clearCachedBooks() {
+    const cached = offlineBooks.filter((book) => book.source === 'cache')
+    for (const book of cached) {
+      await deleteOfflineBook(book.itemId)
+    }
+    await refreshOfflineBooks()
+  }
+
   return {
     offlineBooks,
     refreshOfflineBooks,
     downloadCurrentBook,
     removeOfflineBook,
     removeOfflineTracks,
+    clearCachedBooks,
   }
 }
