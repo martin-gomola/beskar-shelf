@@ -8,6 +8,7 @@ import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext, usePlayerTime } from '../contexts/PlayerContext'
 import { useToast } from '../contexts/ToastContext'
 import { useSleepTimer } from '../hooks/useSleepTimer'
+import { cachePlayedTrack } from '../lib/downloads'
 import { deleteBookmark as deleteLocalBookmark, loadBookmarks, upsertBookmark } from '../lib/storage'
 import type { Bookmark } from '../lib/types'
 import { clamp, formatDuration, formatProgress } from '../lib/utils'
@@ -257,6 +258,24 @@ function PlayerPage() {
       audio.removeEventListener('emptied', updateBufferedTime)
     }
   }, [activePlayback, audioRef, currentTrackDuration])
+
+  // Persist track to IndexedDB once the browser has fully buffered it
+  const cachedTrackRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!activePlayback) return
+    const trackKey = `${activePlayback.item.id}:${activePlayback.trackIndex}`
+    if (cachedTrackRef.current === trackKey) return
+
+    const source = activePlayback.sources[activePlayback.trackIndex] ?? ''
+    if (source.startsWith('blob:')) return
+
+    const trackDuration = activePlayback.session.audioTracks[activePlayback.trackIndex]?.duration ?? 0
+    if (trackDuration <= 0 || bufferedTrackTime < trackDuration * 0.98) return
+
+    cachedTrackRef.current = trackKey
+    void cachePlayedTrack(client, activePlayback, activePlayback.trackIndex)
+      .catch(() => {})
+  }, [activePlayback, bufferedTrackTime, client])
 
   if (!activePlayback) {
     return <PlayerResumeGate />
