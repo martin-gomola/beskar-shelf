@@ -105,6 +105,7 @@ function renderPlayerPage({
     downloadCurrentBook: vi.fn().mockResolvedValue(undefined),
     removeOfflineBook: vi.fn().mockResolvedValue(undefined),
     removeOfflineTracks: vi.fn().mockResolvedValue(undefined),
+    clearCachedBooks: vi.fn().mockResolvedValue(undefined),
     ...appOverrides,
   }
 
