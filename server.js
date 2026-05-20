@@ -2,11 +2,20 @@ import express from 'express'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import fs from 'node:fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const dist = path.join(__dirname, 'dist')
 const port = Number(process.env.PORT) || 10000
 const absUpstream = process.env.ABS_UPSTREAM?.replace(/\/+$/, '')
+
+const analyticsScript = process.env.ANALYTICS_SCRIPT?.trim()
+if (analyticsScript) {
+  const indexPath = path.join(dist, 'index.html')
+  const html = fs.readFileSync(indexPath, 'utf-8')
+  fs.writeFileSync(indexPath, html.replace('<!-- ANALYTICS -->', analyticsScript))
+  console.log('Analytics script injected into index.html')
+}
 
 const app = express()
 
