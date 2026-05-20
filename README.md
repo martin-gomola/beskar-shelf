@@ -2,6 +2,9 @@
 
 A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) armory. Focused on **YouTube → mp3 processing** and audiobook library management — download, organise, play, read, sync progress, stash offline. This is the Way.
 
+> **Live demo:** [beskar-shelf.onrender.com](https://beskar-shelf.onrender.com)
+> The demo runs on Render's free tier, so the first visit after a period of inactivity may take ~1 minute while the service wakes up.
+
 ## Screenshots
 
 <table>
@@ -110,8 +113,26 @@ make build      # production bundle
 ## Deploy
 
 This repo now owns the Beskar Shelf app only. Manage the Audiobookshelf
-server itself in your infrastructure repo, then point the app container at it
+server itself in your infrastructure repo, then point the app at it
 through `ABS_UPSTREAM`.
+
+### Render (free tier)
+
+The included `render.yaml` deploys a Node.js Web Service that serves the
+built PWA and proxies `/abs/*` to your Audiobookshelf server — no CORS
+configuration needed.
+
+1. Fork this repo and connect it to [Render](https://render.com).
+2. Create a **New Web Service** and select the repo (or use the Blueprint from `render.yaml`).
+3. Set these environment variables on the Render dashboard:
+   - `ABS_UPSTREAM` — your Audiobookshelf URL (e.g. `https://books.example.com`)
+   - `VITE_DEFAULT_SERVER_URL` — same URL (pre-fills the login form)
+4. Deploy. Render builds the Vite bundle and starts `server.js`.
+
+Free-tier services spin down after 15 minutes of inactivity. The first
+request after idle takes ~1 minute while the service restarts.
+
+### Docker
 
 ```bash
 cp .env.example .env
