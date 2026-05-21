@@ -13,7 +13,5 @@ services:
         value: /abs
       - key: VITE_DEFAULT_SERVER_URL
         sync: false
-      - key: ABS_UPSTREAM
-        sync: false
       - key: ANALYTICS_SCRIPT
         sync: false

@@ -1,25 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
 
-const proxyBase = import.meta.env.VITE_ABS_PROXY_BASE?.trim() ?? ''
+const hasDynamicProxy = Boolean(import.meta.env.VITE_ABS_PROXY_BASE?.trim())
 
 export function SetupPage() {
   const { setServer } = useAppContext()
   const navigate = useNavigate()
   const [baseUrl, setBaseUrl] = useState(
-    import.meta.env.VITE_DEFAULT_SERVER_URL?.trim()
-      ?? (proxyBase ? window.location.origin : ''),
+    import.meta.env.VITE_DEFAULT_SERVER_URL?.trim() ?? '',
   )
-
-  useEffect(() => {
-    if (!proxyBase) return
-    setServer({ baseUrl: window.location.origin, mode: 'proxy' })
-    navigate('/login', { replace: true })
-  }, [setServer, navigate])
-
-  if (proxyBase) return null
 
   return (
     <main className="screen setup-screen">
@@ -52,7 +43,7 @@ export function SetupPage() {
           onClick={() => {
             setServer({
               baseUrl: baseUrl.trim(),
-              mode: 'direct',
+              mode: hasDynamicProxy ? 'dynamic-proxy' : 'direct',
             })
             navigate('/login')
           }}

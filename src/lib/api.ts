@@ -203,6 +203,10 @@ export class AudiobookshelfClient {
       return `${window.location.origin}${proxyBase}`
     }
 
+    if (this.server?.mode === 'dynamic-proxy') {
+      return `${window.location.origin}/proxy/${this.baseUrl}`
+    }
+
     return this.baseUrl
   }
 

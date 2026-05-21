@@ -1,6 +1,6 @@
 export interface ServerConfig {
   baseUrl: string
-  mode: 'direct' | 'proxy'
+  mode: 'direct' | 'proxy' | 'dynamic-proxy'
 }
 
 export interface UserSession {
