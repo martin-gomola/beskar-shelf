@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../contexts/AppContext'
 import { useServiceWorkerUpdate } from '../hooks/useServiceWorkerUpdate'
 import { useTheme } from '../hooks/useTheme'
+import { clearNetworkCaches } from '../lib/storage'
 import { formatBytes, getOfflineBookBytes } from '../lib/utils'
 import { APP_VERSION } from '../utils/version'
 
@@ -14,17 +15,33 @@ const THEME_OPTIONS = [
 ]
 
 function SettingsPage() {
-  const { server, session, setSession, setServer, refreshBooks, refreshOfflineBooks, offlineBooks } = useAppContext()
+  const {
+    server,
+    session,
+    setSession,
+    setServer,
+    refreshBooks,
+    refreshOfflineBooks,
+    offlineBooks,
+    clearCachedBooks,
+  } = useAppContext()
   const { updateAvailable, reload, checkForUpdate } = useServiceWorkerUpdate()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [refreshingBooks, setRefreshingBooks] = useState(false)
   const [checkingForUpdate, setCheckingForUpdate] = useState(false)
+  const [purgingCache, setPurgingCache] = useState(false)
 
   const offlineSummary = useMemo(() => {
     const downloaded = offlineBooks.filter((book) => book.status === 'downloaded')
     const totalBytes = downloaded.reduce((sum, book) => sum + getOfflineBookBytes(book), 0)
     return { count: downloaded.length, totalBytes }
+  }, [offlineBooks])
+
+  const cacheSummary = useMemo(() => {
+    const cached = offlineBooks.filter((book) => book.source === 'cache')
+    const totalBytes = cached.reduce((sum, book) => sum + getOfflineBookBytes(book), 0)
+    return { count: cached.length, totalBytes }
   }, [offlineBooks])
 
   async function handleRefreshBooks() {
@@ -33,6 +50,26 @@ function SettingsPage() {
       await refreshBooks()
     } finally {
       setRefreshingBooks(false)
+    }
+  }
+
+  async function handlePurgeCache() {
+    if (purgingCache) return
+
+    const detail = cacheSummary.count > 0
+      ? `${cacheSummary.count} auto-cached book${cacheSummary.count === 1 ? '' : 's'} (${formatBytes(cacheSummary.totalBytes)})`
+      : 'cached library data and covers'
+    if (!window.confirm(`Purge ${detail}? Books you downloaded yourself are kept.`)) {
+      return
+    }
+
+    setPurgingCache(true)
+    try {
+      await clearCachedBooks()
+      await clearNetworkCaches()
+      await refreshBooks()
+    } finally {
+      setPurgingCache(false)
     }
   }
 
@@ -145,6 +182,19 @@ function SettingsPage() {
               {offlineSummary.count === 0
                 ? 'No books downloaded yet'
                 : `${offlineSummary.count} book${offlineSummary.count === 1 ? '' : 's'} · ${formatBytes(offlineSummary.totalBytes)}`}
+            </span>
+          </button>
+          <div className="settings-divider" />
+          <button
+            className="settings-action"
+            onClick={() => void handlePurgeCache()}
+            disabled={purgingCache}
+          >
+            <span>{purgingCache ? 'Purging cache…' : 'Purge cache'}</span>
+            <span className="settings-action-hint">
+              {cacheSummary.count > 0
+                ? `Clear ${cacheSummary.count} auto-cached book${cacheSummary.count === 1 ? '' : 's'} (${formatBytes(cacheSummary.totalBytes)}) and stale server data`
+                : 'Clear cached library data and covers from the server'}
             </span>
           </button>
         </div>

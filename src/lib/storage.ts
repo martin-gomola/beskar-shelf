@@ -288,6 +288,31 @@ async function getTrackBlobRecords(db: Awaited<ReturnType<typeof openDB>>, itemI
   return index.getAll(itemId) as Promise<OfflineTrackBlobRecord[]>
 }
 
+/**
+ * Clears the service worker's API and cover caches. Used when switching
+ * servers or purging stale data so we don't serve cached responses that
+ * point at the previous server URL.
+ *
+ * Safe to call when no service worker is registered (e.g. in tests):
+ * `caches` is feature-detected and errors per cache are swallowed.
+ */
+export async function clearNetworkCaches() {
+  if (typeof caches === 'undefined') {
+    return
+  }
+
+  const SW_CACHE_NAMES = ['beskar-api', 'beskar-covers'] as const
+  await Promise.all(
+    SW_CACHE_NAMES.map(async (name) => {
+      try {
+        await caches.delete(name)
+      } catch {
+        // ignore individual failures so one bad cache doesn't block the rest
+      }
+    }),
+  )
+}
+
 async function migrateLegacyOfflineMedia(db: Awaited<ReturnType<typeof openDB>>) {
   const books = await db.getAll(BOOK_STORE) as OfflineBook[]
   const legacyBooks = books.filter((book) => (
