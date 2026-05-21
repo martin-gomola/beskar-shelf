@@ -34,7 +34,7 @@ export function LoginPage() {
             <img className="brand-mark brand-mark-small" src="/pwa-icon.svg" alt="" aria-hidden="true" />
             <div>
               <p className="eyebrow">Server</p>
-              <h2>{server?.baseUrl}</h2>
+              <h2 className="auth-server-url">{server?.baseUrl}</h2>
               <button
                 type="button"
                 className="link-inline-button"

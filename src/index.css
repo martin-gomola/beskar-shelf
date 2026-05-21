@@ -826,6 +826,18 @@ h3 {
   gap: var(--sp-4);
 }
 
+.auth-intro .brand-lockup > div {
+  min-width: 0;
+}
+
+.auth-server-url {
+  font-size: var(--fs-base);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .theme-toggle {
   display: flex;
   gap: 2px;

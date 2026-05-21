@@ -294,11 +294,18 @@ export class AudiobookshelfClient {
         })
 
         if (!response.ok) {
-          const message = await response.text()
           if (response.status === 401) {
             throw new SessionExpiredError('Your Audiobookshelf session is invalid or expired.')
           }
-          throw new Error(message || `Audiobookshelf request failed (${response.status})`)
+          const raw = await response.text()
+          let message = raw
+          try {
+            const body = JSON.parse(raw)
+            if (typeof body?.error === 'string') message = body.error
+          } catch { /* not JSON, keep raw text */ }
+          const err = new Error(message || `Request failed (${response.status})`)
+          if (response.status === 429) throw err
+          throw err
         }
 
         if (response.status === 204) {
