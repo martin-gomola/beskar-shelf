@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
@@ -12,6 +12,14 @@ export function SetupPage() {
     import.meta.env.VITE_DEFAULT_SERVER_URL?.trim()
       ?? (proxyBase ? window.location.origin : ''),
   )
+
+  useEffect(() => {
+    if (!proxyBase) return
+    setServer({ baseUrl: window.location.origin, mode: 'proxy' })
+    navigate('/login', { replace: true })
+  }, [setServer, navigate])
+
+  if (proxyBase) return null
 
   return (
     <main className="screen setup-screen">
@@ -28,9 +36,7 @@ export function SetupPage() {
       <section className="card form-card" style={{ width: '100%' }}>
         <h2>Connect your server</h2>
         <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>
-          {proxyBase
-            ? 'Keep the current host if this Beskar Shelf deployment already proxies Audiobookshelf for you.'
-            : 'Enter the public URL that serves Audiobookshelf.'}
+          Enter your Audiobookshelf server URL to get started.
         </p>
         <label className="field">
           <span>Server URL</span>
@@ -46,7 +52,7 @@ export function SetupPage() {
           onClick={() => {
             setServer({
               baseUrl: baseUrl.trim(),
-              mode: proxyBase ? 'proxy' : 'direct',
+              mode: 'direct',
             })
             navigate('/login')
           }}
