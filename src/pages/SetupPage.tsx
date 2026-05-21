@@ -14,18 +14,22 @@ export function SetupPage() {
 
   return (
     <main className="screen setup-screen">
-      <section className="hero-panel welcome-panel">
-        <div className="brand-lockup">
-          <img className="brand-mark" src="/pwa-icon.svg" alt="" aria-hidden="true" />
+      <section className="welcome-panel">
+        <div className="brand-lockup brand-lockup-compact">
+          <img
+            className="brand-mark brand-mark-small"
+            src="/pwa-icon.svg"
+            alt=""
+            aria-hidden="true"
+          />
           <div>
-            <p className="eyebrow">Beskar Shelf</p>
-            <h1>Your audiobooks,<br />anywhere.</h1>
+            <h1>Beskar Shelf</h1>
+            <p className="muted welcome-subline">Your audiobooks, anywhere.</p>
           </div>
         </div>
       </section>
 
       <section className="card form-card" style={{ width: '100%' }}>
-        <h2>Connect your server</h2>
         <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>
           Enter your Audiobookshelf server URL to get started.
         </p>
