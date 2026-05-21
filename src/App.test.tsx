@@ -19,7 +19,7 @@ describe('App', () => {
       </QueryClientProvider>,
     )
 
-    expect(screen.getByRole('heading', { name: /your audiobooks/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /beskar shelf/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/server url/i)).toBeInTheDocument()
   })
 })

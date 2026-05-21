@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 
 import type { AudiobookshelfClient } from '../lib/api'
-import type { UserSession } from '../lib/types'
+import type { ServerConfig, UserSession } from '../lib/types'
 
 // Minimal socket.io v4 wire protocol over native WebSocket.
 // ABS emits: 'item_updated', 'user_media_progress_updated', 'items_updated'
@@ -34,6 +34,7 @@ function absSocketUrl(client: AudiobookshelfClient, token: string): string {
 export function useAbsSocket(
   client: AudiobookshelfClient,
   session: UserSession | null,
+  server: ServerConfig | null,
   queryClient: QueryClient,
 ) {
   const wsRef = useRef<WebSocket | null>(null)
@@ -48,6 +49,13 @@ export function useAbsSocket(
 
   useEffect(() => {
     if (!session?.token || !client.hasServer()) return
+    // The public demo runs in dynamic-proxy mode: REST goes through
+    // /proxy/<target-url> (plain HTTP forwarding via fetch), which does not
+    // handle WebSocket upgrades. Skip the socket connection in that mode so
+    // we don't spam reconnect attempts that always fail. Static `proxy` mode
+    // (the mac-mini deployment) uses http-proxy-middleware with ws: true and
+    // works normally.
+    if (server?.mode === 'dynamic-proxy') return
     const token = session.token
 
     let destroyed = false
@@ -139,5 +147,5 @@ export function useAbsSocket(
 
     connect()
     return cleanup
-  }, [client, queryClient, session])
+  }, [client, queryClient, session, server])
 }

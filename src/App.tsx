@@ -54,7 +54,7 @@ function App() {
     return () => window.removeEventListener('session-expired', handleExpired)
   }, [])
 
-  useAbsSocket(client, session, queryClient)
+  useAbsSocket(client, session, server, queryClient)
 
   const {
     offlineBooks,
