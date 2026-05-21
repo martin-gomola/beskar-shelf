@@ -12,6 +12,10 @@ services:
       - key: VITE_ABS_PROXY_BASE
         value: /abs
       - key: VITE_DEFAULT_SERVER_URL
-        sync: false
+        value: https://audiobooks.dev
+      - key: VITE_DEMO_USERNAME
+        value: demo
+      - key: VITE_DEMO_PASSWORD
+        value: demo
       - key: ANALYTICS_SCRIPT
         sync: false
