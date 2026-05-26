@@ -18,6 +18,7 @@ services:
         READER_SHA: ${READER_SHA:-main}
     environment:
       ABS_UPSTREAM: ${ABS_UPSTREAM:-http://host.docker.internal:13378}
+      ANALYTICS_SCRIPT: ${ANALYTICS_SCRIPT:-}
     ports:
       - "${APP_PORT:-4173}:4173"
     restart: unless-stopped
