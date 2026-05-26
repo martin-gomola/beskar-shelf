@@ -38,6 +38,6 @@ COPY docker-entrypoint.sh /usr/local/bin/beskar-entrypoint.sh
 RUN chmod +x /usr/local/bin/beskar-entrypoint.sh
 EXPOSE 4173
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4173/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:4173/ || exit 1
 ENTRYPOINT ["/usr/local/bin/beskar-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
