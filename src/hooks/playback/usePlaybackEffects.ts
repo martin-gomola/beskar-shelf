@@ -23,6 +23,7 @@ interface UsePlaybackEffectsOptions {
   playbackTimeRef: React.RefObject<number>
   setPlaybackState: React.Dispatch<React.SetStateAction<PersistedPlaybackState | null>>
   refreshOfflineBooks?: () => Promise<void>
+  skipSeconds?: number
 }
 
 export function usePlaybackEffects({
@@ -43,6 +44,7 @@ export function usePlaybackEffects({
   playbackTimeRef,
   setPlaybackState,
   refreshOfflineBooks,
+  skipSeconds = 30,
 }: UsePlaybackEffectsOptions) {
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -66,10 +68,16 @@ export function usePlaybackEffects({
 
     audio.playbackRate = playbackRate
 
-    const onPlay = () => setIsPlaying(true)
+    const baseTitle = document.title.replace(/^▶\s+/, '')
+    const playingTitle = `▶ ${activePlayback.item.title} — ${baseTitle}`
+    const onPlay = () => {
+      setIsPlaying(true)
+      document.title = playingTitle
+    }
     const onPause = () => {
       setIsPlaying(false)
       flushProgress(false)
+      document.title = baseTitle
     }
     const onLoaded = () => setCurrentTrackDuration(audio.duration || 0)
     const onEnded = () => {
@@ -105,6 +113,7 @@ export function usePlaybackEffects({
       audio.removeEventListener('pause', onPause)
       audio.removeEventListener('loadedmetadata', onLoaded)
       audio.removeEventListener('ended', onEnded)
+      document.title = baseTitle
     }
   }, [
     activePlayback,
@@ -219,8 +228,8 @@ export function usePlaybackEffects({
     const actions: [MediaSessionAction, MediaSessionActionHandler][] = [
       ['play', () => void togglePlayback()],
       ['pause', () => void togglePlayback()],
-      ['seekbackward', () => seekBy(-30)],
-      ['seekforward', () => seekBy(30)],
+      ['seekbackward', () => seekBy(-skipSeconds)],
+      ['seekforward', () => seekBy(skipSeconds)],
     ]
 
     for (const [action, handler] of actions) {
@@ -240,7 +249,7 @@ export function usePlaybackEffects({
         }
       }
     }
-  }, [activePlayback, client, seekBy, togglePlayback])
+  }, [activePlayback, client, seekBy, skipSeconds, togglePlayback])
 
   useEffect(() => {
     return () => {

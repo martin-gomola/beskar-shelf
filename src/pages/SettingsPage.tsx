@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
+import { useSkipSeconds } from '../hooks/usePlaybackPrefs'
 import { useServiceWorkerUpdate } from '../hooks/useServiceWorkerUpdate'
 import { useTheme } from '../hooks/useTheme'
+import { SKIP_SECONDS_OPTIONS } from '../lib/preferences'
 import { clearNetworkCaches } from '../lib/storage'
 import { formatBytes, getOfflineBookBytes } from '../lib/utils'
 import { APP_VERSION } from '../utils/version'
@@ -27,6 +29,7 @@ function SettingsPage() {
   } = useAppContext()
   const { updateAvailable, reload, checkForUpdate } = useServiceWorkerUpdate()
   const { theme, setTheme } = useTheme()
+  const [skipSeconds, setSkipSeconds] = useSkipSeconds()
   const navigate = useNavigate()
   const [refreshingBooks, setRefreshingBooks] = useState(false)
   const [checkingForUpdate, setCheckingForUpdate] = useState(false)
@@ -114,6 +117,32 @@ function SettingsPage() {
                   onClick={() => setTheme(opt.value)}
                 >
                   {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Playback */}
+      <section className="settings-group">
+        <h3 className="settings-group-label">Playback</h3>
+        <div className="settings-card">
+          <div className="settings-item settings-item-stack">
+            <div className="settings-copy">
+              <span className="settings-key">Skip distance</span>
+              <span className="settings-action-hint">
+                How far the rewind and forward buttons jump.
+              </span>
+            </div>
+            <div className="theme-toggle">
+              {SKIP_SECONDS_OPTIONS.map((value) => (
+                <button
+                  key={value}
+                  className={`theme-toggle-btn${skipSeconds === value ? ' active' : ''}`}
+                  onClick={() => setSkipSeconds(value)}
+                >
+                  {value}s
                 </button>
               ))}
             </div>

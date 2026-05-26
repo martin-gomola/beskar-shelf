@@ -15,6 +15,7 @@ import { clamp } from '../lib/utils'
 import { buildOfflineSession, hasCompleteOfflineTracks, revokePlaybackSources, trackForTime, type ActivePlayback } from './playback/shared'
 import { usePlaybackEffects } from './playback/usePlaybackEffects'
 import { usePlaybackProgress } from './playback/usePlaybackProgress'
+import { useSkipSeconds } from './usePlaybackPrefs'
 
 export type { ActivePlayback } from './playback/shared'
 
@@ -126,6 +127,8 @@ export function usePlayback(
     seekTo(currentTime + delta)
   }, [seekTo])
 
+  const [skipSeconds] = useSkipSeconds()
+
   usePlaybackEffects({
     activePlayback,
     setActivePlayback,
@@ -144,6 +147,7 @@ export function usePlayback(
     playbackTimeRef,
     setPlaybackState,
     refreshOfflineBooks,
+    skipSeconds,
   })
 
   const startBook = useCallback(async (item: BookItem, startTime?: number) => {

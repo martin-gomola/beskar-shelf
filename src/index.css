@@ -1873,6 +1873,32 @@ h3 {
   box-shadow: none;
 }
 
+/* Tighten the player hero on phones so the seek bar + controls are
+   visible without scrolling. The cover, headline weight, and stacking
+   gaps all relax back to the desktop values above 680px. */
+@media (max-width: 680px) {
+  .player-screen {
+    gap: 16px;
+  }
+  .player-card {
+    gap: 12px;
+  }
+  .player-meta {
+    gap: 2px;
+  }
+  .player-meta h1 {
+    font-size: clamp(1.05rem, 3.6vw, 1.35rem);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .player-meta .author-line {
+    font-size: var(--fs-sm);
+  }
+  .cover-player {
+    width: min(58vw, 240px);
+  }
+}
+
 .player-controls {
   display: flex;
   justify-content: center;
@@ -1880,11 +1906,13 @@ h3 {
   gap: 18px;
 }
 
-.player-part-row {
-  display: grid;
-  justify-items: center;
-  gap: 3px;
-  padding: 2px var(--sp-3) 0;
+/* Inline part label that lives on the author line. Keeps the position
+   metadata visible without spending a whole row of vertical space on it. */
+.player-part-inline,
+.player-part-inline-sep {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 400;
 }
 
 .player-part-kicker {
@@ -1893,16 +1921,6 @@ h3 {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.player-part-row strong {
-  max-width: min(520px, 100%);
-  color: var(--text);
-  font-size: var(--fs-base);
-  line-height: 1.25;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .player-play-btn {
@@ -2045,11 +2063,37 @@ h3 {
   text-align: left;
 }
 
-.player-time-row strong {
+.player-time-row strong,
+.player-remaining-toggle {
   justify-self: center;
   color: var(--text-secondary);
   font-size: var(--fs-xs);
   font-weight: 700;
+}
+
+.player-remaining-toggle {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  margin: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.player-remaining-toggle:hover {
+  background: var(--surface-dark);
+  color: var(--text);
+}
+
+.player-remaining-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
 }
 
 .player-time-row span:last-child {

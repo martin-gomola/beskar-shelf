@@ -7,26 +7,27 @@ import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext, usePlayerTime } from '../contexts/PlayerContext'
 import { useToast } from '../contexts/ToastContext'
+import { useRemainingTimeMode, useSkipSeconds } from '../hooks/usePlaybackPrefs'
 import { useSleepTimer } from '../hooks/useSleepTimer'
 import { cachePlayedTrack } from '../lib/downloads'
 import { deleteBookmark as deleteLocalBookmark, loadBookmarks, upsertBookmark } from '../lib/storage'
 import type { Bookmark } from '../lib/types'
 import { clamp, formatDuration, formatProgress } from '../lib/utils'
 
-function IconRewind() {
+function IconRewind({ seconds }: { seconds: number }) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M11 19l-7-7 7-7" />
-      <text x="15" y="15" fill="currentColor" stroke="none" fontSize="8" fontWeight="700" textAnchor="middle">30</text>
+      <text x="15" y="15" fill="currentColor" stroke="none" fontSize="8" fontWeight="700" textAnchor="middle">{seconds}</text>
     </svg>
   )
 }
 
-function IconForward() {
+function IconForward({ seconds }: { seconds: number }) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M13 5l7 7-7 7" />
-      <text x="9" y="15" fill="currentColor" stroke="none" fontSize="8" fontWeight="700" textAnchor="middle">30</text>
+      <text x="9" y="15" fill="currentColor" stroke="none" fontSize="8" fontWeight="700" textAnchor="middle">{seconds}</text>
     </svg>
   )
 }
@@ -119,6 +120,8 @@ function PlayerPage() {
   const [seekPreview, setSeekPreview] = useState<number | null>(null)
   const [bufferedTrackTime, setBufferedTrackTime] = useState(0)
   const [localBookmarkVersion, setLocalBookmarkVersion] = useState(0)
+  const [skipSeconds] = useSkipSeconds()
+  const [remainingMode, setRemainingMode] = useRemainingTimeMode()
 
   const currentChapterEnd = useMemo(() => {
     if (!activePlayback) {
@@ -356,22 +359,23 @@ function PlayerPage() {
             ) : null}
           </div>
         </div>
-        {/* Title + author coupled as a single meta block so they read as
-            "this book / this author", not two independent labels separated
-            by the same 22px gap as the cover→meta and meta→scrubber gaps.
-            Gap inside the block is tight (4px); the block itself still
-            participates in the player-card grid spacing. */}
+        {/* Title + author + current part live in one tight meta block so the
+            hero reads as one identity unit instead of three competing rows.
+            Part label is demoted to an inline kicker on the author line
+            because it's positional metadata, not the book's identity. */}
         <div className="player-meta">
           <h1>
             <Link className="player-title-link" to={`/book/${activePlayback.item.id}`}>
               {activePlayback.item.title}
             </Link>
           </h1>
-          <p className="author-line">{activePlayback.item.author}</p>
-        </div>
-
-        <div className="player-part-row" aria-label="Current audiobook part">
-          <strong>{activePartLabel}</strong>
+          <p className="author-line">
+            <span>{activePlayback.item.author}</span>
+            <span className="player-part-inline-sep" aria-hidden="true"> · </span>
+            <span className="player-part-inline" aria-label="Current audiobook part">
+              {activePartLabel}
+            </span>
+          </p>
         </div>
 
         <label className={clsx('scrubber', { seeking: seekPreview !== null })}>
@@ -401,8 +405,29 @@ function PlayerPage() {
           </div>
           <div className="time-row player-time-row">
             <span>{formatDuration(localSeekTime)}</span>
-            <strong>{formatDuration(bookRemaining)} left</strong>
-            <span>-{formatDuration(trackRemaining)}</span>
+            <button
+              type="button"
+              className="player-remaining-toggle"
+              onClick={() => setRemainingMode(
+                remainingMode === 'book'
+                  ? 'track'
+                  : remainingMode === 'track'
+                    ? 'elapsed'
+                    : 'book',
+              )}
+              aria-label={`Remaining display: ${remainingMode}. Tap to change.`}
+            >
+              {remainingMode === 'book'
+                ? `${formatDuration(bookRemaining)} left`
+                : remainingMode === 'track'
+                  ? `${formatDuration(trackRemaining)} chapter left`
+                  : `${formatDuration(playbackTime)} played`}
+            </button>
+            {remainingMode === 'book' ? (
+              <span>-{formatDuration(trackRemaining)}</span>
+            ) : (
+              <span aria-hidden="true">&nbsp;</span>
+            )}
           </div>
         </label>
 
@@ -415,14 +440,22 @@ function PlayerPage() {
           >
             <IconSkipBack />
           </button>
-          <button className="player-seek-btn" onClick={() => seekBy(-30)} aria-label="Rewind 30 seconds">
-            <IconRewind />
+          <button
+            className="player-seek-btn"
+            onClick={() => seekBy(-skipSeconds)}
+            aria-label={`Rewind ${skipSeconds} seconds`}
+          >
+            <IconRewind seconds={skipSeconds} />
           </button>
           <button className="player-play-btn" onClick={() => void togglePlayback()} aria-label={isPlaying ? 'Pause' : 'Play'}>
             {isPlaying ? <IconPause /> : <IconPlay />}
           </button>
-          <button className="player-seek-btn" onClick={() => seekBy(30)} aria-label="Forward 30 seconds">
-            <IconForward />
+          <button
+            className="player-seek-btn"
+            onClick={() => seekBy(skipSeconds)}
+            aria-label={`Forward ${skipSeconds} seconds`}
+          >
+            <IconForward seconds={skipSeconds} />
           </button>
           <button
             className="player-skip-btn"
@@ -443,7 +476,7 @@ function PlayerPage() {
           <label className="player-stat-inline">
             <span className="stat-label">Rate</span>
             <select value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value))}>
-              {[0.8, 1, 1.2, 1.5, 1.75, 2].map((rate) => (
+              {[0.8, 1, 1.1, 1.2, 1.25, 1.5, 1.75, 2].map((rate) => (
                 <option key={rate} value={rate}>{rate}x</option>
               ))}
             </select>
