@@ -11,6 +11,8 @@ services:
         value: Beskar Shelf
       - key: VITE_ABS_PROXY_BASE
         value: /abs
+      - key: VITE_DYNAMIC_PROXY_ENABLED
+        value: "true"
       - key: VITE_DEFAULT_SERVER_URL
         value: https://audiobooks.dev
       - key: VITE_DEMO_USERNAME

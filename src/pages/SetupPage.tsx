@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
+import { resolveServerMode } from '../lib/utils'
 
-const hasDynamicProxy = Boolean(import.meta.env.VITE_ABS_PROXY_BASE?.trim())
+const proxyBase = import.meta.env.VITE_ABS_PROXY_BASE?.trim()
+const dynamicProxyEnabled = import.meta.env.VITE_DYNAMIC_PROXY_ENABLED
 
 export function SetupPage() {
   const { setServer } = useAppContext()
@@ -47,7 +49,7 @@ export function SetupPage() {
           onClick={() => {
             setServer({
               baseUrl: baseUrl.trim(),
-              mode: hasDynamicProxy ? 'dynamic-proxy' : 'direct',
+              mode: resolveServerMode(proxyBase, dynamicProxyEnabled),
             })
             navigate('/login')
           }}

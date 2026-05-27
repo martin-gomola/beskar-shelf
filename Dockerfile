@@ -17,6 +17,7 @@ COPY . .
 ARG VITE_APP_NAME="Beskar Shelf"
 ARG VITE_DEFAULT_SERVER_URL=""
 ARG VITE_ABS_PROXY_BASE="/abs"
+ARG VITE_DYNAMIC_PROXY_ENABLED="false"
 # Optional public demo credentials. These get inlined into the JS bundle
 # at build time and are visible to any client, so ONLY use them for the
 # public audiobooks.dev demo (user "demo" / password "demo"). Never set
@@ -26,6 +27,7 @@ ARG VITE_DEMO_PASSWORD=""
 ENV VITE_APP_NAME=${VITE_APP_NAME}
 ENV VITE_DEFAULT_SERVER_URL=${VITE_DEFAULT_SERVER_URL}
 ENV VITE_ABS_PROXY_BASE=${VITE_ABS_PROXY_BASE}
+ENV VITE_DYNAMIC_PROXY_ENABLED=${VITE_DYNAMIC_PROXY_ENABLED}
 ENV VITE_DEMO_USERNAME=${VITE_DEMO_USERNAME}
 ENV VITE_DEMO_PASSWORD=${VITE_DEMO_PASSWORD}
 RUN npm run build

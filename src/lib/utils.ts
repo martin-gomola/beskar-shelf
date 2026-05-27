@@ -1,4 +1,4 @@
-import type { OfflineBook } from './types'
+import type { OfflineBook, ServerConfig } from './types'
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -27,6 +27,25 @@ export function formatProgress(progress: number) {
 
 export function normalizeBaseUrl(input: string) {
   return input.trim().replace(/\/+$/, '')
+}
+
+export function resolveServerMode(
+  proxyBase: string | undefined,
+  dynamicProxyEnabled: string | boolean | undefined,
+): ServerConfig['mode'] {
+  if (
+    dynamicProxyEnabled === true ||
+    (typeof dynamicProxyEnabled === 'string' &&
+      ['1', 'true', 'yes'].includes(dynamicProxyEnabled.trim().toLowerCase()))
+  ) {
+    return 'dynamic-proxy'
+  }
+
+  if (proxyBase?.trim()) {
+    return 'proxy'
+  }
+
+  return 'direct'
 }
 
 export function sumDurations(values: number[]) {

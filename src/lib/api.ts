@@ -12,9 +12,11 @@ import type {
   ServerConfig,
   UserSession,
 } from './types'
-import { normalizeBaseUrl, sumDurations } from './utils'
+import { normalizeBaseUrl, resolveServerMode, sumDurations } from './utils'
 
 const proxyBase = normalizeBaseUrl(import.meta.env.VITE_ABS_PROXY_BASE ?? '')
+const dynamicProxyEnabled =
+  resolveServerMode('', import.meta.env.VITE_DYNAMIC_PROXY_ENABLED) === 'dynamic-proxy'
 
 const loginSchema = z.object({
   user: z
@@ -203,8 +205,12 @@ export class AudiobookshelfClient {
       return `${window.location.origin}${proxyBase}`
     }
 
-    if (this.server?.mode === 'dynamic-proxy') {
+    if (this.server?.mode === 'dynamic-proxy' && dynamicProxyEnabled) {
       return `${window.location.origin}/proxy/${this.baseUrl}`
+    }
+
+    if (this.server?.mode === 'dynamic-proxy' && proxyBase) {
+      return `${window.location.origin}${proxyBase}`
     }
 
     return this.baseUrl
