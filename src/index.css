@@ -2800,7 +2800,7 @@ h3 {
 .bottom-nav {
   bottom: max(12px, env(safe-area-inset-bottom));
   padding: 8px;
-  border-radius: 22px;
+  border-radius: var(--radius);
 }
 
 @media (max-width: 680px) {
@@ -2828,13 +2828,22 @@ h3 {
    the floating modal sits visually adjacent to the action row on the player
    screen, both elements read as the same component family. The earlier 22px
    matched the page-level container radius, which made the floater look like
-   a separate design system. */
+   a separate design system.
+
+   The radius is scoped to >=681px so the mobile @media (max-width: 680px)
+   rule's border-radius: 0 wins on phones — full-width edge-to-edge there,
+   tightened floating pill on desktop. */
 .mini-player {
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 60px);
   padding: 0;
-  border-radius: var(--radius);
   overflow: hidden;
   flex-direction: column;
+}
+
+@media (min-width: 681px) {
+  .mini-player {
+    border-radius: var(--radius);
+  }
 }
 
 .mini-player-progress {
