@@ -1895,10 +1895,22 @@ h3 {
   box-shadow: none;
 }
 
-/* Cluster boundary: transport (prev/seek/play) is the primary action;
-   the stats strip + action row form the secondary "options" cluster.
-   Bump the gap above the stats strip so the eye reads them as separate
-   regions (Spotify-style breathing room) instead of one dense band. */
+/* Cluster boundaries (Spotify-inspired). The card grid uses a single
+   canonical step (12px mobile / 20px desktop) for tight pairs inside
+   each cluster. Three transitions get a +8/12px bump because they sit
+   between distinct functional clusters and need breathing room for the
+   eye to register them as separate regions:
+   1. cover → meta: detaches the title block from the cover artwork
+   2. scrubber → transport: lets the play button dominate without
+      crowding from the progress info above it
+   3. transport → secondary controls: separates the primary action
+      cluster from the options cluster (stats + actions). */
+.player-cover + .player-meta {
+  margin-top: 8px;
+}
+.scrubber + .player-controls {
+  margin-top: 8px;
+}
 .player-controls + .player-stats-inline {
   margin-top: 12px;
 }
