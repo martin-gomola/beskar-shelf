@@ -162,7 +162,6 @@ function PlayerPage() {
   const client = useClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { offlineBooks } = useAppContext()
   const { showToast } = useToast()
   const {
     activePlayback,
@@ -173,7 +172,6 @@ function PlayerPage() {
     seekBy,
     seekTo,
     setPlaybackRate,
-    jumpToTrack,
     jumpToPreviousTrack,
     jumpToNextTrack,
     setIsSeeking,
@@ -357,8 +355,6 @@ function PlayerPage() {
   const coverUrl = activePlayback.item.coverPath
     ? client.coverUrl(activePlayback.item.id)
     : null
-  const offlineBook = offlineBooks.find((book) => book.itemId === activeItem.id)
-  const downloadedTrackIndices = new Set(offlineBook?.tracks.map((track) => track.trackIndex) ?? [])
   const activeTrack = activePlayback.session.audioTracks[activePlayback.trackIndex]
   const activeTrackStart = activeTrack?.startOffset ?? 0
   const activeTrackDuration = activeTrack?.duration ?? currentTrackDuration
@@ -686,34 +682,6 @@ function PlayerPage() {
             ) : null}
           </div>
         ) : null}
-      </section>
-
-      <section className="card">
-        <div className="section-heading">
-          <h2>Track queue</h2>
-        </div>
-        <div className="chapter-list">
-          {activePlayback.session.audioTracks.map((track, queueIndex) => {
-            const isDownloaded = downloadedTrackIndices.has(track.index)
-
-            return (
-              <button
-                key={`${track.index}-${track.title}`}
-                className={clsx('chapter-row', {
-                  active: queueIndex === activePlayback.trackIndex,
-                  downloaded: isDownloaded,
-                })}
-                onClick={() => jumpToTrack(queueIndex)}
-              >
-                <strong>{track.title}</strong>
-                <span className="player-track-meta">
-                  {isDownloaded ? <span className="player-track-saved">Downloaded</span> : null}
-                  <span>{formatDuration(track.duration)}</span>
-                </span>
-              </button>
-            )
-          })}
-        </div>
       </section>
     </main>
   )

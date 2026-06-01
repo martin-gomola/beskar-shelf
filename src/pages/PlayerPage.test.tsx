@@ -158,37 +158,6 @@ describe('PlayerPage sleep timer', () => {
     expect(showToast).toHaveBeenCalledWith('Sleep bookmark saved', 'success')
   })
 
-  it('keeps every queue track visible and marks the downloaded ones', () => {
-    renderPlayerPage({
-      appOverrides: {
-        offlineBooks: [
-          {
-            itemId: item.id,
-            title: item.title,
-            author: item.author,
-            coverPath: null,
-            status: 'downloaded',
-            totalBytes: 5,
-            totalTracks: 2,
-            updatedAt: Date.now(),
-            tracks: [
-              {
-                trackIndex: 1,
-                title: 'Track 2',
-                duration: 180,
-                mimeType: 'audio/mpeg',
-                blob: new Blob(['track'], { type: 'audio/mpeg' }),
-              },
-            ],
-          },
-        ],
-      },
-    })
-
-    expect(screen.getByRole('button', { name: /track 1.*2:00/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /track 2.*downloaded.*3:00/i })).toBeInTheDocument()
-  })
-
   it('links the playing book title to the book detail page', () => {
     renderPlayerPage()
 
