@@ -189,7 +189,16 @@ h3 {
   position: relative;
   isolation: isolate;
   min-height: 100dvh;
+  /* Bottom padding reserves space for the floating bottom-nav (~56px) plus
+     the optional mini-player above it (~60px). When the mini-player is not
+     rendered (e.g. on the Player page itself), the :has() rule below
+     shrinks this to just clear the bottom-nav so we don't leave a void
+     beneath the page content. */
   padding: max(var(--sp-5), env(safe-area-inset-top)) var(--sp-4) 150px;
+}
+
+.app-shell:not(:has(.mini-player)) {
+  padding-bottom: 90px;
 }
 
 .app-shell::before,
@@ -283,6 +292,11 @@ h3 {
 @media (max-width: 680px) {
   .app-shell {
     padding: 0 0 130px;
+  }
+  /* Mobile mirror of the no-mini-player shrink: drop the ~60px we'd
+     otherwise reserve for the mini-player above the bottom-nav. */
+  .app-shell:not(:has(.mini-player)) {
+    padding-bottom: 72px;
   }
   .screen {
     border-radius: 0;

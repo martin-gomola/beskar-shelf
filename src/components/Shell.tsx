@@ -93,7 +93,12 @@ export function Shell() {
       </Routes>
 
       {!publicRoute && <BottomNav />}
-      {!publicRoute && (activePlayback || playbackState) && <MiniPlayer />}
+      {/* Hide the mini-player on the full Player page itself: it would link
+          back to the page the user is already on and just doubles the
+          identity (cover + title appear twice). The :has() rules in the
+          stylesheet shrink the app-shell's bottom padding when no
+          mini-player is rendered, so the page reclaims that space. */}
+      {!publicRoute && location.pathname !== '/player' && (activePlayback || playbackState) && <MiniPlayer />}
     </div>
   )
 }
