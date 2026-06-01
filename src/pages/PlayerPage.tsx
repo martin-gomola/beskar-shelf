@@ -91,6 +91,73 @@ function IconStop() {
   )
 }
 
+function IconList() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <circle cx="4" cy="6" r="1" fill="currentColor" />
+      <circle cx="4" cy="12" r="1" fill="currentColor" />
+      <circle cx="4" cy="18" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+interface ChapterListPanelProps {
+  chapters: { start: number; end: number; title: string }[]
+  playbackTime: number
+  onJump: (start: number) => void
+}
+
+/**
+ * Renders the chapter list inside the player. Auto-scrolls the active
+ * chapter into view on open so users don't have to hunt for "where am I"
+ * in long books. Active row gets the same .chapter-row .active treatment
+ * already used by the track queue, keeping visual language consistent.
+ */
+function ChapterListPanel({ chapters, playbackTime, onJump }: ChapterListPanelProps) {
+  const activeRowRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    activeRowRef.current?.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+  }, [])
+
+  if (chapters.length === 0) {
+    return (
+      <div className="player-action-panel">
+        <span className="muted">This book has no chapter markers.</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="player-action-panel">
+      <div className="player-action-panel-meta">
+        <span className="muted">{chapters.length} chapters</span>
+      </div>
+      <div className="chapter-list">
+        {chapters.map((chapter, index) => {
+          const isActive = playbackTime >= chapter.start && playbackTime < chapter.end
+          return (
+            <button
+              key={`${chapter.start}-${index}`}
+              ref={isActive ? activeRowRef : null}
+              className={clsx('chapter-row', { active: isActive })}
+              onClick={() => onJump(chapter.start)}
+            >
+              <strong>{chapter.title || `Chapter ${index + 1}`}</strong>
+              <span className="player-track-meta">
+                <span>{formatDuration(chapter.end - chapter.start)}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function PlayerPage() {
   const client = useClient()
   const queryClient = useQueryClient()
@@ -117,6 +184,7 @@ function PlayerPage() {
   const [bookmarkTitle, setBookmarkTitle] = useState('')
   const [showBookmarks, setShowBookmarks] = useState(false)
   const [showSleepTimer, setShowSleepTimer] = useState(false)
+  const [showChapters, setShowChapters] = useState(false)
   const [seekPreview, setSeekPreview] = useState<number | null>(null)
   const [bufferedTrackTime, setBufferedTrackTime] = useState(0)
   const [localBookmarkVersion, setLocalBookmarkVersion] = useState(0)
@@ -490,6 +558,16 @@ function PlayerPage() {
 
         <div className="player-actions">
           <button
+            className={clsx('player-action-btn', { active: showChapters })}
+            onClick={() => setShowChapters(!showChapters)}
+            aria-label="Chapters"
+            aria-expanded={showChapters}
+            disabled={activePlayback.item.chapters.length === 0}
+          >
+            <IconList />
+            <span>Chapters</span>
+          </button>
+          <button
             className={clsx('player-action-btn', { active: showSleepTimer })}
             onClick={() => setShowSleepTimer(!showSleepTimer)}
             aria-label="Sleep timer"
@@ -525,6 +603,17 @@ function PlayerPage() {
             <span>Stop</span>
           </button>
         </div>
+
+        {showChapters ? (
+          <ChapterListPanel
+            chapters={activePlayback.item.chapters}
+            playbackTime={playbackTime}
+            onJump={(start) => {
+              seekTo(start)
+              setShowChapters(false)
+            }}
+          />
+        ) : null}
 
         {showSleepTimer ? (
           <div className="player-action-panel">
