@@ -2841,8 +2841,16 @@ h3 {
 }
 
 @media (min-width: 681px) {
+  /* Top corners only: the mini-player's bottom edge faces the bottom-nav,
+     and squaring that edge stitches the two floating bars together as one
+     visual unit. The nav reciprocates via the :has() rule below so its
+     top edge is also square when the mini-player is present. */
   .mini-player {
-    border-radius: var(--radius);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .app-shell:has(.mini-player) .bottom-nav {
+    border-radius: 0 0 var(--radius) var(--radius);
   }
 }
 
