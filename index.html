@@ -4,10 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f2f2f7" />
+    <!-- theme-color drives the iOS standalone-mode status bar background and
+         Android Chrome's app bar. We declare both color schemes so the OS picks
+         the right one before any JS runs; useTheme() updates these dynamically
+         when the user overrides the system theme via Settings. -->
+    <meta name="theme-color" content="#f3ede3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#050a10" media="(prefers-color-scheme: dark)" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- black-translucent lets the page render behind the status bar so its
+         background follows theme-color. iOS reads theme-color luminance to
+         pick dark vs light status bar text automatically. The body already
+         has padding: max(var(--sp-5), env(safe-area-inset-top)) so content
+         doesn't get clipped under the bar. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Beskar Shelf</title>
     <!-- ANALYTICS -->
