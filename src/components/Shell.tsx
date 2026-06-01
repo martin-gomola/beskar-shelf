@@ -19,6 +19,7 @@ const ReaderPage = lazy(() => import('../pages/ReaderPage'))
 const PlayerPage = lazy(() => import('../pages/PlayerPage'))
 const DownloadsPage = lazy(() => import('../pages/DownloadsPage'))
 const SettingsPage = lazy(() => import('../pages/SettingsPage'))
+const StatsPage = lazy(() => import('../pages/StatsPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { server, session } = useAppContext()
@@ -88,6 +89,7 @@ export function Shell() {
         <Route path="/player" element={<ProtectedRoute><LazyRoute><PlayerPage /></LazyRoute></ProtectedRoute>} />
         <Route path="/downloads" element={<ProtectedRoute><LazyRoute><DownloadsPage /></LazyRoute></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><LazyRoute><SettingsPage /></LazyRoute></ProtectedRoute>} />
+        <Route path="/stats" element={<ProtectedRoute><LazyRoute><StatsPage /></LazyRoute></ProtectedRoute>} />
       </Routes>
 
       {!publicRoute && <BottomNav />}

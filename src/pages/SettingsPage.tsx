@@ -198,6 +198,22 @@ function SettingsPage() {
         </div>
       </section>
 
+      {/* Activity */}
+      <section className="settings-group">
+        <h3 className="settings-group-label">Activity</h3>
+        <div className="settings-card">
+          <button
+            className="settings-action"
+            onClick={() => navigate('/stats')}
+          >
+            <span>Listening stats</span>
+            <span className="settings-action-hint">
+              Time listened, by-day breakdown, top books
+            </span>
+          </button>
+        </div>
+      </section>
+
       {/* Storage */}
       <section className="settings-group">
         <h3 className="settings-group-label">Storage</h3>

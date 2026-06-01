@@ -499,4 +499,46 @@ export class AudiobookshelfClient {
       body: JSON.stringify(payload),
     })
   }
+
+  /**
+   * Fetches the current user's listening stats. ABS returns totalTime in
+   * seconds, plus per-day and per-day-of-week breakdowns. We coerce
+   * everything through Number() since the upstream values are typed as
+   * 'unknown' from request().
+   */
+  async getListeningStats(): Promise<ListeningStats> {
+    const response = asRecord(await this.request('/api/me/listening-stats'))
+    const days = asRecord(response.days ?? {})
+    const dayOfWeek = asRecord(response.dayOfWeek ?? {})
+    const items = asRecord(response.items ?? {})
+
+    return {
+      totalTime: Number(response.totalTime ?? 0),
+      today: Number(response.today ?? 0),
+      days: Object.fromEntries(
+        Object.entries(days).map(([key, value]) => [key, Number(value ?? 0)]),
+      ),
+      dayOfWeek: Object.fromEntries(
+        Object.entries(dayOfWeek).map(([key, value]) => [key, Number(value ?? 0)]),
+      ),
+      itemsListened: Object.values(items).map((entry) => {
+        const item = asRecord(entry)
+        const meta = asRecord(item.mediaMetadata ?? {})
+        return {
+          id: String(item.id ?? ''),
+          title: String(meta.title ?? ''),
+          author: String(meta.author ?? ''),
+          timeListening: Number(item.timeListening ?? 0),
+        }
+      }),
+    }
+  }
+}
+
+export interface ListeningStats {
+  totalTime: number
+  today: number
+  days: Record<string, number>
+  dayOfWeek: Record<string, number>
+  itemsListened: Array<{ id: string; title: string; author: string; timeListening: number }>
 }

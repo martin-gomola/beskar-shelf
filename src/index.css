@@ -3584,3 +3584,48 @@ h3 {
     padding-left: 2px;
   }
 }
+
+/* Stats page: simple horizontal bar chart for day-of-week breakdown.
+   Reuses existing tokens (--glass-bg, --accent, spacing) so it inherits
+   theme switching for free. */
+.stats-day-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.stats-day-row {
+  display: grid;
+  grid-template-columns: 3rem 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.stats-day-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stats-day-bar {
+  height: 8px;
+  background: var(--glass-bg);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.stats-day-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 200ms ease-out;
+}
+
+.stats-day-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  color: var(--text);
+}
