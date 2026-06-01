@@ -2013,6 +2013,13 @@ h3 {
   align-items: center;
   justify-content: center;
   gap: 0;
+  /* Extra breathing room above the stats strip so the play button (which
+     visually overflows the flex bounds) doesn't crowd the strip's top edge.
+     Matches the screen's bottom padding rhythm (28px desktop / 20px mobile)
+     between the action row and the floating mini-player below it, so the
+     player's two "secondary controls" zones read with equal breathing room
+     on either side. */
+  margin-top: 8px;
   padding: var(--sp-3) var(--sp-4);
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
