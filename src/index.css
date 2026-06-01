@@ -198,7 +198,10 @@ h3 {
 }
 
 .app-shell:not(:has(.mini-player)) {
-  padding-bottom: 90px;
+  /* Desktop bottom-nav floats with bottom: 12px and is ~50px tall, so 70px
+     leaves an 8px visual gap between page content and the nav top edge.
+     Anything more is dead space. */
+  padding-bottom: 70px;
 }
 
 .app-shell::before,
@@ -1874,6 +1877,11 @@ h3 {
 
 .player-screen {
   gap: 24px;
+  /* The player-card has no background of its own, so the .screen's 28px
+     bottom padding is just empty surface beneath the action row — wasted
+     vertical space, especially when the mini-player is hidden on /player.
+     Drop it; the .app-shell's bottom padding already clears the nav. */
+  padding-bottom: 0;
 }
 
 .player-card {
