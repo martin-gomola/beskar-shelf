@@ -14,6 +14,8 @@ vi.mock('../lib/storage', () => ({
   enqueueProgress: vi.fn(),
   loadProgressQueue: vi.fn().mockReturnValue([]),
   saveProgressQueue: vi.fn(),
+  loadBookRate: vi.fn().mockReturnValue(null),
+  saveBookRate: vi.fn(),
 }))
 
 function buildTrack(index: number, startOffset: number, duration: number): AudioTrack {

@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   playback: 'beskar:pwa:playback',
   progressQueue: 'beskar:pwa:progress-queue',
   bookmarksPrefix: 'beskar:pwa:bookmarks:',
+  bookRates: 'beskar:pwa:book-rates',
 } as const
 
 const DB_NAME = 'beskar-shelf'
@@ -122,6 +123,28 @@ export function upsertBookmark(itemId: string, bookmark: Bookmark) {
 export function deleteBookmark(itemId: string, time: number) {
   const bookmarks = loadBookmarks(itemId).filter((entry) => entry.time !== time)
   saveBookmarks(itemId, bookmarks)
+}
+
+/**
+ * Per-book playback speed memory. Audible's killer rate UX is "1.4× sticks
+ * with this fiction book; 1.6× sticks with this lecture series" — keyed
+ * by item, not global. Sparse map: only books with a non-default rate are
+ * stored, so the typical user with 1× everywhere has zero entries.
+ */
+export function loadBookRate(itemId: string): number | null {
+  const map = readJson<Record<string, number>>(STORAGE_KEYS.bookRates) ?? {}
+  const value = map[itemId]
+  return typeof value === 'number' && value > 0 ? value : null
+}
+
+export function saveBookRate(itemId: string, rate: number) {
+  const map = readJson<Record<string, number>>(STORAGE_KEYS.bookRates) ?? {}
+  if (rate === 1) {
+    delete map[itemId]
+  } else {
+    map[itemId] = rate
+  }
+  writeJson(STORAGE_KEYS.bookRates, Object.keys(map).length > 0 ? map : null)
 }
 
 async function openOfflineDb() {

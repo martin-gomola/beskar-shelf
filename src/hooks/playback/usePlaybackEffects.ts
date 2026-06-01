@@ -11,6 +11,7 @@ interface UsePlaybackEffectsOptions {
   audioRef: React.RefObject<HTMLAudioElement | null>
   playbackStateRef: React.RefObject<PersistedPlaybackState | null>
   playbackRate: number
+  playbackTime: number
   setPlaybackTime: React.Dispatch<React.SetStateAction<number>>
   setCurrentTrackDuration: React.Dispatch<React.SetStateAction<number>>
   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>
@@ -18,7 +19,10 @@ interface UsePlaybackEffectsOptions {
   flushProgress: (isFinished?: boolean) => void
   client: AudiobookshelfClient
   seekBy: (delta: number) => void
+  seekTo: (seconds: number) => void
   togglePlayback: () => Promise<void>
+  jumpToPreviousTrack: () => void
+  jumpToNextTrack: () => void
   drainProgressQueue: () => Promise<void>
   playbackTimeRef: React.RefObject<number>
   setPlaybackState: React.Dispatch<React.SetStateAction<PersistedPlaybackState | null>>
@@ -32,6 +36,7 @@ export function usePlaybackEffects({
   audioRef,
   playbackStateRef,
   playbackRate,
+  playbackTime,
   setPlaybackTime,
   setCurrentTrackDuration,
   setIsPlaying,
@@ -39,7 +44,10 @@ export function usePlaybackEffects({
   flushProgress,
   client,
   seekBy,
+  seekTo,
   togglePlayback,
+  jumpToPreviousTrack,
+  jumpToNextTrack,
   drainProgressQueue,
   playbackTimeRef,
   setPlaybackState,
@@ -220,16 +228,28 @@ export function usePlaybackEffects({
     navigator.mediaSession.metadata = new MediaMetadata({
       title: activePlayback.item.title,
       artist: activePlayback.item.author,
+      album: activePlayback.session.audioTracks[activePlayback.trackIndex]?.title,
       artwork: activePlayback.item.coverPath
         ? [{ src: client.coverUrl(activePlayback.item.id), sizes: '512x512', type: 'image/jpeg' }]
         : [],
     })
 
-    const actions: [MediaSessionAction, MediaSessionActionHandler][] = [
+    const canGoPrevious = activePlayback.trackIndex > 0
+    const canGoNext = activePlayback.trackIndex < activePlayback.session.audioTracks.length - 1
+
+    const actions: [MediaSessionAction, MediaSessionActionHandler | null][] = [
       ['play', () => void togglePlayback()],
       ['pause', () => void togglePlayback()],
-      ['seekbackward', () => seekBy(-skipSeconds)],
-      ['seekforward', () => seekBy(skipSeconds)],
+      ['seekbackward', (details) => seekBy(-(details?.seekOffset ?? skipSeconds))],
+      ['seekforward', (details) => seekBy(details?.seekOffset ?? skipSeconds)],
+      ['seekto', (details) => {
+        if (typeof details.seekTime !== 'number') {
+          return
+        }
+        seekTo(details.seekTime)
+      }],
+      ['previoustrack', canGoPrevious ? () => jumpToPreviousTrack() : null],
+      ['nexttrack', canGoNext ? () => jumpToNextTrack() : null],
     ]
 
     for (const [action, handler] of actions) {
@@ -249,7 +269,25 @@ export function usePlaybackEffects({
         }
       }
     }
-  }, [activePlayback, client, seekBy, skipSeconds, togglePlayback])
+  }, [activePlayback, client, jumpToNextTrack, jumpToPreviousTrack, seekBy, seekTo, skipSeconds, togglePlayback])
+
+  // Lock screen scrubber: setPositionState lets the OS render a draggable
+  // progress bar and "X seconds elapsed" instead of just play/pause. Throttled
+  // to every render of `playbackTime` (already 1Hz) so we don't spam the API.
+  useEffect(() => {
+    if (!activePlayback || !('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) {
+      return
+    }
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: activePlayback.duration,
+        position: Math.min(playbackTime, activePlayback.duration),
+        playbackRate,
+      })
+    } catch {
+      // some browsers throw on invalid duration (e.g. 0); ignore
+    }
+  }, [activePlayback, playbackTime, playbackRate])
 
   useEffect(() => {
     return () => {

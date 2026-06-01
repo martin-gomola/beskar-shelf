@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 
 import type { AudiobookshelfClient } from '../lib/api'
-import { getOfflineBook, savePlaybackState } from '../lib/storage'
+import { getOfflineBook, loadBookRate, saveBookRate, savePlaybackState } from '../lib/storage'
 import type { BookItem, PersistedPlaybackState, PlaybackSession } from '../lib/types'
 import { clamp } from '../lib/utils'
 import { buildOfflineSession, hasCompleteOfflineTracks, revokePlaybackSources, trackForTime, type ActivePlayback } from './playback/shared'
@@ -145,6 +145,42 @@ export function usePlayback(
     seekTo(currentTime + delta)
   }, [seekTo])
 
+  // jumpToTrack/jumpToPreviousTrack/jumpToNextTrack are memoised so the
+  // Media Session effect (in usePlaybackEffects) keeps stable handler
+  // identities across renders. They sit above usePlaybackEffects so they
+  // can be passed in as stable callbacks rather than fresh arrow wrappers.
+  const jumpToTrack = useCallback((index: number) => {
+    const ap = activePlaybackRef.current
+    const audio = audioRef.current
+    if (!ap || !audio) {
+      return
+    }
+    const track = ap.session.audioTracks[index]
+    if (!track) {
+      return
+    }
+    setActivePlayback({ ...ap, trackIndex: index })
+    audio.src = ap.sources[index]
+    audio.currentTime = 0
+    void audio.play()
+  }, [])
+
+  const jumpToPreviousTrack = useCallback(() => {
+    const ap = activePlaybackRef.current
+    if (!ap) {
+      return
+    }
+    jumpToTrack(Math.max(0, ap.trackIndex - 1))
+  }, [jumpToTrack])
+
+  const jumpToNextTrack = useCallback(() => {
+    const ap = activePlaybackRef.current
+    if (!ap) {
+      return
+    }
+    jumpToTrack(Math.min(ap.session.audioTracks.length - 1, ap.trackIndex + 1))
+  }, [jumpToTrack])
+
   const [skipSeconds] = useSkipSeconds()
 
   usePlaybackEffects({
@@ -153,6 +189,7 @@ export function usePlayback(
     audioRef,
     playbackStateRef,
     playbackRate,
+    playbackTime,
     setPlaybackTime,
     setCurrentTrackDuration,
     setIsPlaying,
@@ -160,7 +197,10 @@ export function usePlayback(
     flushProgress,
     client,
     seekBy,
+    seekTo,
     togglePlayback,
+    jumpToPreviousTrack,
+    jumpToNextTrack,
     drainProgressQueue,
     playbackTimeRef,
     setPlaybackState,
@@ -199,13 +239,19 @@ export function usePlayback(
       revokePlaybackSources(current)
       return nextPlayback
     })
-    setPlaybackRateState(playbackState?.itemId === item.id ? playbackState.rate : 1)
+    // Per-book speed memory: prefer last-played rate (still in playbackState
+    // for the recent book), then a previously-saved rate for this book,
+    // then default 1×.
+    const restoredRate = playbackState?.itemId === item.id
+      ? playbackState.rate
+      : loadBookRate(item.id) ?? 1
+    setPlaybackRateState(restoredRate)
     setPlaybackState({
       itemId: item.id,
       sessionId: playbackSession.id,
       currentTime: initialTime,
       duration: playbackSession.duration,
-      rate: playbackState?.itemId === item.id ? playbackState.rate : 1,
+      rate: restoredRate,
       updatedAt: Date.now(),
     })
     startTransition(() => navigate('/player'))
@@ -219,6 +265,10 @@ export function usePlayback(
     setPlaybackRateState(rate)
     if (audioRef.current) {
       audioRef.current.playbackRate = rate
+    }
+    const ap = activePlaybackRef.current
+    if (ap) {
+      saveBookRate(ap.item.id, rate)
     }
     setPlaybackState((current) => {
       if (!current) {
@@ -248,33 +298,6 @@ export function usePlayback(
     savePlaybackState(null)
   }
 
-  function jumpToTrack(index: number) {
-    if (!activePlayback || !audioRef.current) {
-      return
-    }
-    const track = activePlayback.session.audioTracks[index]
-    if (!track) {
-      return
-    }
-    setActivePlayback({ ...activePlayback, trackIndex: index })
-    audioRef.current.src = activePlayback.sources[index]
-    audioRef.current.currentTime = 0
-    void audioRef.current.play()
-  }
-
-  function jumpToPreviousTrack() {
-    if (!activePlayback) {
-      return
-    }
-    jumpToTrack(Math.max(0, activePlayback.trackIndex - 1))
-  }
-
-  function jumpToNextTrack() {
-    if (!activePlayback) {
-      return
-    }
-    jumpToTrack(Math.min(activePlayback.session.audioTracks.length - 1, activePlayback.trackIndex + 1))
-  }
 
   function setIsSeeking(value: boolean) {
     isSeekingRef.current = value
