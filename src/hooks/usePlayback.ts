@@ -106,20 +106,38 @@ export function usePlayback(
     const wasPlaying = !audio.paused
     const isChangingTrack = nextTrackIndex !== ap.trackIndex
 
-    if (isChangingTrack) {
-      setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
-      if (!sourcesMatch(audio.src, nextSource)) {
-        audio.src = nextSource
-      }
-    }
-
-    audio.currentTime = nextTime
     playbackTimeRef.current = clamped
     setPlaybackTime(clamped)
 
-    if (wasPlaying && isChangingTrack) {
-      void audio.play().catch(() => undefined)
+    if (!isChangingTrack) {
+      audio.currentTime = nextTime
+      return
     }
+
+    // Cross-track seek: assigning a new src resets the element to readyState 0,
+    // so currentTime/play must wait for loadedmetadata. We also defer the
+    // setActivePlayback() call until after the source is wired up — calling it
+    // first would re-run the main playback effect which unconditionally calls
+    // audio.play(), producing a spurious play() on a still-loading element.
+    if (sourcesMatch(audio.src, nextSource)) {
+      setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
+      audio.currentTime = nextTime
+      if (wasPlaying) {
+        void audio.play().catch(() => undefined)
+      }
+      return
+    }
+
+    const onLoaded = () => {
+      audio.currentTime = nextTime
+      setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
+      if (wasPlaying) {
+        void audio.play().catch(() => undefined)
+      }
+    }
+    audio.addEventListener('loadedmetadata', onLoaded, { once: true })
+    audio.src = nextSource
+    audio.load()
   }, [])
 
   const seekBy = useCallback((delta: number) => {

@@ -138,4 +138,80 @@ describe('usePlayback', () => {
     expect(audio.currentTime).toBe(30)
     expect(play).toHaveBeenCalledTimes(1)
   })
+
+  it('defers currentTime and play until loadedmetadata when seeking across tracks', async () => {
+    const client = {
+      startPlayback: vi.fn().mockResolvedValue(playbackSession),
+      streamUrl: vi.fn((path: string) => `https://example.test${path}`),
+      getItem: vi.fn(),
+    } as unknown as AudiobookshelfClient
+    const setPlaybackState = vi.fn()
+    const audio = document.createElement('audio')
+    const play = vi.fn().mockResolvedValue(undefined)
+    const load = vi.fn()
+    let src = ''
+    let currentTime = 0
+
+    Object.defineProperty(audio, 'src', {
+      configurable: true,
+      get: () => src,
+      set: (value: string) => { src = value },
+    })
+    Object.defineProperty(audio, 'currentTime', {
+      configurable: true,
+      get: () => currentTime,
+      set: (value: number) => { currentTime = value },
+    })
+    Object.defineProperty(audio, 'paused', {
+      configurable: true,
+      get: () => false,
+    })
+    Object.defineProperty(audio, 'play', {
+      configurable: true,
+      value: play,
+    })
+    Object.defineProperty(audio, 'load', {
+      configurable: true,
+      value: load,
+    })
+
+    const { result } = renderHook(() => usePlayback(
+      client,
+      { token: 'fixture-session' },
+      null,
+      setPlaybackState as React.Dispatch<React.SetStateAction<PersistedPlaybackState | null>>,
+    ), { wrapper })
+
+    result.current.audioRef.current = audio
+
+    await act(async () => {
+      await result.current.startBook(item, 0)
+    })
+
+    await waitFor(() => {
+      expect(src).toBe('https://example.test/track-1.mp3')
+    })
+
+    // Seek from track 0 (0-120s) into track 1 (120-300s) at absolute time 150s.
+    // The new track's startOffset is 120, so within-track time should be 30.
+    play.mockClear()
+    act(() => {
+      result.current.seekTo(150)
+    })
+
+    // Source should be swapped to the new track and load() called, but
+    // currentTime must wait for loadedmetadata so the seek doesn't get dropped
+    // on a still-loading media element.
+    expect(src).toBe('https://example.test/track-2.mp3')
+    expect(load).toHaveBeenCalled()
+    expect(currentTime).toBe(0)
+
+    // Once metadata loads, currentTime is set to within-track time and play resumes.
+    act(() => {
+      audio.dispatchEvent(new Event('loadedmetadata'))
+    })
+
+    expect(currentTime).toBe(30)
+    expect(play).toHaveBeenCalled()
+  })
 })
