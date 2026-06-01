@@ -1897,6 +1897,14 @@ h3 {
   .cover-player {
     width: min(58vw, 240px);
   }
+  /* Stats strip + action row form one "options" cluster now that chapter
+     navigation lives inside the actions panel. The player-card grid gap
+     (12px) reads as too separating for these two sibling rows; -4px
+     margin-top pulls the action row to ~8px below the stats strip while
+     leaving every other section at the standard 12px rhythm. */
+  .player-stats-inline + .player-actions {
+    margin-top: -4px;
+  }
 }
 
 .player-controls {
@@ -2816,10 +2824,15 @@ h3 {
 
 /* ─── Spotify-style mini player ─── */
 
+/* Mini-player rhymes with .player-action-btn radius (var(--radius)) so when
+   the floating modal sits visually adjacent to the action row on the player
+   screen, both elements read as the same component family. The earlier 22px
+   matched the page-level container radius, which made the floater look like
+   a separate design system. */
 .mini-player {
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 60px);
   padding: 0;
-  border-radius: 22px;
+  border-radius: var(--radius);
   overflow: hidden;
   flex-direction: column;
 }
