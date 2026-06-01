@@ -1895,6 +1895,14 @@ h3 {
   box-shadow: none;
 }
 
+/* Cluster boundary: transport (prev/seek/play) is the primary action;
+   the stats strip + action row form the secondary "options" cluster.
+   Bump the gap above the stats strip so the eye reads them as separate
+   regions (Spotify-style breathing room) instead of one dense band. */
+.player-controls + .player-stats-inline {
+  margin-top: 12px;
+}
+
 /* Tighten the player hero on phones so the seek bar + controls are
    visible without scrolling. The cover, headline weight, and stacking
    gaps all relax back to the desktop values above 680px. */
