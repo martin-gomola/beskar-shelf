@@ -55,6 +55,7 @@ export function usePlaybackEffects({
   skipSeconds = 30,
 }: UsePlaybackEffectsOptions) {
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
+  const activePlaybackCleanupRef = useRef<ActivePlayback | null>(activePlayback)
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {
@@ -126,9 +127,11 @@ export function usePlaybackEffects({
   }, [
     activePlayback,
     audioRef,
+    client,
     flushProgress,
     playbackRate,
     playbackStateRef,
+    refreshOfflineBooks,
     setActivePlayback,
     setCurrentTrackDuration,
     setIsPlaying,
@@ -290,8 +293,12 @@ export function usePlaybackEffects({
   }, [activePlayback, playbackTime, playbackRate])
 
   useEffect(() => {
-    return () => {
-      revokePlaybackSources(activePlayback)
-    }
+    activePlaybackCleanupRef.current = activePlayback
   }, [activePlayback])
+
+  useEffect(() => {
+    return () => {
+      revokePlaybackSources(activePlaybackCleanupRef.current)
+    }
+  }, [])
 }

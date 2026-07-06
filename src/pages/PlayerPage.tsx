@@ -289,8 +289,8 @@ function PlayerPage() {
     const currentSource = activePlayback.sources[activePlayback.trackIndex] ?? ''
 
     if (currentSource.startsWith('blob:')) {
-      setBufferedTrackTime(trackDuration)
-      return
+      const frame = window.requestAnimationFrame(() => setBufferedTrackTime(trackDuration))
+      return () => window.cancelAnimationFrame(frame)
     }
 
     let frame = 0

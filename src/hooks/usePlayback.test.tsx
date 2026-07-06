@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { usePlayback } from './usePlayback'
 import type { AudiobookshelfClient } from '../lib/api'
+import { getOfflineBook } from '../lib/storage'
 import type { AudioTrack, BookItem, PlaybackSession, PersistedPlaybackState } from '../lib/types'
 
 vi.mock('../lib/storage', () => ({
@@ -83,6 +84,7 @@ function wrapper({ children }: PropsWithChildren) {
 describe('usePlayback', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.mocked(getOfflineBook).mockResolvedValue(undefined)
   })
 
   it('seeks within the current track without reloading the audio source', async () => {
@@ -215,5 +217,82 @@ describe('usePlayback', () => {
 
     expect(currentTime).toBe(30)
     expect(play).toHaveBeenCalled()
+  })
+
+  it('keeps offline blob sources alive when skipping to the next track', async () => {
+    const offlineBook: NonNullable<Awaited<ReturnType<typeof getOfflineBook>>> = {
+      itemId: item.id,
+      title: item.title,
+      author: item.author,
+      coverPath: null,
+      status: 'downloaded',
+      totalBytes: 2,
+      totalTracks: 2,
+      updatedAt: Date.now(),
+      ebookBlob: null,
+      tracks: audioTracks.map((track) => ({
+        trackIndex: track.index,
+        title: track.title,
+        duration: track.duration,
+        mimeType: track.mimeType,
+        blob: new Blob([track.title], { type: track.mimeType }),
+      })),
+    }
+    vi.mocked(getOfflineBook).mockResolvedValue(offlineBook)
+
+    const createObjectURL = vi.fn()
+      .mockReturnValueOnce('blob:track-1')
+      .mockReturnValueOnce('blob:track-2')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+
+    const client = {
+      startPlayback: vi.fn().mockResolvedValue(playbackSession),
+      streamUrl: vi.fn((path: string) => `https://example.test${path}`),
+      getItem: vi.fn(),
+    } as unknown as AudiobookshelfClient
+    const setPlaybackState = vi.fn()
+    const audio = document.createElement('audio')
+    const play = vi.fn().mockResolvedValue(undefined)
+    let src = ''
+
+    Object.defineProperty(audio, 'src', {
+      configurable: true,
+      get: () => src,
+      set: (value: string) => { src = value },
+    })
+    Object.defineProperty(audio, 'play', {
+      configurable: true,
+      value: play,
+    })
+
+    const { result } = renderHook(() => usePlayback(
+      client,
+      { token: 'fixture-session' },
+      null,
+      setPlaybackState as React.Dispatch<React.SetStateAction<PersistedPlaybackState | null>>,
+    ), { wrapper })
+
+    result.current.audioRef.current = audio
+
+    await act(async () => {
+      await result.current.startBook(item, 0)
+    })
+
+    await waitFor(() => {
+      expect(src).toBe('blob:track-1')
+    })
+
+    act(() => {
+      result.current.jumpToNextTrack()
+    })
+
+    await waitFor(() => {
+      expect(src).toBe('blob:track-2')
+      expect(result.current.activePlayback?.trackIndex).toBe(1)
+    })
+    expect(revokeObjectURL).not.toHaveBeenCalled()
+    expect(client.startPlayback).not.toHaveBeenCalled()
   })
 })
