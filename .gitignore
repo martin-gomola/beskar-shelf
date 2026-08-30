@@ -2,8 +2,6 @@
 .env
 .venv
 *.local
-tools/grab/.env
-book-yt-links.txt
 
 # Runtime caches
 tools/.cache/

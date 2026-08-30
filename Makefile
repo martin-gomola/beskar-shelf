@@ -1,9 +1,12 @@
-.PHONY: help setup doctor download download-dry-run install install-tools tools-test tools-lint dev down stop kill build test lint deploy deploy-down deploy-logs abs-token abs-descriptions optimize-pdf optimize-pdf-lossless screenshots
+.PHONY: help setup extraction-setup install install-tools tools-test tools-lint dev down stop kill build test lint deploy deploy-down deploy-logs abs-token abs-descriptions screenshots download download-dry-run doctor
+DATA_EXTRACTION_REPO ?= ../data-extraction
+DATA_EXTRACTION_PY := $(DATA_EXTRACTION_REPO)/.venv/bin/python
+DATA_EXTRACTION_LINKS ?= $(DATA_EXTRACTION_REPO)/inputs/book-yt-links.txt
 help:
 	@echo "beskar-shelf commands"
 	@echo ""
 	@echo "  Development:"
-	@echo "  make setup            Create .env files and book-yt-links.txt from examples when missing"
+	@echo "  make setup            Create the app .env when missing"
 	@echo "  make install          Install frontend dependencies"
 	@echo "  make dev              Run the PWA dev server"
 	@echo "  make down             Stop any vite dev server started from this repo"
@@ -19,12 +22,11 @@ help:
 	@echo "  make deploy-logs      Tail logs from the deployed app container"
 	@echo ""
 	@echo "  Tools:"
-	@echo "  make install-tools    Create tools/.venv and install beskar-tools (editable)"
+	@echo "  make extraction-setup Install the shared data-extraction environment"
 	@echo "  make tools-test       Run beskar-tools pytest suite"
 	@echo "  make tools-lint       Run ruff over beskar-tools"
-	@echo "  make doctor           Validate grab tools, config, links file, and output directory"
-	@echo "  make download         Download and process links from book-yt-links.txt"
-	@echo "  make download-dry-run Fetch metadata and print the plan without downloading"
+	@echo "  make download         Delegate YouTube-to-MP3 processing to data-extraction"
+	@echo "  make download-dry-run Preview the shared YouTube queue without downloading"
 	@echo "  make abs-token        Prompt for ABS credentials and print an API token"
 	@echo "  make abs-descriptions Export books with missing ABS descriptions to JSON"
 	@echo "  make optimize-pdf PDF=<path> [QUALITY=85] [OUT=<output.pdf>]"
@@ -34,8 +36,9 @@ help:
 
 setup:
 	@if [ ! -f .env ]; then cp .env.example .env; echo "Created .env"; else echo ".env already exists"; fi
-	@if [ ! -f tools/grab/.env ]; then cp tools/grab/.env.example tools/grab/.env; echo "Created tools/grab/.env"; else echo "tools/grab/.env already exists"; fi
-	@if [ ! -f book-yt-links.txt ]; then cp book-yt-links.txt.example book-yt-links.txt; echo "Created book-yt-links.txt"; else echo "book-yt-links.txt already exists"; fi
+
+extraction-setup:
+	@$(MAKE) -C $(DATA_EXTRACTION_REPO) setup
 
 install:
 	@npm install
@@ -81,13 +84,14 @@ tools-lint:
 	@cd tools && ./.venv/bin/ruff check beskar_tools tests
 
 doctor:
-	@./tools/grab/grab --doctor
+	@$(MAKE) extraction-setup
+	@PYTHONPATH=$(DATA_EXTRACTION_REPO)/tools/youtube-to-mp3 $(DATA_EXTRACTION_PY) -m data_extraction_tools.cli.youtube_to_mp3 --links-file "$(DATA_EXTRACTION_LINKS)" --output-dir "$(CURDIR)/downloads" --doctor
 
-download:
-	@./tools/grab/grab
+download: extraction-setup
+	@PYTHONPATH=$(DATA_EXTRACTION_REPO)/tools/youtube-to-mp3 $(DATA_EXTRACTION_PY) -m data_extraction_tools.cli.youtube_to_mp3 --links-file "$(DATA_EXTRACTION_LINKS)" --output-dir "$(CURDIR)/downloads"
 
-download-dry-run:
-	@./tools/grab/grab --dry-run
+download-dry-run: extraction-setup
+	@PYTHONPATH=$(DATA_EXTRACTION_REPO)/tools/youtube-to-mp3 $(DATA_EXTRACTION_PY) -m data_extraction_tools.cli.youtube_to_mp3 --links-file "$(DATA_EXTRACTION_LINKS)" --output-dir "$(CURDIR)/downloads" --dry-run
 
 abs-token:
 	@ABS_USERNAME_INPUT="" ABS_PASSWORD_INPUT="" ./tools/get-abs-token

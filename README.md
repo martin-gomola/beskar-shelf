@@ -1,6 +1,6 @@
 # beskar-shelf
 
-A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) armory. Focused on **YouTube → mp3 processing** and audiobook library management — download, organise, play, read, sync progress, stash offline. This is the Way.
+A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advplyr/audiobookshelf) armory. Focused on audiobook library management — play, read, sync progress, and stash offline. This is the Way.
 
 > **Live demo:** [beskar-shelf.onrender.com](https://beskar-shelf.onrender.com)
 > The demo runs on Render's free tier, so the first visit after a period of inactivity may take ~1 minute while the service wakes up.
@@ -24,7 +24,6 @@ A PWA forged from pure beskar for your [Audiobookshelf](https://github.com/advpl
 
 ## The Armory
 
-- **YouTube → MP3 pipeline** — download playlists, tag, organise into Audiobookshelf-ready folders
 - Library browsing with home shelves
 - Chapter list, resume state, item detail
 - Player with rate control, seek, queue, progress sync
@@ -43,8 +42,7 @@ beskar-shelf/
 ├── vite.config.ts           # Vite + PWA + proxy
 ├── Dockerfile               # Multi-stage build → nginx
 ├── nginx.conf               # PWA container nginx template
-├── tools/                   # beskar-tools Python package (grab, organize, …)
-├── tools/grab/              # `grab` binary shim + per-project env + links
+├── tools/                   # application-specific Audiobookshelf helpers
 ├── Makefile
 └── .env.example
 ```
@@ -149,17 +147,12 @@ Audiobookshelf server into this repo.
 If you prefer Make targets, `make deploy`, `make deploy-down`, and `make deploy-logs`
 now wrap the same Compose commands.
 
-## Grab: YouTube → MP3
+## Audio preparation
 
-Python pipeline under `tools/beskar_tools/` (exposed as `beskar-grab` and the
-`tools/grab/grab` shim). Details in `tools/README.md`.
-
-```bash
-make install-tools    # create tools/.venv + install beskar-tools
-make doctor           # preflight checks
-make download-dry-run # validate + print plan
-make download         # forge the audiobooks
-```
+YouTube-to-MP3 preparation moved to the shared
+[`data-extraction`](../data-extraction) repository. The compatibility targets
+`make download` and `make download-dry-run` delegate there and use the shared
+queue at `../data-extraction/inputs/book-yt-links.txt`.
 
 ## Ebook Utilities
 

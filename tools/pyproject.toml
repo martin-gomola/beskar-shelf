@@ -9,14 +9,12 @@ description = "Audiobookshelf-oriented download, normalize, and organize tooling
 requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
-  "yt-dlp>=2026.3.17",
   "httpx>=0.28",
   "pydantic>=2.13",
   "click>=8.3",
   "python-dotenv>=1.2",
   "rich>=15.0",
   "rapidfuzz>=3.14",
-  "mutagen>=1.47",
   "lingua-language-detector>=2.2",
   "pymupdf>=1.24,<2",
 ]
@@ -29,7 +27,6 @@ dev = [
 ]
 
 [project.scripts]
-beskar-grab = "beskar_tools.cli.grab:main"
 beskar-organize = "beskar_tools.cli.organize:main"
 beskar-fill-descriptions = "beskar_tools.cli.fill_descriptions:main"
 beskar-fix-ebooks = "beskar_tools.cli.fix_ebooks:main"
