@@ -40,6 +40,7 @@ const pullSource = read('src/components/PullToRefresh.tsx')
 const viteSource = read('vite.config.ts')
 const serverSource = read('server.js')
 const nginxSource = read('nginx.conf')
+const nginxSecuritySource = read('nginx-security-headers.conf')
 const robotsSource = read('public/robots.txt')
 
 for (const field of ['name', 'short_name', 'id', 'start_url', 'scope', 'display']) {
@@ -69,10 +70,14 @@ requireCondition(
   'HTML crawler policy is missing',
 )
 requireCondition(robotsSource.trim() === 'User-agent: *\nDisallow: /', 'robots.txt must deny crawlers')
-for (const source of [viteSource, serverSource, nginxSource]) {
+for (const source of [viteSource, serverSource, nginxSecuritySource]) {
   requireCondition(source.includes(crawlerDirectives), 'deployment edge crawler policy is incomplete')
 }
 requireCondition(viteSource.includes('preview: {'), 'Vite preview must emit security headers')
+requireCondition(
+  (nginxSource.match(/include \/etc\/nginx\/security-headers\.conf;/g) ?? []).length === 7,
+  'every Nginx location with local headers must include the shared security headers',
+)
 
 const installHandler = sourceWorker.match(/self\.addEventListener\('install',[\s\S]*?\n}\)/)?.[0] ?? ''
 requireCondition(!installHandler.includes('skipWaiting'), 'new workers must wait for user approval')

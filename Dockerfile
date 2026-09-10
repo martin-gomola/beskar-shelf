@@ -33,6 +33,7 @@ RUN npm run build
 FROM nginx:1.27-alpine
 ENV ABS_UPSTREAM=http://host.docker.internal:13378
 COPY nginx.conf /etc/nginx/templates/default.conf.template
+COPY nginx-security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY docker-entrypoint.sh /usr/local/bin/beskar-entrypoint.sh
 RUN chmod +x /usr/local/bin/beskar-entrypoint.sh
