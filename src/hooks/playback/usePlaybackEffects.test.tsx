@@ -92,6 +92,7 @@ describe('usePlaybackEffects', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     Reflect.deleteProperty(navigator, 'mediaSession')
+    Reflect.deleteProperty(navigator, 'audioSession')
   })
 
   it('does not replay audio when persisted playback state changes after pausing', async () => {
@@ -166,6 +167,11 @@ describe('usePlaybackEffects', () => {
 
   it('maps lock-screen actions to audio state and updates position metadata', async () => {
     const { actionHandlers, mediaSession, setPositionState } = installMediaSession()
+    const audioSession = { type: 'ambient' }
+    Object.defineProperty(navigator, 'audioSession', {
+      configurable: true,
+      value: audioSession,
+    })
     const activePlayback = buildActivePlayback()
     const audio = document.createElement('audio')
     let paused = true
@@ -215,6 +221,7 @@ describe('usePlaybackEffects', () => {
     }
 
     renderHook((hookProps) => usePlaybackEffects(hookProps), { initialProps: props })
+    expect(audioSession.type).toBe('playback')
     play.mockClear()
     pause.mockClear()
     setPositionState.mockClear()

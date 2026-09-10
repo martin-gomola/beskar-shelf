@@ -12,7 +12,7 @@ import type { AudiobookshelfClient } from '../lib/api'
 import { getOfflineBook, loadBookRate, saveBookRate, savePlaybackState } from '../lib/storage'
 import type { BookItem, PersistedPlaybackState, PlaybackSession } from '../lib/types'
 import { clamp } from '../lib/utils'
-import { buildOfflineSession, hasCompleteOfflineTracks, revokePlaybackSources, totalTimeFromTrack, trackForTime, type ActivePlayback } from './playback/shared'
+import { buildOfflineSession, enableBackgroundAudio, hasCompleteOfflineTracks, revokePlaybackSources, totalTimeFromTrack, trackForTime, type ActivePlayback } from './playback/shared'
 import { usePlaybackEffects } from './playback/usePlaybackEffects'
 import { usePlaybackProgress } from './playback/usePlaybackProgress'
 import { useSkipSeconds } from './usePlaybackPrefs'
@@ -83,6 +83,7 @@ export function usePlayback(
     }
     if (audioRef.current.paused) {
       try {
+        enableBackgroundAudio()
         await audioRef.current.play()
       } catch {
         // Browser blocked autoplay
@@ -123,6 +124,7 @@ export function usePlayback(
       setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
       audio.currentTime = nextTime
       if (wasPlaying) {
+        enableBackgroundAudio()
         void audio.play().catch(() => undefined)
       }
       return
@@ -132,6 +134,7 @@ export function usePlayback(
       audio.currentTime = nextTime
       setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
       if (wasPlaying) {
+        enableBackgroundAudio()
         void audio.play().catch(() => undefined)
       }
     }
@@ -166,6 +169,7 @@ export function usePlayback(
     setActivePlayback({ ...ap, trackIndex: index })
     audio.src = ap.sources[index]
     audio.currentTime = 0
+    enableBackgroundAudio()
     void audio.play()
   }, [])
 

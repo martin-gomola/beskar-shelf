@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import type { PersistedPlaybackState } from '../../lib/types'
 import type { AudiobookshelfClient } from '../../lib/api'
 import { cachePlayedTrack } from '../../lib/downloads'
-import { revokePlaybackSources, totalTimeFromTrack, type ActivePlayback } from './shared'
+import { enableBackgroundAudio, revokePlaybackSources, totalTimeFromTrack, type ActivePlayback } from './shared'
 
 interface UsePlaybackEffectsOptions {
   activePlayback: ActivePlayback | null
@@ -108,6 +108,7 @@ export function usePlaybackEffects({
         setActivePlayback(next)
         audio.src = next.sources[nextIndex]
         audio.currentTime = 0
+        enableBackgroundAudio()
         void audio.play()
         return
       }
@@ -130,6 +131,7 @@ export function usePlaybackEffects({
     syncMediaSession(activePlayback, audio)
 
     if (playbackChanged) {
+      enableBackgroundAudio()
       void audio.play().catch(() => undefined)
     }
 
@@ -262,6 +264,7 @@ export function usePlaybackEffects({
 
     const actions: [MediaSessionAction, MediaSessionActionHandler | null][] = [
       ['play', () => {
+        enableBackgroundAudio()
         void audioRef.current?.play().catch(() => undefined)
       }],
       ['pause', () => audioRef.current?.pause()],

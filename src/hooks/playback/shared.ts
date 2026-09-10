@@ -26,6 +26,20 @@ export function totalTimeFromTrack(activePlayback: ActivePlayback | null, audioT
   return (track?.startOffset ?? 0) + audioTime
 }
 
+export function enableBackgroundAudio() {
+  const audioSession = (navigator as Navigator & {
+    audioSession?: { type: string }
+  }).audioSession
+  if (!audioSession) {
+    return
+  }
+  try {
+    audioSession.type = 'playback'
+  } catch {
+    // The experimental API may reject changes in unsupported contexts.
+  }
+}
+
 export function hasCompleteOfflineTracks(item: BookItem, offline: OfflineBook) {
   if (offline.status !== 'downloaded' || offline.tracks.length === 0) {
     return false
