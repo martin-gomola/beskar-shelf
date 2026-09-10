@@ -108,6 +108,7 @@ describe('usePlaybackEffects', () => {
       drainProgressQueue: vi.fn().mockResolvedValue(undefined),
       playbackTimeRef: { current: 42 },
       setPlaybackState: vi.fn(),
+      refreshOfflineBooks: vi.fn(),
     }
 
     const { rerender } = renderHook((hookProps) => usePlaybackEffects(hookProps), {
@@ -129,6 +130,7 @@ describe('usePlaybackEffects', () => {
     rerender({
       ...props,
       playbackStateRef,
+      refreshOfflineBooks: vi.fn(),
     })
 
     expect(play).toHaveBeenCalledTimes(1)

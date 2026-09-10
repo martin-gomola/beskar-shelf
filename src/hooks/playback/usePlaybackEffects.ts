@@ -56,12 +56,15 @@ export function usePlaybackEffects({
 }: UsePlaybackEffectsOptions) {
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
   const activePlaybackCleanupRef = useRef<ActivePlayback | null>(activePlayback)
+  const autoplayPlaybackRef = useRef<ActivePlayback | null>(null)
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {
       return
     }
 
+    const playbackChanged = activePlayback !== autoplayPlaybackRef.current
+    autoplayPlaybackRef.current = activePlayback
     const audio = audioRef.current
     audio.preload = 'auto'
     const currentSource = activePlayback.sources[activePlayback.trackIndex]
@@ -115,7 +118,9 @@ export function usePlaybackEffects({
     audio.addEventListener('loadedmetadata', onLoaded)
     audio.addEventListener('ended', onEnded)
 
-    void audio.play().catch(() => undefined)
+    if (playbackChanged) {
+      void audio.play().catch(() => undefined)
+    }
 
     return () => {
       audio.removeEventListener('play', onPlay)
