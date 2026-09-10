@@ -34,7 +34,7 @@ function IconClose() {
 
 export function MiniPlayer() {
   const client = useClient()
-  const { activePlayback, isPlaying, togglePlayback } = usePlayerContext()
+  const { activePlayback, isPlaying, togglePlayback, stopPlayback } = usePlayerContext()
   const { playbackTime } = usePlayerTime()
   const { playbackState, startBook } = useAppContext()
   const [dismissedItemId, setDismissedItemId] = useState<string | null>(null)
@@ -73,10 +73,7 @@ export function MiniPlayer() {
         isPlaying={isPlaying}
         onTogglePlay={() => void togglePlayback()}
         onDismiss={() => {
-          if (isPlaying) {
-            void togglePlayback()
-          }
-          setDismissedItemId(activePlayback.item.id)
+          stopPlayback()
         }}
       />
     )
@@ -145,7 +142,7 @@ function ActiveMiniPlayer({
               event.stopPropagation()
               onDismiss()
             }}
-            aria-label="Dismiss mini player"
+            aria-label="Stop and close"
           >
             <IconClose />
           </button>
