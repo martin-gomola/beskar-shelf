@@ -314,12 +314,16 @@ h3 {
 
 @media (max-width: 680px) {
   .app-shell {
-    padding: 0 0 130px;
+    padding:
+      max(var(--sp-5), env(safe-area-inset-top, 0px))
+      max(var(--sp-4), env(safe-area-inset-right, 0px))
+      calc(130px + env(safe-area-inset-bottom, 0px))
+      max(var(--sp-4), env(safe-area-inset-left, 0px));
   }
   /* Mobile mirror of the no-mini-player shrink: drop the ~60px we'd
      otherwise reserve for the mini-player above the bottom-nav. */
   .app-shell:not(:has(.mini-player)) {
-    padding-bottom: 72px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
   .screen {
     border-radius: 0;
@@ -2768,7 +2772,7 @@ h3 {
 }
 
 .bottom-nav {
-  bottom: max(12px, env(safe-area-inset-bottom));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   padding: 8px;
   border-radius: var(--radius);
 }
@@ -2808,10 +2812,16 @@ h3 {
    rule's border-radius: 0 wins on phones — full-width edge-to-edge there,
    tightened floating pill on desktop. */
 .mini-player {
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 60px);
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   padding: 0;
   overflow: hidden;
   flex-direction: column;
+}
+
+@media (max-width: 680px) {
+  .mini-player {
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (min-width: 681px) {
