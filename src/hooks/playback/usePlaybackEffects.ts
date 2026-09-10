@@ -11,7 +11,6 @@ interface UsePlaybackEffectsOptions {
   audioRef: React.RefObject<HTMLAudioElement | null>
   playbackStateRef: React.RefObject<PersistedPlaybackState | null>
   playbackRate: number
-  playbackTime: number
   setPlaybackTime: React.Dispatch<React.SetStateAction<number>>
   setCurrentTrackDuration: React.Dispatch<React.SetStateAction<number>>
   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>
@@ -20,7 +19,6 @@ interface UsePlaybackEffectsOptions {
   client: AudiobookshelfClient
   seekBy: (delta: number) => void
   seekTo: (seconds: number) => void
-  togglePlayback: () => Promise<void>
   jumpToPreviousTrack: () => void
   jumpToNextTrack: () => void
   drainProgressQueue: () => Promise<void>
@@ -36,7 +34,6 @@ export function usePlaybackEffects({
   audioRef,
   playbackStateRef,
   playbackRate,
-  playbackTime,
   setPlaybackTime,
   setCurrentTrackDuration,
   setIsPlaying,
@@ -45,7 +42,6 @@ export function usePlaybackEffects({
   client,
   seekBy,
   seekTo,
-  togglePlayback,
   jumpToPreviousTrack,
   jumpToNextTrack,
   drainProgressQueue,
@@ -85,13 +81,19 @@ export function usePlaybackEffects({
     const onPlay = () => {
       setIsPlaying(true)
       document.title = playingTitle
+      syncMediaSession(activePlayback, audio)
     }
     const onPause = () => {
       setIsPlaying(false)
       flushProgress(false)
       document.title = baseTitle
+      syncMediaSession(activePlayback, audio)
     }
-    const onLoaded = () => setCurrentTrackDuration(audio.duration || 0)
+    const onLoaded = () => {
+      setCurrentTrackDuration(audio.duration || 0)
+      syncMediaSession(activePlayback, audio)
+    }
+    const onMediaStateChange = () => syncMediaSession(activePlayback, audio)
     const onEnded = () => {
       const finishedSource = activePlayback.sources[activePlayback.trackIndex]
       if (finishedSource && !finishedSource.startsWith('blob:')) {
@@ -111,12 +113,21 @@ export function usePlaybackEffects({
       }
       setIsPlaying(false)
       flushProgress(true)
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none'
+      }
     }
 
     audio.addEventListener('play', onPlay)
     audio.addEventListener('pause', onPause)
     audio.addEventListener('loadedmetadata', onLoaded)
     audio.addEventListener('ended', onEnded)
+    audio.addEventListener('timeupdate', onMediaStateChange)
+    audio.addEventListener('durationchange', onMediaStateChange)
+    audio.addEventListener('ratechange', onMediaStateChange)
+    audio.addEventListener('seeked', onMediaStateChange)
+
+    syncMediaSession(activePlayback, audio)
 
     if (playbackChanged) {
       void audio.play().catch(() => undefined)
@@ -127,6 +138,10 @@ export function usePlaybackEffects({
       audio.removeEventListener('pause', onPause)
       audio.removeEventListener('loadedmetadata', onLoaded)
       audio.removeEventListener('ended', onEnded)
+      audio.removeEventListener('timeupdate', onMediaStateChange)
+      audio.removeEventListener('durationchange', onMediaStateChange)
+      audio.removeEventListener('ratechange', onMediaStateChange)
+      audio.removeEventListener('seeked', onMediaStateChange)
       document.title = baseTitle
     }
   }, [
@@ -246,8 +261,10 @@ export function usePlaybackEffects({
     const canGoNext = activePlayback.trackIndex < activePlayback.session.audioTracks.length - 1
 
     const actions: [MediaSessionAction, MediaSessionActionHandler | null][] = [
-      ['play', () => void togglePlayback()],
-      ['pause', () => void togglePlayback()],
+      ['play', () => {
+        void audioRef.current?.play().catch(() => undefined)
+      }],
+      ['pause', () => audioRef.current?.pause()],
       ['seekbackward', (details) => seekBy(-(details?.seekOffset ?? skipSeconds))],
       ['seekforward', (details) => seekBy(details?.seekOffset ?? skipSeconds)],
       ['seekto', (details) => {
@@ -277,25 +294,15 @@ export function usePlaybackEffects({
         }
       }
     }
-  }, [activePlayback, client, jumpToNextTrack, jumpToPreviousTrack, seekBy, seekTo, skipSeconds, togglePlayback])
+  }, [activePlayback, audioRef, client, jumpToNextTrack, jumpToPreviousTrack, seekBy, seekTo, skipSeconds])
 
-  // Lock screen scrubber: setPositionState lets the OS render a draggable
-  // progress bar and "X seconds elapsed" instead of just play/pause. Throttled
-  // to every render of `playbackTime` (already 1Hz) so we don't spam the API.
   useEffect(() => {
-    if (!activePlayback || !('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) {
+    if (activePlayback || !('mediaSession' in navigator)) {
       return
     }
-    try {
-      navigator.mediaSession.setPositionState({
-        duration: activePlayback.duration,
-        position: Math.min(playbackTime, activePlayback.duration),
-        playbackRate,
-      })
-    } catch {
-      // some browsers throw on invalid duration (e.g. 0); ignore
-    }
-  }, [activePlayback, playbackTime, playbackRate])
+    navigator.mediaSession.metadata = null
+    navigator.mediaSession.playbackState = 'none'
+  }, [activePlayback])
 
   useEffect(() => {
     activePlaybackCleanupRef.current = activePlayback
@@ -306,4 +313,30 @@ export function usePlaybackEffects({
       revokePlaybackSources(activePlaybackCleanupRef.current)
     }
   }, [])
+}
+
+function syncMediaSession(activePlayback: ActivePlayback, audio: HTMLAudioElement) {
+  if (!('mediaSession' in navigator)) {
+    return
+  }
+
+  navigator.mediaSession.playbackState = audio.paused ? 'paused' : 'playing'
+  if (!navigator.mediaSession.setPositionState || !Number.isFinite(activePlayback.duration) || activePlayback.duration <= 0) {
+    return
+  }
+
+  const position = totalTimeFromTrack(activePlayback, audio.currentTime)
+  if (!Number.isFinite(position)) {
+    return
+  }
+
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: activePlayback.duration,
+      position: Math.min(Math.max(position, 0), activePlayback.duration),
+      playbackRate: audio.playbackRate,
+    })
+  } catch {
+    // Some browsers reject position state while media metadata is incomplete.
+  }
 }

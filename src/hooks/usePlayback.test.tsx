@@ -97,6 +97,7 @@ describe('usePlayback', () => {
     const audio = document.createElement('audio')
     const play = vi.fn().mockResolvedValue(undefined)
     let src = ''
+    let currentTime = 0
     let srcAssignments = 0
 
     Object.defineProperty(audio, 'src', {
@@ -106,6 +107,11 @@ describe('usePlayback', () => {
         src = value
         srcAssignments += 1
       },
+    })
+    Object.defineProperty(audio, 'currentTime', {
+      configurable: true,
+      get: () => currentTime,
+      set: (value: number) => { currentTime = value },
     })
     Object.defineProperty(audio, 'paused', {
       configurable: true,
@@ -141,6 +147,13 @@ describe('usePlayback', () => {
     expect(srcAssignments).toBe(assignmentsAfterStart)
     expect(audio.currentTime).toBe(30)
     expect(play).toHaveBeenCalledTimes(1)
+
+    currentTime = 24
+    act(() => {
+      result.current.seekBy(30)
+    })
+
+    expect(currentTime).toBe(54)
   })
 
   it('defers currentTime and play until loadedmetadata when seeking across tracks', async () => {

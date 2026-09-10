@@ -62,9 +62,36 @@ function buildActivePlayback(): ActivePlayback {
   }
 }
 
+function installMediaSession() {
+  const actionHandlers = new Map<MediaSessionAction, MediaSessionActionHandler | null>()
+  const setPositionState = vi.fn()
+  const mediaSession = {
+    metadata: null,
+    playbackState: 'none',
+    setActionHandler: vi.fn((action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      actionHandlers.set(action, handler)
+    }),
+    setPositionState,
+  } as unknown as MediaSession
+
+  vi.stubGlobal('MediaMetadata', class {
+    constructor(init: MediaMetadataInit) {
+      Object.assign(this, init)
+    }
+  })
+  Object.defineProperty(navigator, 'mediaSession', {
+    configurable: true,
+    value: mediaSession,
+  })
+
+  return { actionHandlers, mediaSession, setPositionState }
+}
+
 describe('usePlaybackEffects', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'mediaSession')
   })
 
   it('does not replay audio when persisted playback state changes after pausing', async () => {
@@ -135,5 +162,83 @@ describe('usePlaybackEffects', () => {
 
     expect(play).toHaveBeenCalledTimes(1)
     expect(audio.preload).toBe('auto')
+  })
+
+  it('maps lock-screen actions to audio state and updates position metadata', async () => {
+    const { actionHandlers, mediaSession, setPositionState } = installMediaSession()
+    const activePlayback = buildActivePlayback()
+    const audio = document.createElement('audio')
+    let paused = true
+    let currentTime = 42
+    const play = vi.fn().mockImplementation(async () => {
+      paused = false
+      audio.dispatchEvent(new Event('play'))
+    })
+    const pause = vi.fn().mockImplementation(() => {
+      paused = true
+      audio.dispatchEvent(new Event('pause'))
+    })
+
+    Object.defineProperty(audio, 'paused', { configurable: true, get: () => paused })
+    Object.defineProperty(audio, 'currentTime', {
+      configurable: true,
+      get: () => currentTime,
+      set: (value: number) => { currentTime = value },
+    })
+    Object.defineProperty(audio, 'play', { configurable: true, value: play })
+    Object.defineProperty(audio, 'pause', { configurable: true, value: pause })
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+
+    const props = {
+      activePlayback,
+      setActivePlayback: vi.fn(),
+      audioRef: { current: audio },
+      playbackStateRef: { current: null },
+      playbackRate: 1,
+      setPlaybackTime: vi.fn(),
+      setCurrentTrackDuration: vi.fn(),
+      setIsPlaying: vi.fn(),
+      scheduleProgressCommit: vi.fn(),
+      flushProgress: vi.fn(),
+      client: {
+        coverUrl: vi.fn().mockReturnValue('https://example.test/cover.jpg'),
+        getItem: vi.fn(),
+      } as unknown as AudiobookshelfClient,
+      seekBy: vi.fn(),
+      seekTo: vi.fn(),
+      jumpToPreviousTrack: vi.fn(),
+      jumpToNextTrack: vi.fn(),
+      drainProgressQueue: vi.fn().mockResolvedValue(undefined),
+      playbackTimeRef: { current: 42 },
+      setPlaybackState: vi.fn(),
+      refreshOfflineBooks: vi.fn(),
+    }
+
+    renderHook((hookProps) => usePlaybackEffects(hookProps), { initialProps: props })
+    play.mockClear()
+    pause.mockClear()
+    setPositionState.mockClear()
+
+    await act(async () => {
+      actionHandlers.get('play')?.({ action: 'play' } as MediaSessionActionDetails)
+    })
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(mediaSession.playbackState).toBe('playing')
+
+    act(() => {
+      actionHandlers.get('pause')?.({ action: 'pause' } as MediaSessionActionDetails)
+    })
+    expect(pause).toHaveBeenCalledTimes(1)
+    expect(mediaSession.playbackState).toBe('paused')
+
+    currentTime = 42
+    act(() => {
+      audio.dispatchEvent(new Event('timeupdate'))
+    })
+    expect(setPositionState).toHaveBeenCalledWith({
+      duration: activePlayback.duration,
+      position: 42,
+      playbackRate: 1,
+    })
   })
 })

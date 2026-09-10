@@ -12,7 +12,7 @@ import type { AudiobookshelfClient } from '../lib/api'
 import { getOfflineBook, loadBookRate, saveBookRate, savePlaybackState } from '../lib/storage'
 import type { BookItem, PersistedPlaybackState, PlaybackSession } from '../lib/types'
 import { clamp } from '../lib/utils'
-import { buildOfflineSession, hasCompleteOfflineTracks, revokePlaybackSources, trackForTime, type ActivePlayback } from './playback/shared'
+import { buildOfflineSession, hasCompleteOfflineTracks, revokePlaybackSources, totalTimeFromTrack, trackForTime, type ActivePlayback } from './playback/shared'
 import { usePlaybackEffects } from './playback/usePlaybackEffects'
 import { usePlaybackProgress } from './playback/usePlaybackProgress'
 import { useSkipSeconds } from './usePlaybackPrefs'
@@ -141,7 +141,11 @@ export function usePlayback(
   }, [])
 
   const seekBy = useCallback((delta: number) => {
-    const currentTime = playbackTimeRef.current
+    const ap = activePlaybackRef.current
+    const audioTime = audioRef.current?.currentTime
+    const currentTime = ap && audioTime != null && Number.isFinite(audioTime)
+      ? totalTimeFromTrack(ap, audioTime)
+      : playbackTimeRef.current
     seekTo(currentTime + delta)
   }, [seekTo])
 
@@ -189,7 +193,6 @@ export function usePlayback(
     audioRef,
     playbackStateRef,
     playbackRate,
-    playbackTime,
     setPlaybackTime,
     setCurrentTrackDuration,
     setIsPlaying,
@@ -198,7 +201,6 @@ export function usePlayback(
     client,
     seekBy,
     seekTo,
-    togglePlayback,
     jumpToPreviousTrack,
     jumpToNextTrack,
     drainProgressQueue,
