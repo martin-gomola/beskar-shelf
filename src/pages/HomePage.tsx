@@ -5,7 +5,6 @@ import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 import { usePrimaryLibrary } from '../hooks/useLibraries'
 import { BookCard } from '../components/BookCard'
-import { QueryState } from '../components/QueryState'
 import type { BookItem } from '../lib/types'
 import { formatDuration } from '../lib/utils'
 
@@ -88,6 +87,8 @@ export function HomePage() {
   const resumeTime = playbackState?.currentTime ?? 0
   const resumeProgress = resumeDuration > 0 ? Math.min(100, Math.round((resumeTime / resumeDuration) * 100)) : 0
   const resumeRemaining = Math.max(resumeDuration - resumeTime, 0)
+  const loadError = librariesQuery.error ?? personalizedQuery.error
+  const isPending = librariesQuery.isPending || personalizedQuery.isPending && !personalizedQuery.isError
 
   return (
     <main className="screen home-screen">
@@ -100,7 +101,6 @@ export function HomePage() {
               <h1>Discovery</h1>
             </div>
           </div>
-          {/* <p className="home-subtitle">Pick a library and get back to listening.</p> */}
         </div>
       </section>
 
@@ -130,16 +130,18 @@ export function HomePage() {
         </section>
       ) : null}
 
-      <QueryState
-        isPending={librariesQuery.isPending || personalizedQuery.isPending && !personalizedQuery.isError}
-        error={librariesQuery.error ?? personalizedQuery.error as Error | null}
-        pendingFallback={<ShelfSkeleton />}
-      >
-        {personalizedQuery.data?.length
-          ? <ShelfSection shelves={personalizedQuery.data} />
-          : <section className="card"><p className="muted">No books found. Add some to your Audiobookshelf library.</p></section>
-        }
-      </QueryState>
+      {isPending ? (
+        <ShelfSkeleton />
+      ) : loadError ? (
+        <section className="card">
+          <h2>Request failed</h2>
+          <p className="muted">{loadError.message}</p>
+        </section>
+      ) : personalizedQuery.data?.length ? (
+        <ShelfSection shelves={personalizedQuery.data} />
+      ) : (
+        <section className="card"><p className="muted">No books found. Add some to your Audiobookshelf library.</p></section>
+      )}
     </main>
   )
 }

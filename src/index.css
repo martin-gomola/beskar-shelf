@@ -326,11 +326,7 @@ h3 {
 }
 
 .section-heading,
-.stats-row,
-.button-row,
-.settings-row,
-.time-row,
-.download-row {
+.time-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -353,25 +349,6 @@ h3 {
   border-radius: var(--radius-lg);
   padding: var(--sp-6);
   box-shadow: none;
-}
-
-.hero-panel {
-  padding: 28px;
-  border-radius: var(--radius-lg);
-  width: 100%;
-  text-align: left;
-  background: #101922;
-  border: 1px solid rgba(215, 182, 109, 0.1);
-  box-shadow: none;
-}
-
-.hero-panel .eyebrow,
-.hero-panel h1 {
-  color: #fff7eb;
-}
-
-.hero-panel .lede {
-  color: rgba(246, 242, 232, 0.78);
 }
 
 .setup-screen,
@@ -423,7 +400,6 @@ h3 {
   color: var(--text-muted);
 }
 
-.lede,
 .author-line {
   font-size: var(--fs-md);
   color: var(--text-secondary);
@@ -477,8 +453,7 @@ h3 {
 }
 
 .field input,
-.field textarea,
-.stats-row select {
+.field textarea {
   width: 100%;
   border-radius: var(--radius);
   border: 1px solid var(--line-strong);
@@ -491,8 +466,7 @@ h3 {
 }
 
 .field input:focus-visible,
-.field textarea:focus-visible,
-.stats-row select:focus-visible {
+.field textarea:focus-visible {
   border-color: var(--accent-500);
   box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
   background: var(--surface-solid);
@@ -645,26 +619,6 @@ h3 {
   color: var(--text);
 }
 
-.btn-press:active {
-  transform: scale(0.97);
-}
-
-.text-link {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--accent-500);
-  text-decoration: none;
-  transition: opacity 150ms ease;
-}
-
-.text-link:hover {
-  opacity: 0.75;
-}
-
-.large-button {
-  min-width: 140px;
-}
-
 .danger-button {
   background: rgba(255, 59, 48, 0.10);
   color: var(--loss);
@@ -719,11 +673,6 @@ h3 {
 
 /* Eyebrow inherits its default --text-muted (now WCAG AA on cream); no
    override needed since the header is no longer dark. */
-
-.home-subtitle {
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-}
 
 .settings-screen {
   gap: var(--sp-5);
@@ -1687,7 +1636,6 @@ h3 {
 
 /* ─── Shelf sections ─── */
 
-.shelf-section,
 .shelf-block {
   display: grid;
   gap: 12px;
@@ -1864,7 +1812,6 @@ h3 {
 }
 
 .chapter-row span,
-.download-row p,
 .mini-player span {
   color: var(--text-muted);
 }
@@ -1955,14 +1902,6 @@ h3 {
   color: var(--text-muted);
   font-size: var(--fs-sm);
   font-weight: 400;
-}
-
-.player-part-kicker {
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .player-play-btn {
@@ -2206,12 +2145,6 @@ h3 {
   min-width: max-content;
 }
 
-.player-track-saved {
-  color: var(--accent-500);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-}
-
 @media (max-width: 560px) {
   .player-stats-inline {
     padding: var(--sp-2) var(--sp-2);
@@ -2263,25 +2196,6 @@ h3 {
 
 .bookmark-add-btn {
   white-space: nowrap;
-}
-
-.bookmark-help {
-  margin: 0;
-  font-size: var(--fs-sm);
-  line-height: 1.5;
-}
-
-.bookmark-empty {
-  display: grid;
-  gap: 4px;
-  border-radius: var(--radius);
-  border: 1px dashed var(--line-strong);
-  background: var(--hover-bg);
-  padding: var(--sp-4);
-}
-
-.bookmark-empty p {
-  margin: 0;
 }
 
 .bookmark-row {
@@ -2606,12 +2520,6 @@ h3 {
 
 .reader-tap-prev { left: 0; }
 .reader-tap-next { right: 0; }
-
-.reader-content-frame {
-  flex: 1;
-  width: 100%;
-  border: 0;
-}
 
 .reader-bottombar {
   position: absolute;
@@ -3053,39 +2961,6 @@ h3 {
   background: color-mix(in srgb, var(--accent-500) 12%, transparent);
 }
 
-/* ─── Download list ─── */
-
-.download-list {
-  display: grid;
-  gap: 12px;
-}
-
-.download-link {
-  display: grid;
-  gap: 4px;
-  color: inherit;
-  text-decoration: none;
-  min-width: 0;
-}
-
-.download-link strong {
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  transition: text-decoration-color 150ms ease;
-}
-
-.download-link:hover strong,
-.download-link:focus-visible strong {
-  text-decoration-color: currentColor;
-}
-
-.download-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 /* ─── Downloads page (compact list + selection mode) ─── */
 
 .downloads-header {
@@ -3483,11 +3358,6 @@ h3 {
 
 /* ─── Animations ─── */
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -3505,14 +3375,6 @@ h3 {
 
 @keyframes progress-stripe {
   to { transform: translateX(100%); }
-}
-
-.animate-fade-in {
-  animation: fade-in 200ms ease-out both;
-}
-
-.animate-slide-up {
-  animation: slide-up 200ms ease-out both;
 }
 
 /* ─── Reduced motion ─── */
@@ -3576,10 +3438,6 @@ h3 {
   }
 
   .resume-banner,
-  .stats-row,
-  .button-row,
-  .settings-row,
-  .download-row,
   .time-row:not(.player-time-row) {
     grid-template-columns: 1fr;
     display: grid;
@@ -3635,18 +3493,11 @@ h3 {
     width: 100%;
   }
 
-  .home-subtitle {
-    display: none;
-  }
-
   .home-header {
     gap: var(--sp-3);
     padding: 14px 16px;
   }
 
-  .text-link {
-    padding-left: 2px;
-  }
 }
 
 /* Stats page: simple horizontal bar chart for day-of-week breakdown.

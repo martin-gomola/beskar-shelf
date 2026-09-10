@@ -60,7 +60,6 @@ Copy `.env.example` to `.env`:
 
 | Variable | Purpose |
 |---|---|
-| `VITE_APP_NAME` | Display name |
 | `VITE_DEFAULT_SERVER_URL` | Pre-filled server URL on first launch |
 | `VITE_ABS_PROXY_BASE` | Dev proxy prefix (default `/abs`) |
 | `VITE_DEMO_USERNAME` | Optional pre-filled login username — public demo only, never real creds |

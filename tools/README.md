@@ -20,7 +20,7 @@ One-time setup per machine:
 make install-tools
 ```
 
-This creates `tools/.venv`, installs `beskar_tools` in editable mode with pinned deps, and wires the shims to use that venv automatically.
+This creates `tools/.venv`, installs `beskar_tools` in editable mode, and wires the shims to use that venv automatically.
 
 `optimize-pdf` additionally needs the `qpdf` binary on PATH:
 
@@ -43,12 +43,10 @@ tools/
   pyproject.toml
   beskar_tools/
     config.py           # .env loader, BeskarConfig pydantic model
-    models.py           # BookRef, MergePlan, ResolveResult
     abs_client.py       # Audiobookshelf HTTP client
-    resolve/            # Open Library + Wikidata lookups with sqlite cache
-    organize/           # layout writer + multi-part merge detector
+    organize/           # tested filesystem cleanup rules
     cli/                # one module per command binary
-  tests/                # pytest + pytest-httpx offline fixtures
+  tests/                # pytest checks
 ```
 
 ## Test
@@ -56,13 +54,6 @@ tools/
 ```bash
 tools/.venv/bin/pytest tools/tests
 ```
-
-## Design notes
-
-* Parsing is **heuristic first, knowledge-base second**. No LLM.
-* Failure cases are captured as pytest fixtures so regressions are caught immediately.
-* Multi-part books are detected by comparing parsed title against the ABS library; matches trigger renumber-and-merge instead of a duplicate folder.
-* External Open Library, Wikidata, and ABS calls are mockable for offline tests.
 
 YouTube-to-MP3 preparation is maintained in the shared
 [`data-extraction`](../../data-extraction) repository.

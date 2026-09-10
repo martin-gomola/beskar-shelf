@@ -6,7 +6,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_APP_NAME: ${VITE_APP_NAME:-Beskar Shelf}
         VITE_DEFAULT_SERVER_URL: ${VITE_DEFAULT_SERVER_URL:-}
         VITE_ABS_PROXY_BASE: ${VITE_ABS_PROXY_BASE:-/abs}
         VITE_DYNAMIC_PROXY_ENABLED: ${VITE_DYNAMIC_PROXY_ENABLED:-false}

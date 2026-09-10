@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "beskar-tools"
 version = "0.1.0"
-description = "Audiobookshelf-oriented download, normalize, and organize tooling for beskar-shelf."
+description = "Audiobookshelf utilities for beskar-shelf."
 requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
@@ -14,15 +14,12 @@ dependencies = [
   "click>=8.3",
   "python-dotenv>=1.2",
   "rich>=15.0",
-  "rapidfuzz>=3.14",
-  "lingua-language-detector>=2.2",
   "pymupdf>=1.24,<2",
 ]
 
 [project.optional-dependencies]
 dev = [
   "pytest>=9.0",
-  "pytest-httpx>=0.36",
   "ruff>=0.15",
 ]
 

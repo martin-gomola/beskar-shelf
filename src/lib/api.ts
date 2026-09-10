@@ -403,14 +403,6 @@ export class AudiobookshelfClient {
     }).filter((shelf) => shelf.entities.length > 0)
   }
 
-  async getLibraryItems(libraryId: string) {
-    const response = asRecord(
-      await this.request(`/api/libraries/${libraryId}/items?minified=0&collapseseries=0&sort=media.metadata.title`),
-    )
-    const results = Array.isArray(response.results) ? response.results : []
-    return results.map(bookFromUnknown)
-  }
-
   async getLibraryItemsPaginated(libraryId: string, page: number, limit = 20) {
     const response = asRecord(
       await this.request(
