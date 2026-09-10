@@ -1,4 +1,4 @@
-.PHONY: help setup extraction-setup install install-tools tools-test tools-lint dev down stop kill build test lint deploy deploy-down deploy-logs abs-token abs-descriptions screenshots download download-dry-run doctor
+.PHONY: help setup extraction-setup install install-tools tools-test tools-lint dev down stop kill build test lint check deploy deploy-down deploy-logs abs-token abs-descriptions screenshots download download-dry-run doctor
 DATA_EXTRACTION_REPO ?= ../data-extraction
 DATA_EXTRACTION_PY := $(DATA_EXTRACTION_REPO)/.venv/bin/python
 DATA_EXTRACTION_LINKS ?= $(DATA_EXTRACTION_REPO)/inputs/book-yt-links.txt
@@ -15,6 +15,7 @@ help:
 	@echo "  make build            Build the PWA production bundle"
 	@echo "  make test             Run tests"
 	@echo "  make lint             Run linter"
+	@echo "  make check            Run lint, tests, build, PWA contract, and Compose validation"
 	@echo ""
 	@echo "  Deploy:"
 	@echo "  make deploy           Build and run the Beskar Shelf app container"
@@ -68,6 +69,9 @@ test:
 
 lint:
 	@npm run lint
+
+check: lint test build
+	@docker compose config --quiet
 
 install-tools:
 	@cd tools && \

@@ -9,13 +9,14 @@ interface PullToRefreshProps {
 }
 
 export function PullToRefresh({ disabled = false, onRefresh }: PullToRefreshProps) {
-  const startYRef = useRef<number | null>(null)
+  const startRef = useRef<{ x: number; y: number } | null>(null)
   const distanceRef = useRef(0)
   const disabledRef = useRef(disabled)
   const refreshingRef = useRef(false)
   const onRefreshRef = useRef(onRefresh)
   const [distance, setDistance] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
+  const [announcement, setAnnouncement] = useState('')
 
   useEffect(() => {
     disabledRef.current = disabled
@@ -27,7 +28,7 @@ export function PullToRefresh({ disabled = false, onRefresh }: PullToRefreshProp
   }, [refreshing])
 
   const resetPull = useCallback(() => {
-    startYRef.current = null
+    startRef.current = null
     distanceRef.current = 0
     setDistance(0)
   }, [])
@@ -40,21 +41,25 @@ export function PullToRefresh({ disabled = false, onRefresh }: PullToRefreshProp
 
     function handleTouchStart(event: TouchEvent) {
       if (disabledRef.current || refreshingRef.current || window.scrollY > 0 || event.touches.length !== 1) {
-        startYRef.current = null
+        startRef.current = null
         return
       }
 
-      startYRef.current = event.touches[0].clientY
+      startRef.current = {
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY,
+      }
     }
 
     function handleTouchMove(event: TouchEvent) {
-      if (startYRef.current === null || disabledRef.current || refreshingRef.current || event.touches.length !== 1) {
+      if (!startRef.current || disabledRef.current || refreshingRef.current || event.touches.length !== 1) {
         return
       }
 
-      const pullDistance = event.touches[0].clientY - startYRef.current
-      if (pullDistance <= 0) {
-        setPullDistance(0)
+      const deltaX = event.touches[0].clientX - startRef.current.x
+      const deltaY = event.touches[0].clientY - startRef.current.y
+      if (deltaY <= 0 || Math.abs(deltaX) > Math.abs(deltaY)) {
+        resetPull()
         return
       }
 
@@ -67,22 +72,27 @@ export function PullToRefresh({ disabled = false, onRefresh }: PullToRefreshProp
         event.preventDefault()
       }
 
-      setPullDistance(Math.min(MAX_DISTANCE, pullDistance * 0.55))
+      const nextDistance = Math.min(MAX_DISTANCE, deltaY * 0.55)
+      setPullDistance(nextDistance)
+      setAnnouncement(nextDistance >= TRIGGER_DISTANCE ? 'Release to refresh.' : 'Keep pulling to refresh.')
     }
 
     async function handleTouchEnd() {
       if (distanceRef.current < TRIGGER_DISTANCE || disabledRef.current || refreshingRef.current) {
+        if (distanceRef.current > 0) setAnnouncement('Refresh cancelled.')
         resetPull()
         return
       }
 
       setPullDistance(TRIGGER_DISTANCE)
       setRefreshing(true)
-      startYRef.current = null
+      setAnnouncement('Refreshing…')
+      startRef.current = null
       try {
         await onRefreshRef.current()
       } finally {
         setRefreshing(false)
+        setAnnouncement('Refresh complete.')
         resetPull()
       }
     }
@@ -117,6 +127,7 @@ export function PullToRefresh({ disabled = false, onRefresh }: PullToRefreshProp
       >
         <span />
       </div>
+      <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
     </div>
   )
 }

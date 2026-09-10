@@ -34,6 +34,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const proxyBase = env.VITE_ABS_PROXY_BASE?.trim()
   const proxyTarget = env.ABS_URL?.trim() || env.VITE_ABS_PROXY_TARGET?.trim()
+  const securityHeaders = {
+    'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet, noimageindex',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+  }
 
   return {
     plugins: [
@@ -49,12 +55,7 @@ export default defineConfig(({ mode }) => {
       cssMinify: true,
     },
     server: {
-      headers: {
-        'X-Robots-Tag': 'noindex, nofollow',
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'Referrer-Policy': 'no-referrer',
-      },
+      headers: securityHeaders,
       ...(proxyBase && proxyTarget
         ? {
             proxy: {
@@ -67,6 +68,9 @@ export default defineConfig(({ mode }) => {
             },
           }
         : {}),
+    },
+    preview: {
+      headers: securityHeaders,
     },
     test: {
       environment: 'jsdom',

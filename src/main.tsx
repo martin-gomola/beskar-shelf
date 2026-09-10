@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
 import { QueryCache } from '@tanstack/react-query'
 import { SessionExpiredError } from './lib/api'
+import { startUpdateLifecycle } from './platform/updateLifecycle'
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -29,17 +30,8 @@ const queryClient = new QueryClient({
   },
 })
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((reg) => {
-        console.log('SW registered:', reg.scope)
-        setInterval(() => reg.update(), 5 * 60 * 1000)
-      })
-      .catch((err) => {
-        console.log('SW registration failed:', err)
-      })
-  })
+if (import.meta.env.PROD) {
+  window.addEventListener('load', startUpdateLifecycle)
 }
 
 createRoot(document.getElementById('root')!).render(

@@ -27,7 +27,7 @@ function SettingsPage() {
     offlineBooks,
     clearCachedBooks,
   } = useAppContext()
-  const { updateAvailable, reload, checkForUpdate } = useServiceWorkerUpdate()
+  const { updateAvailable, applyUpdate, checkForUpdate } = useServiceWorkerUpdate()
   const { theme, setTheme } = useTheme()
   const [skipSeconds, setSkipSeconds] = useSkipSeconds()
   const navigate = useNavigate()
@@ -78,7 +78,7 @@ function SettingsPage() {
 
   async function handleCheckForUpdates() {
     if (updateAvailable) {
-      reload()
+      applyUpdate()
       return
     }
 
@@ -184,7 +184,7 @@ function SettingsPage() {
           >
             <span>
               {updateAvailable
-                ? 'Reload to update'
+                ? 'Update now'
                 : checkingForUpdate
                   ? 'Checking for updates…'
                   : 'Check for updates'}

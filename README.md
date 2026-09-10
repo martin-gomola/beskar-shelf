@@ -105,6 +105,7 @@ make dev        # Vite dev server + ABS proxy
 make lint       # linter
 make test       # tests
 make build      # production bundle
+make check      # all app, PWA, and Compose checks
 ```
 
 `make dev` proxies browser requests to `ABS_URL` under `/abs`, sidestepping CORS when your Audiobookshelf server sits on a different origin.

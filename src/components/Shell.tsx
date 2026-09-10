@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import { useAppContext } from '../contexts/AppContext'
@@ -42,8 +42,8 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 
 export function Shell() {
   const { server, session, playbackState, refreshBooks, refreshOfflineBooks } = useAppContext()
-  const { activePlayback } = usePlayerContext()
-  const { updateAvailable, reload, checkForUpdate } = useServiceWorkerUpdate()
+  const { activePlayback, isPlaying } = usePlayerContext()
+  const { updateAvailable, applyUpdate, checkForUpdate } = useServiceWorkerUpdate()
   useTheme()
   const location = useLocation()
 
@@ -51,6 +51,23 @@ export function Shell() {
   const needsLogin = Boolean(server?.baseUrl) && !session
   const publicRoute = location.pathname === '/' || location.pathname === '/login'
   const pullRefreshDisabled = publicRoute || location.pathname.startsWith('/read/')
+
+  useEffect(() => {
+    if (isPlaying) return
+    const section = location.pathname.split('/')[1]
+    const routeTitle = {
+      home: 'Home',
+      library: 'Library',
+      book: 'Book',
+      read: 'Reader',
+      player: 'Player',
+      downloads: 'Downloads',
+      settings: 'Settings',
+      stats: 'Listening stats',
+      login: 'Sign in',
+    }[section]
+    document.title = routeTitle ? `${routeTitle} · Beskar Shelf` : 'Beskar Shelf'
+  }, [isPlaying, location.pathname])
 
   async function refreshApp() {
     await Promise.all([
@@ -75,7 +92,7 @@ export function Shell() {
       {updateAvailable && (
         <div className="update-banner">
           <span>A new version is available</span>
-          <button onClick={reload}>Reload</button>
+          <button onClick={applyUpdate}>Update now</button>
         </div>
       )}
 

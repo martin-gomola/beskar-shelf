@@ -1,7 +1,7 @@
 const BUILD_VERSION = '__BUILD_VERSION__'
-const CACHE_NAME = `beskar-shelf-${BUILD_VERSION}`
+const CACHE_PREFIX = 'beskar-shelf'
+const CACHE_NAME = `${CACHE_PREFIX}-${BUILD_VERSION}`
 const COVER_CACHE = 'beskar-covers'
-const API_CACHE = 'beskar-api'
 
 const cachePutSafe = async (cacheName, request, response) => {
   if (!response || response.bodyUsed) return
@@ -12,26 +12,46 @@ const cachePutSafe = async (cacheName, request, response) => {
   } catch (_) {}
 }
 
-const PRECACHE = ['/', '/favicon.svg', '/manifest.webmanifest', '/pwa-icon.svg', ...__PRECACHE_ASSETS__]
+const PRECACHE = [
+  '/',
+  '/favicon.svg',
+  '/manifest.webmanifest',
+  '/pwa-icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+  '/apple-touch-icon.png',
+  '/robots.txt',
+  ...__PRECACHE_ASSETS__,
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
   )
-  self.skipWaiting()
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'SKIP_WAITING') return
+  event.waitUntil(self.skipWaiting())
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME && key !== COVER_CACHE && key !== API_CACHE && key.startsWith('beskar-'))
-          .map((key) => caches.delete(key))
-      )
-    )
+    Promise.all([
+      caches.keys().then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => (
+              key === 'beskar-api' ||
+              key.startsWith(`${CACHE_PREFIX}-`) && key !== CACHE_NAME
+            ))
+            .map((key) => caches.delete(key))
+        )
+      ),
+      self.clients.claim(),
+    ])
   )
-  self.clients.claim()
 })
 
 self.addEventListener('fetch', (event) => {
@@ -59,26 +79,11 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // API JSON: stale-while-revalidate for GETs; pass-through for mutations
+  // ABS API and media: network-only. Offline books and progress belong to IndexedDB.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/abs/')) {
-    if (request.method !== 'GET') return
-
-    // Strip volatile params (auth token) so cache key is stable across token rotations
-    const stableUrl = new URL(request.url)
-    stableUrl.searchParams.delete('token')
-    const cacheKey = new Request(stableUrl.toString(), { method: 'GET' })
-
     event.respondWith(
-      caches.open(API_CACHE).then(async (cache) => {
-        const cached = await cache.match(cacheKey)
-        const networkFetch = fetch(request)
-          .then((res) => {
-            if (res.ok) event.waitUntil(cachePutSafe(API_CACHE, cacheKey, res))
-            return res
-          })
-          .catch(() => cached ?? new Response('Offline', { status: 503, statusText: 'Service Unavailable' }))
-        return cached ?? networkFetch
-      })
+      fetch(request)
+        .catch(() => new Response('Offline', { status: 503, statusText: 'Service Unavailable' }))
     )
     return
   }

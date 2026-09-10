@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run check:pwa",
+    "check:pwa": "node scripts/check-pwa.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
