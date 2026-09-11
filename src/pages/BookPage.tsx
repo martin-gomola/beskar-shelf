@@ -443,7 +443,7 @@ export function BookPage() {
 
               return (
                 <button
-                  key={chapter.id}
+                  key={`${chapter.start}-${index}`}
                   className={clsx('chapter-row', { downloaded: isChapterSaved })}
                   onClick={() => {
                     if (activePlayback?.item.id === item.id) {

@@ -113,7 +113,7 @@ function bookFromUnknown(value: unknown): BookItem {
   const metadata = asRecord(media.metadata)
   const progress = asRecord(item.userMediaProgress ?? item.progress ?? item.mediaProgress)
   const chapters = Array.isArray(media.chapters)
-    ? media.chapters.map(chapterFromUnknown)
+    ? media.chapters.map(chapterFromUnknown).sort((a, b) => a.start - b.start)
     : []
   const tracks = withTrackOffsets(pickAudioSources(media).map(trackFromUnknown))
   const ebooks = Array.isArray(media.ebookFiles)
@@ -175,7 +175,7 @@ function playbackFromUnknown(value: unknown): PlaybackSession {
     displayAuthor: String(session.displayAuthor ?? session.author ?? 'Unknown author'),
     coverPath: typeof session.coverPath === 'string' ? session.coverPath : null,
     chapters: Array.isArray(session.chapters)
-      ? session.chapters.map(chapterFromUnknown)
+      ? session.chapters.map(chapterFromUnknown).sort((a, b) => a.start - b.start)
       : [],
     audioTracks: withTrackOffsets(rawTracks),
   }

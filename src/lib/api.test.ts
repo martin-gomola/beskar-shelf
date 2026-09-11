@@ -82,7 +82,10 @@ describe('AudiobookshelfClient', () => {
         media: {
           duration: 1200,
           coverPath: '/metadata/items/book_1/cover.jpg',
-          chapters: [{ id: 1, title: 'Start', start: 0, end: 120 }],
+          chapters: [
+            { id: 2, title: 'Later', start: 120, end: 240 },
+            { id: 1, title: 'Start', start: 0, end: 120 },
+          ],
           audioTracks: [
             {
               contentUrl: '/s/item/book_1/part-1.mp3',
@@ -109,7 +112,7 @@ describe('AudiobookshelfClient', () => {
       author: 'Din Djarin',
       progress: 0.25,
       currentTime: 300,
-      chapters: [{ title: 'Start' }],
+      chapters: [{ title: 'Start' }, { title: 'Later' }],
       audioTracks: [{ title: 'Part 1', contentUrl: '/s/item/book_1/part-1.mp3' }],
     })
   })

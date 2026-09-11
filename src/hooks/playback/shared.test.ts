@@ -118,7 +118,7 @@ describe('playback shared helpers', () => {
     expect(trackForTime(tracks, 0)).toBe(0)
     expect(trackForTime(tracks, 119.9)).toBe(0)
     expect(trackForTime(tracks, 120)).toBe(1)
-    expect(trackForTime(tracks, 999)).toBe(0)
+    expect(trackForTime(tracks, 999)).toBe(1)
   })
 
   it('converts the active track time back to the full-book playback time', () => {

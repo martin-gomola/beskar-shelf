@@ -1,5 +1,4 @@
 import type { AudioTrack, BookItem, OfflineBook, PlaybackSession } from '../../lib/types'
-import { clamp } from '../../lib/utils'
 
 export interface ActivePlayback {
   item: BookItem
@@ -10,12 +9,16 @@ export interface ActivePlayback {
 }
 
 export function trackForTime(tracks: AudioTrack[], currentTime: number) {
-  const target = clamp(currentTime, 0, Math.max(currentTime, tracks.at(-1)?.startOffset ?? 0))
+  if (tracks.length === 0) {
+    return 0
+  }
+
+  const target = Math.max(0, currentTime)
   const found = tracks.findIndex((track) => {
     const end = track.startOffset + track.duration
     return target >= track.startOffset && target < end
   })
-  return found === -1 ? 0 : found
+  return found === -1 ? tracks.length - 1 : found
 }
 
 export function totalTimeFromTrack(activePlayback: ActivePlayback | null, audioTime: number) {

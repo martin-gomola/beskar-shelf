@@ -104,12 +104,7 @@ export function usePlaybackEffects({
 
       const nextIndex = activePlayback.trackIndex + 1
       if (nextIndex < activePlayback.sources.length) {
-        const next = { ...activePlayback, trackIndex: nextIndex }
-        setActivePlayback(next)
-        audio.src = next.sources[nextIndex]
-        audio.currentTime = 0
-        enableBackgroundAudio()
-        void audio.play()
+        jumpToNextTrack()
         return
       }
       setIsPlaying(false)
@@ -151,6 +146,7 @@ export function usePlaybackEffects({
     audioRef,
     client,
     flushProgress,
+    jumpToNextTrack,
     playbackRate,
     playbackStateRef,
     refreshOfflineBooks,

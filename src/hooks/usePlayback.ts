@@ -40,6 +40,7 @@ export function usePlayback(
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const playbackRateRef = useRef(playbackRate)
+  const pendingTrackLoadRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     activePlaybackRef.current = activePlayback
@@ -107,6 +108,7 @@ export function usePlayback(
     const wasPlaying = !audio.paused
     const isChangingTrack = nextTrackIndex !== ap.trackIndex
 
+    pendingTrackLoadRef.current?.()
     playbackTimeRef.current = clamped
     setPlaybackTime(clamped)
 
@@ -131,6 +133,10 @@ export function usePlayback(
     }
 
     const onLoaded = () => {
+      if (pendingTrackLoadRef.current !== cancel) {
+        return
+      }
+      pendingTrackLoadRef.current = null
       audio.currentTime = nextTime
       setActivePlayback({ ...ap, trackIndex: nextTrackIndex })
       if (wasPlaying) {
@@ -138,6 +144,13 @@ export function usePlayback(
         void audio.play().catch(() => undefined)
       }
     }
+    const cancel = () => {
+      audio.removeEventListener('loadedmetadata', onLoaded)
+      if (pendingTrackLoadRef.current === cancel) {
+        pendingTrackLoadRef.current = null
+      }
+    }
+    pendingTrackLoadRef.current = cancel
     audio.addEventListener('loadedmetadata', onLoaded, { once: true })
     audio.src = nextSource
     audio.load()
@@ -166,11 +179,36 @@ export function usePlayback(
     if (!track) {
       return
     }
-    setActivePlayback({ ...ap, trackIndex: index })
+    pendingTrackLoadRef.current?.()
+    const next = { ...ap, trackIndex: index }
+    if (sourcesMatch(audio.src, ap.sources[index])) {
+      setActivePlayback(next)
+      audio.currentTime = 0
+      enableBackgroundAudio()
+      void audio.play().catch(() => undefined)
+      return
+    }
+
+    const onLoaded = () => {
+      if (pendingTrackLoadRef.current !== cancel) {
+        return
+      }
+      pendingTrackLoadRef.current = null
+      audio.currentTime = 0
+      setActivePlayback(next)
+      enableBackgroundAudio()
+      void audio.play().catch(() => undefined)
+    }
+    const cancel = () => {
+      audio.removeEventListener('loadedmetadata', onLoaded)
+      if (pendingTrackLoadRef.current === cancel) {
+        pendingTrackLoadRef.current = null
+      }
+    }
+    pendingTrackLoadRef.current = cancel
+    audio.addEventListener('loadedmetadata', onLoaded, { once: true })
     audio.src = ap.sources[index]
-    audio.currentTime = 0
-    enableBackgroundAudio()
-    void audio.play()
+    audio.load()
   }, [])
 
   const jumpToPreviousTrack = useCallback(() => {
@@ -215,6 +253,7 @@ export function usePlayback(
   })
 
   const startBook = useCallback(async (item: BookItem, startTime?: number) => {
+    pendingTrackLoadRef.current?.()
     const offline = await getOfflineBook(item.id)
     let playbackSession
     if (offline && hasCompleteOfflineTracks(item, offline)) {
@@ -287,6 +326,7 @@ export function usePlayback(
   }
 
   function stopPlayback() {
+    pendingTrackLoadRef.current?.()
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.removeAttribute('src')

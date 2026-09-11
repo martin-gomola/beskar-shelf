@@ -279,6 +279,7 @@ describe('usePlayback', () => {
       configurable: true,
       value: play,
     })
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
 
     const { result } = renderHook(() => usePlayback(
       client,
@@ -297,14 +298,24 @@ describe('usePlayback', () => {
       expect(src).toBe('blob:track-1')
     })
 
+    play.mockClear()
     act(() => {
-      result.current.jumpToNextTrack()
+      audio.dispatchEvent(new Event('ended'))
     })
 
     await waitFor(() => {
       expect(src).toBe('blob:track-2')
+    })
+    expect(play).not.toHaveBeenCalled()
+
+    act(() => {
+      audio.dispatchEvent(new Event('loadedmetadata'))
+    })
+
+    await waitFor(() => {
       expect(result.current.activePlayback?.trackIndex).toBe(1)
     })
+    expect(play).toHaveBeenCalledTimes(2)
     expect(revokeObjectURL).not.toHaveBeenCalled()
     expect(client.startPlayback).not.toHaveBeenCalled()
   })
