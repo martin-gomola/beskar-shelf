@@ -93,11 +93,7 @@ function SettingsPage() {
   return (
     <main className="screen settings-screen">
       <section className="settings-hero card">
-        <p className="eyebrow">Shelf tuning</p>
         <h1>Settings</h1>
-        <p className="muted">
-          Adjust the vibe, refresh your catalog, and manage how this device stays connected.
-        </p>
       </section>
 
       {/* Appearance */}
@@ -107,7 +103,6 @@ function SettingsPage() {
           <div className="settings-item settings-item-stack">
             <div className="settings-copy">
               <span className="settings-key">Theme</span>
-              <span className="settings-action-hint">Choose light, dark, or follow the device.</span>
             </div>
             <div className="theme-toggle">
               {THEME_OPTIONS.map((opt) => (
@@ -130,10 +125,7 @@ function SettingsPage() {
         <div className="settings-card">
           <div className="settings-item settings-item-stack">
             <div className="settings-copy">
-              <span className="settings-key">Skip distance</span>
-              <span className="settings-action-hint">
-                How far the rewind and forward buttons jump.
-              </span>
+              <span className="settings-key">Skip</span>
             </div>
             <div className="theme-toggle">
               {SKIP_SECONDS_OPTIONS.map((value) => (
@@ -174,7 +166,6 @@ function SettingsPage() {
             disabled={refreshingBooks}
           >
             <span>{refreshingBooks ? 'Refreshing books…' : 'Refresh books'}</span>
-            <span className="settings-action-hint">Refetch your libraries and titles</span>
           </button>
           <div className="settings-divider" />
           <button
@@ -189,11 +180,6 @@ function SettingsPage() {
                   ? 'Checking for updates…'
                   : 'Check for updates'}
             </span>
-            <span className="settings-action-hint">
-              {updateAvailable
-                ? 'A new version is ready'
-                : 'Ask the app to look for a newer version'}
-            </span>
           </button>
         </div>
       </section>
@@ -207,9 +193,6 @@ function SettingsPage() {
             onClick={() => navigate('/stats')}
           >
             <span>Listening stats</span>
-            <span className="settings-action-hint">
-              Time listened, by-day breakdown, top books
-            </span>
           </button>
         </div>
       </section>
@@ -236,11 +219,6 @@ function SettingsPage() {
             disabled={purgingCache}
           >
             <span>{purgingCache ? 'Purging cache…' : 'Purge cache'}</span>
-            <span className="settings-action-hint">
-              {cacheSummary.count > 0
-                ? `Clear ${cacheSummary.count} auto-cached book${cacheSummary.count === 1 ? '' : 's'} (${formatBytes(cacheSummary.totalBytes)}) and stale server data`
-                : 'Clear cached library data and covers from the server'}
-            </span>
           </button>
         </div>
       </section>
