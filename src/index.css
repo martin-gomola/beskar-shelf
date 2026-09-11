@@ -1849,11 +1849,6 @@ h3 {
 
 .player-screen {
   gap: 24px;
-  /* The player-card has no background of its own, so the .screen's 28px
-     bottom padding is just empty surface beneath the action row — wasted
-     vertical space, especially when the mini-player is hidden on /player.
-     Drop it; the .app-shell's bottom padding already clears the nav. */
-  padding-bottom: 0;
 }
 
 .player-card {
