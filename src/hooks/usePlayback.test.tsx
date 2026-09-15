@@ -306,16 +306,17 @@ describe('usePlayback', () => {
     await waitFor(() => {
       expect(src).toBe('blob:track-2')
     })
-    expect(play).not.toHaveBeenCalled()
+    expect(play).toHaveBeenCalledTimes(1)
+
+    await waitFor(() => {
+      expect(result.current.activePlayback?.trackIndex).toBe(1)
+    })
 
     act(() => {
       audio.dispatchEvent(new Event('loadedmetadata'))
     })
 
-    await waitFor(() => {
-      expect(result.current.activePlayback?.trackIndex).toBe(1)
-    })
-    expect(play).toHaveBeenCalledTimes(2)
+    expect(play).toHaveBeenCalledTimes(1)
     expect(revokeObjectURL).not.toHaveBeenCalled()
     expect(client.startPlayback).not.toHaveBeenCalled()
   })

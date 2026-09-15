@@ -293,12 +293,18 @@ describe('usePlaybackEffects', () => {
     expect(createElement.mock.calls.filter(([tagName]) => tagName === 'audio')).toHaveLength(0)
   })
 
-  it('delegates next-track playback to the shared track transition', () => {
+  it('starts the next track inside the ended event background window', () => {
     const activePlayback = buildActivePlayback()
     const audio = document.createElement('audio')
+    const play = vi.fn().mockResolvedValue(undefined)
+    const audioSession = { type: 'ambient' }
+    Object.defineProperty(navigator, 'audioSession', {
+      configurable: true,
+      value: audioSession,
+    })
     Object.defineProperty(audio, 'play', {
       configurable: true,
-      value: vi.fn().mockResolvedValue(undefined),
+      value: play,
     })
 
     const props = {
@@ -329,11 +335,22 @@ describe('usePlaybackEffects', () => {
     renderHook((hookProps) => usePlaybackEffects(hookProps), {
       initialProps: props,
     })
+    play.mockClear()
+    props.setActivePlayback.mockClear()
+    audioSession.type = 'ambient'
 
     act(() => {
       audio.dispatchEvent(new Event('ended'))
     })
 
-    expect(props.jumpToNextTrack).toHaveBeenCalledTimes(1)
+    expect(props.jumpToNextTrack).not.toHaveBeenCalled()
+    expect(props.setActivePlayback).toHaveBeenCalledWith({
+      ...activePlayback,
+      trackIndex: 1,
+    })
+    expect(audio.src).toBe(activePlayback.sources[1])
+    expect(audio.currentTime).toBe(0)
+    expect(audioSession.type).toBe('playback')
+    expect(play).toHaveBeenCalledTimes(1)
   })
 })

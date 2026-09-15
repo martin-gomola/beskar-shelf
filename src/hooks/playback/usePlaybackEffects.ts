@@ -108,7 +108,16 @@ export function usePlaybackEffects({
 
       const nextIndex = activePlayback.trackIndex + 1
       if (nextIndex < activePlayback.sources.length) {
-        jumpToNextTrack()
+        // iOS may suspend the PWA again as soon as this ended callback
+        // returns. Start the next source synchronously instead of waiting for
+        // loadedmetadata in the interactive track-navigation path.
+        const next = { ...activePlayback, trackIndex: nextIndex }
+        autoplayPlaybackRef.current = next
+        setActivePlayback(next)
+        audio.src = next.sources[nextIndex]
+        audio.currentTime = 0
+        enableBackgroundAudio()
+        void audio.play().catch(() => undefined)
         return
       }
       setIsPlaying(false)
