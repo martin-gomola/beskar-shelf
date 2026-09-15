@@ -58,6 +58,12 @@ self.addEventListener('fetch', (event) => {
 
   if (request.method !== 'GET') return
 
+  // Keep media on WebKit's native loader. Intercepting audio or byte-range
+  // requests routes playback through the service worker, which can be
+  // suspended when an installed iOS app is locked. It can also interfere
+  // with Safari's probing and subsequent 206 range requests.
+  if (request.destination === 'audio' || request.headers.has('range')) return
+
   // Cover images: cache-first in a long-lived cache (survives app updates)
   // Strip query params (token) from cache key so covers survive token rotation
   if (/\/(?:abs\/)?api\/items\/[^/]+\/cover$/.test(url.pathname)) {
