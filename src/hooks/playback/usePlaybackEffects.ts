@@ -1,9 +1,16 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { PersistedPlaybackState } from '../../lib/types'
 import type { AudiobookshelfClient } from '../../lib/api'
 import { cachePlayedTrack } from '../../lib/downloads'
 import { enableBackgroundAudio, revokePlaybackSources, totalTimeFromTrack, type ActivePlayback } from './shared'
+import { TrackSourceResolver } from './trackSourceResolver'
+import {
+  canAttemptTransition,
+  createTransitionState,
+  reduceTransition,
+  type TransitionState,
+} from './transitionMachine'
 
 interface UsePlaybackEffectsOptions {
   activePlayback: ActivePlayback | null
@@ -52,7 +59,8 @@ export function usePlaybackEffects({
 }: UsePlaybackEffectsOptions) {
   const activePlaybackCleanupRef = useRef<ActivePlayback | null>(activePlayback)
   const autoplayPlaybackRef = useRef<ActivePlayback | null>(null)
-  const prefetchedSourcesRef = useRef(new Map<string, string>())
+  const transitionStateRef = useRef<TransitionState | null>(null)
+  const [trackSourceResolver] = useState(() => new TrackSourceResolver())
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {
@@ -62,6 +70,18 @@ export function usePlaybackEffects({
     const playbackChanged = activePlayback !== autoplayPlaybackRef.current
     autoplayPlaybackRef.current = activePlayback
     const audio = audioRef.current
+    const transitionState = transitionStateRef.current
+    if (
+      !transitionState
+      || transitionState.sessionId !== activePlayback.session.id
+      || transitionState.targetTrackIndex == null
+      || transitionState.targetTrackIndex !== activePlayback.trackIndex
+    ) {
+      transitionStateRef.current = createTransitionState(
+        activePlayback.session.id,
+        activePlayback.trackIndex,
+      )
+    }
     audio.preload = 'auto'
     const currentSource = activePlayback.sources[activePlayback.trackIndex]
     if (audio.src !== currentSource) {
@@ -84,6 +104,12 @@ export function usePlaybackEffects({
       // media clock, so reassert the playback category from the resulting
       // play event to restore the audible route as well.
       enableBackgroundAudio()
+      if (transitionStateRef.current?.sessionId === activePlayback.session.id) {
+        transitionStateRef.current = reduceTransition(
+          transitionStateRef.current,
+          { type: 'playing' },
+        )
+      }
       setIsPlaying(true)
       document.title = playingTitle
       syncMediaSession(activePlayback, audio)
@@ -98,6 +124,13 @@ export function usePlaybackEffects({
       setCurrentTrackDuration(audio.duration || 0)
       syncMediaSession(activePlayback, audio)
     }
+    const onCanPlay = () => attemptTrackTransition(audio, transitionStateRef)
+    const onError = () => {
+      const current = transitionStateRef.current
+      if (current?.targetTrackIndex != null) {
+        transitionStateRef.current = reduceTransition(current, { type: 'play-failed' })
+      }
+    }
     const onMediaStateChange = () => syncMediaSession(activePlayback, audio)
     const onEnded = () => {
       const finishedSource = activePlayback.sources[activePlayback.trackIndex]
@@ -107,30 +140,26 @@ export function usePlaybackEffects({
           .catch(() => {})
       }
 
-      const nextIndex = activePlayback.trackIndex + 1
-      if (nextIndex < activePlayback.sources.length) {
+      const currentTransition = transitionStateRef.current
+        ?? createTransitionState(activePlayback.session.id, activePlayback.trackIndex)
+      const transition = reduceTransition(currentTransition, {
+        type: 'track-ended',
+        totalTracks: activePlayback.sources.length,
+      })
+      transitionStateRef.current = transition
+      const nextIndex = transition.targetTrackIndex
+      if (nextIndex != null) {
         // iOS may suspend the PWA again as soon as this ended callback
         // returns. Start the next source synchronously instead of waiting for
         // loadedmetadata in the interactive track-navigation path.
-        const nextKey = prefetchedSourceKey(activePlayback.session.id, nextIndex)
-        const prefetchedSource = prefetchedSourcesRef.current.get(nextKey)
-        const sources = prefetchedSource
-          ? activePlayback.sources.map((source, index) => index === nextIndex ? prefetchedSource : source)
-          : activePlayback.sources
-        if (prefetchedSource) {
-          prefetchedSourcesRef.current.delete(nextKey)
-        }
+        const sources = trackSourceResolver.consume(activePlayback, nextIndex)
         const next = { ...activePlayback, sources, trackIndex: nextIndex }
         autoplayPlaybackRef.current = next
         setActivePlayback(next)
         audio.src = next.sources[nextIndex]
         audio.currentTime = 0
-        enableBackgroundAudio()
-        audio.addEventListener('canplay', () => {
-          enableBackgroundAudio()
-          void audio.play().catch(() => undefined)
-        }, { once: true })
-        void audio.play().catch(() => undefined)
+        transitionStateRef.current = reduceTransition(transition, { type: 'source-assigned' })
+        attemptTrackTransition(audio, transitionStateRef)
         return
       }
       setIsPlaying(false)
@@ -143,6 +172,8 @@ export function usePlaybackEffects({
     audio.addEventListener('play', onPlay)
     audio.addEventListener('pause', onPause)
     audio.addEventListener('loadedmetadata', onLoaded)
+    audio.addEventListener('canplay', onCanPlay)
+    audio.addEventListener('error', onError)
     audio.addEventListener('ended', onEnded)
     audio.addEventListener('timeupdate', onMediaStateChange)
     audio.addEventListener('durationchange', onMediaStateChange)
@@ -160,6 +191,8 @@ export function usePlaybackEffects({
       audio.removeEventListener('play', onPlay)
       audio.removeEventListener('pause', onPause)
       audio.removeEventListener('loadedmetadata', onLoaded)
+      audio.removeEventListener('canplay', onCanPlay)
+      audio.removeEventListener('error', onError)
       audio.removeEventListener('ended', onEnded)
       audio.removeEventListener('timeupdate', onMediaStateChange)
       audio.removeEventListener('durationchange', onMediaStateChange)
@@ -179,12 +212,26 @@ export function usePlaybackEffects({
     setActivePlayback,
     setCurrentTrackDuration,
     setIsPlaying,
+    trackSourceResolver,
   ])
+
+  const activeSessionId = activePlayback?.session.id ?? null
+  useEffect(() => {
+    trackSourceResolver.activateSession(activeSessionId)
+    return () => {
+      trackSourceResolver.activateSession(null)
+    }
+  }, [activeSessionId, trackSourceResolver])
 
   useEffect(() => {
     if (!activePlayback) {
       return
     }
+
+    trackSourceResolver.activateSession(
+      activePlayback.session.id,
+      activePlayback.trackIndex,
+    )
 
     const nextIndex = activePlayback.trackIndex + 1
     const nextSource = activePlayback.sources[nextIndex]
@@ -192,42 +239,12 @@ export function usePlaybackEffects({
       return
     }
 
-    const key = prefetchedSourceKey(activePlayback.session.id, nextIndex)
-    if (prefetchedSourcesRef.current.has(key)) {
-      return
-    }
-
-    let cancelled = false
-    void cachePlayedTrack(client, activePlayback, nextIndex)
-      .then((blob) => {
-        if (!blob || cancelled) {
-          return
-        }
-        const objectUrl = URL.createObjectURL(blob)
-        if (cancelled) {
-          URL.revokeObjectURL(objectUrl)
-          return
-        }
-        prefetchedSourcesRef.current.set(key, objectUrl)
-        void refreshOfflineBooks?.()
+    void trackSourceResolver.prefetch(client, activePlayback, nextIndex)
+      .then((prefetched) => {
+        if (prefetched) void refreshOfflineBooks?.()
       })
       .catch(() => {})
-
-    return () => {
-      cancelled = true
-    }
-  }, [activePlayback, client, refreshOfflineBooks])
-
-  const activeSessionId = activePlayback?.session.id ?? null
-  useEffect(() => {
-    const prefetchedSources = prefetchedSourcesRef.current
-    return () => {
-      for (const source of prefetchedSources.values()) {
-        URL.revokeObjectURL(source)
-      }
-      prefetchedSources.clear()
-    }
-  }, [activeSessionId])
+  }, [activePlayback, client, refreshOfflineBooks, trackSourceResolver])
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {
@@ -262,7 +279,14 @@ export function usePlaybackEffects({
       if (document.hidden) {
         hiddenAt = Date.now()
         flushProgress(false)
-      } else if (hiddenAt > 0 && Date.now() - hiddenAt > 30_000) {
+      } else {
+        const transition = transitionStateRef.current
+        if (transition?.targetTrackIndex != null && audioRef.current) {
+          transitionStateRef.current = reduceTransition(transition, { type: 'foregrounded' })
+          attemptTrackTransition(audioRef.current, transitionStateRef)
+        }
+      }
+      if (!document.hidden && hiddenAt > 0 && Date.now() - hiddenAt > 30_000) {
         void (async () => {
           try {
             const fresh = await client.getItem(activePlayback.item.id)
@@ -292,7 +316,7 @@ export function usePlaybackEffects({
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
     }
-  }, [activePlayback, client, drainProgressQueue, flushProgress, playbackTimeRef, setPlaybackState])
+  }, [activePlayback, audioRef, client, drainProgressQueue, flushProgress, playbackTimeRef, setPlaybackState])
 
   useEffect(() => {
     if (!activePlayback || !('mediaSession' in navigator)) {
@@ -370,8 +394,23 @@ export function usePlaybackEffects({
   }, [])
 }
 
-function prefetchedSourceKey(sessionId: string, trackIndex: number) {
-  return `${sessionId}:${trackIndex}`
+function attemptTrackTransition(
+  audio: HTMLAudioElement,
+  transitionStateRef: React.RefObject<TransitionState | null>,
+) {
+  const current = transitionStateRef.current
+  if (!current || !canAttemptTransition(current)) {
+    return
+  }
+
+  transitionStateRef.current = reduceTransition(current, { type: 'play-attempted' })
+  enableBackgroundAudio()
+  void audio.play().catch(() => {
+    const latest = transitionStateRef.current
+    if (latest?.targetTrackIndex != null) {
+      transitionStateRef.current = reduceTransition(latest, { type: 'play-failed' })
+    }
+  })
 }
 
 function syncMediaSession(activePlayback: ActivePlayback, audio: HTMLAudioElement) {
