@@ -240,6 +240,13 @@ describe('usePlaybackEffects', () => {
     })
     expect(mediaSession.playbackState).toBe('paused')
 
+    audioSession.type = 'ambient'
+    await act(async () => {
+      paused = false
+      audio.dispatchEvent(new Event('play'))
+    })
+    expect(audioSession.type).toBe('playback')
+
     currentTime = 42
     act(() => {
       audio.dispatchEvent(new Event('timeupdate'))

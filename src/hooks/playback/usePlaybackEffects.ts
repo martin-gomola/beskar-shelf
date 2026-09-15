@@ -78,6 +78,11 @@ export function usePlaybackEffects({
     const baseTitle = document.title.replace(/^▶\s+/, '')
     const playingTitle = `▶ ${activePlayback.item.title} — ${baseTitle}`
     const onPlay = () => {
+      // iOS can return the audio session to an ambient category after a
+      // lock-screen pause. Its native Media Session handler restarts the
+      // media clock, so reassert the playback category from the resulting
+      // play event to restore the audible route as well.
+      enableBackgroundAudio()
       setIsPlaying(true)
       document.title = playingTitle
       syncMediaSession(activePlayback, audio)
