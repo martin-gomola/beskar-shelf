@@ -242,11 +242,14 @@ export function usePlaybackEffects({
     const canGoNext = activePlayback.trackIndex < activePlayback.session.audioTracks.length - 1
 
     const actions: [MediaSessionAction, MediaSessionActionHandler | null][] = [
-      // Let the user agent control the active HTMLAudioElement directly for
-      // play/pause. On iOS a custom play callback runs in the suspended PWA
-      // document and may be unable to resume audio from the lock screen.
-      ['play', null],
-      ['pause', null],
+      // Use explicit remote handlers so lock-screen Play can restore iOS's
+      // playback category before restarting the media element. The default
+      // handler may advance the media clock silently while the PWA is locked.
+      ['play', () => {
+        enableBackgroundAudio()
+        void audioRef.current?.play().catch(() => undefined)
+      }],
+      ['pause', () => audioRef.current?.pause()],
       ['seekbackward', (details) => seekBy(-(details?.seekOffset ?? skipSeconds))],
       ['seekforward', (details) => seekBy(details?.seekOffset ?? skipSeconds)],
       ['seekto', (details) => {
