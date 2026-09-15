@@ -165,7 +165,7 @@ describe('usePlaybackEffects', () => {
     expect(audio.preload).toBe('auto')
   })
 
-  it('maps lock-screen actions to audio state and updates position metadata', async () => {
+  it('leaves lock-screen play and pause to the browser media element', async () => {
     const { actionHandlers, mediaSession, setPositionState } = installMediaSession()
     const audioSession = { type: 'ambient' }
     Object.defineProperty(navigator, 'audioSession', {
@@ -222,20 +222,22 @@ describe('usePlaybackEffects', () => {
 
     renderHook((hookProps) => usePlaybackEffects(hookProps), { initialProps: props })
     expect(audioSession.type).toBe('playback')
+    expect(actionHandlers.get('play')).toBeNull()
+    expect(actionHandlers.get('pause')).toBeNull()
     play.mockClear()
     pause.mockClear()
     setPositionState.mockClear()
 
     await act(async () => {
-      actionHandlers.get('play')?.({ action: 'play' } as MediaSessionActionDetails)
+      paused = false
+      audio.dispatchEvent(new Event('play'))
     })
-    expect(play).toHaveBeenCalledTimes(1)
     expect(mediaSession.playbackState).toBe('playing')
 
     act(() => {
-      actionHandlers.get('pause')?.({ action: 'pause' } as MediaSessionActionDetails)
+      paused = true
+      audio.dispatchEvent(new Event('pause'))
     })
-    expect(pause).toHaveBeenCalledTimes(1)
     expect(mediaSession.playbackState).toBe('paused')
 
     currentTime = 42
