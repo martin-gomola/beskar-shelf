@@ -1,10 +1,16 @@
-import { act, renderHook } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AudioTrack, BookItem, PersistedPlaybackState, PlaybackSession } from '../../lib/types'
 import type { AudiobookshelfClient } from '../../lib/api'
 import { usePlaybackEffects } from './usePlaybackEffects'
 import type { ActivePlayback } from './shared'
+
+const downloadMocks = vi.hoisted(() => ({
+  cachePlayedTrack: vi.fn(),
+}))
+
+vi.mock('../../lib/downloads', () => downloadMocks)
 
 function buildTrack(index: number, startOffset: number, duration: number): AudioTrack {
   return {
@@ -88,6 +94,11 @@ function installMediaSession() {
 }
 
 describe('usePlaybackEffects', () => {
+  beforeEach(() => {
+    downloadMocks.cachePlayedTrack.mockReset()
+    downloadMocks.cachePlayedTrack.mockResolvedValue(null)
+  })
+
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
@@ -293,6 +304,64 @@ describe('usePlaybackEffects', () => {
     expect(createElement.mock.calls.filter(([tagName]) => tagName === 'audio')).toHaveLength(0)
   })
 
+  it('prefetches the next track and consumes its local blob at the chapter boundary', async () => {
+    const activePlayback = buildActivePlayback()
+    const prefetchedBlob = new Blob(['next-track'], { type: 'audio/mpeg' })
+    downloadMocks.cachePlayedTrack.mockResolvedValue(prefetchedBlob)
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:prefetched-track-2')
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const audio = document.createElement('audio')
+    const play = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(audio, 'play', { configurable: true, value: play })
+
+    const props = {
+      activePlayback,
+      setActivePlayback: vi.fn(),
+      audioRef: { current: audio },
+      playbackStateRef: { current: null },
+      playbackRate: 1,
+      setPlaybackTime: vi.fn(),
+      setCurrentTrackDuration: vi.fn(),
+      setIsPlaying: vi.fn(),
+      scheduleProgressCommit: vi.fn(),
+      flushProgress: vi.fn(),
+      client: {
+        coverUrl: vi.fn().mockReturnValue('https://example.test/cover.jpg'),
+        getItem: vi.fn(),
+      } as unknown as AudiobookshelfClient,
+      seekBy: vi.fn(),
+      seekTo: vi.fn(),
+      jumpToPreviousTrack: vi.fn(),
+      jumpToNextTrack: vi.fn(),
+      drainProgressQueue: vi.fn().mockResolvedValue(undefined),
+      playbackTimeRef: { current: 119 },
+      setPlaybackState: vi.fn(),
+      refreshOfflineBooks: vi.fn(),
+    }
+
+    renderHook((hookProps) => usePlaybackEffects(hookProps), { initialProps: props })
+
+    await waitFor(() => {
+      expect(downloadMocks.cachePlayedTrack).toHaveBeenCalledWith(props.client, activePlayback, 1)
+      expect(createObjectURL).toHaveBeenCalledWith(prefetchedBlob)
+    })
+
+    play.mockClear()
+    props.setActivePlayback.mockClear()
+    act(() => {
+      audio.dispatchEvent(new Event('ended'))
+    })
+
+    expect(audio.src).toBe('blob:prefetched-track-2')
+    expect(props.setActivePlayback).toHaveBeenCalledWith({
+      ...activePlayback,
+      sources: [activePlayback.sources[0], 'blob:prefetched-track-2'],
+      trackIndex: 1,
+    })
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(revokeObjectURL).not.toHaveBeenCalledWith('blob:prefetched-track-2')
+  })
+
   it('starts the next track inside the ended event background window', () => {
     const activePlayback = buildActivePlayback()
     const audio = document.createElement('audio')
@@ -352,5 +421,10 @@ describe('usePlaybackEffects', () => {
     expect(audio.currentTime).toBe(0)
     expect(audioSession.type).toBe('playback')
     expect(play).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      audio.dispatchEvent(new Event('canplay'))
+    })
+    expect(play).toHaveBeenCalledTimes(2)
   })
 })

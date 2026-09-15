@@ -52,6 +52,7 @@ export function usePlaybackEffects({
 }: UsePlaybackEffectsOptions) {
   const activePlaybackCleanupRef = useRef<ActivePlayback | null>(activePlayback)
   const autoplayPlaybackRef = useRef<ActivePlayback | null>(null)
+  const prefetchedSourcesRef = useRef(new Map<string, string>())
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {
@@ -111,12 +112,24 @@ export function usePlaybackEffects({
         // iOS may suspend the PWA again as soon as this ended callback
         // returns. Start the next source synchronously instead of waiting for
         // loadedmetadata in the interactive track-navigation path.
-        const next = { ...activePlayback, trackIndex: nextIndex }
+        const nextKey = prefetchedSourceKey(activePlayback.session.id, nextIndex)
+        const prefetchedSource = prefetchedSourcesRef.current.get(nextKey)
+        const sources = prefetchedSource
+          ? activePlayback.sources.map((source, index) => index === nextIndex ? prefetchedSource : source)
+          : activePlayback.sources
+        if (prefetchedSource) {
+          prefetchedSourcesRef.current.delete(nextKey)
+        }
+        const next = { ...activePlayback, sources, trackIndex: nextIndex }
         autoplayPlaybackRef.current = next
         setActivePlayback(next)
         audio.src = next.sources[nextIndex]
         audio.currentTime = 0
         enableBackgroundAudio()
+        audio.addEventListener('canplay', () => {
+          enableBackgroundAudio()
+          void audio.play().catch(() => undefined)
+        }, { once: true })
         void audio.play().catch(() => undefined)
         return
       }
@@ -167,6 +180,54 @@ export function usePlaybackEffects({
     setCurrentTrackDuration,
     setIsPlaying,
   ])
+
+  useEffect(() => {
+    if (!activePlayback) {
+      return
+    }
+
+    const nextIndex = activePlayback.trackIndex + 1
+    const nextSource = activePlayback.sources[nextIndex]
+    if (!nextSource || nextSource.startsWith('blob:')) {
+      return
+    }
+
+    const key = prefetchedSourceKey(activePlayback.session.id, nextIndex)
+    if (prefetchedSourcesRef.current.has(key)) {
+      return
+    }
+
+    let cancelled = false
+    void cachePlayedTrack(client, activePlayback, nextIndex)
+      .then((blob) => {
+        if (!blob || cancelled) {
+          return
+        }
+        const objectUrl = URL.createObjectURL(blob)
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl)
+          return
+        }
+        prefetchedSourcesRef.current.set(key, objectUrl)
+        void refreshOfflineBooks?.()
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [activePlayback, client, refreshOfflineBooks])
+
+  const activeSessionId = activePlayback?.session.id ?? null
+  useEffect(() => {
+    const prefetchedSources = prefetchedSourcesRef.current
+    return () => {
+      for (const source of prefetchedSources.values()) {
+        URL.revokeObjectURL(source)
+      }
+      prefetchedSources.clear()
+    }
+  }, [activeSessionId])
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {
@@ -307,6 +368,10 @@ export function usePlaybackEffects({
       revokePlaybackSources(activePlaybackCleanupRef.current)
     }
   }, [])
+}
+
+function prefetchedSourceKey(sessionId: string, trackIndex: number) {
+  return `${sessionId}:${trackIndex}`
 }
 
 function syncMediaSession(activePlayback: ActivePlayback, audio: HTMLAudioElement) {

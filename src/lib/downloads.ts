@@ -218,24 +218,50 @@ export async function downloadBook(
   return result
 }
 
-export async function cachePlayedTrack(
+const trackCacheQueues = new Map<string, Promise<Blob | null>>()
+
+export function cachePlayedTrack(
+  client: AudiobookshelfClient,
+  activePlayback: ActivePlayback,
+  trackIndex: number,
+) {
+  const itemId = activePlayback.item.id
+  const previous = trackCacheQueues.get(itemId) ?? Promise.resolve(null)
+  const task = previous
+    .catch(() => null)
+    .then(() => cachePlayedTrackNow(client, activePlayback, trackIndex))
+
+  trackCacheQueues.set(itemId, task)
+  void task.then(
+    () => {
+      if (trackCacheQueues.get(itemId) === task) trackCacheQueues.delete(itemId)
+    },
+    () => {
+      if (trackCacheQueues.get(itemId) === task) trackCacheQueues.delete(itemId)
+    },
+  )
+  return task
+}
+
+async function cachePlayedTrackNow(
   client: AudiobookshelfClient,
   activePlayback: ActivePlayback,
   trackIndex: number,
 ) {
   const track = activePlayback.session.audioTracks[trackIndex]
   if (!track?.contentUrl) {
-    return
+    return null
   }
 
   const existing = await getOfflineBook(activePlayback.item.id)
-  if (existing?.tracks.some((t) => t.trackIndex === track.index && t.blob)) {
-    return
+  const cachedTrack = existing?.tracks.find((t) => t.trackIndex === track.index && t.blob)
+  if (cachedTrack?.blob) {
+    return cachedTrack.blob
   }
 
   const response = await fetch(client.streamUrl(track.contentUrl))
   if (!response.ok) {
-    return
+    return null
   }
 
   const blob = await response.blob()
@@ -267,4 +293,5 @@ export async function cachePlayedTrack(
   }
 
   await putOfflineBook(book)
+  return blob
 }

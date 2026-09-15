@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { downloadBook } from './downloads'
+import { cachePlayedTrack, downloadBook } from './downloads'
 import type { AudiobookshelfClient } from './api'
+import type { ActivePlayback } from '../hooks/playback/shared'
 import type { BookItem } from './types'
 
 const storageMocks = vi.hoisted(() => ({
@@ -273,5 +274,82 @@ describe('downloadBook', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://books.example.com/stream/ch2.mp3')
     expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://books.example.com/stream/ch3.mp3')
     expect(result.tracks.map((track) => track.trackIndex)).toEqual([1, 2])
+  })
+
+  it('returns persisted track bytes for ahead-of-playback prefetching', async () => {
+    const trackBlob = new Blob(['cached-chapter'], { type: 'audio/mpeg' })
+    const audioTrack = {
+      index: 1,
+      title: 'Chapter 2',
+      duration: 60,
+      startOffset: 60,
+      mimeType: 'audio/mpeg',
+      contentUrl: '/stream/ch2.mp3',
+    }
+    const item: BookItem = {
+      id: 'prefetch-book',
+      libraryId: 'lib-audio',
+      title: 'Prefetched Book',
+      author: 'Archivist',
+      narrator: null,
+      description: '',
+      coverPath: null,
+      duration: 120,
+      size: trackBlob.size,
+      genres: [],
+      progress: 0,
+      currentTime: 0,
+      isFinished: false,
+      chapters: [],
+      audioTracks: [audioTrack],
+      ebookFormat: null,
+      ebookLocation: null,
+      ebookProgress: 0,
+    }
+    const activePlayback: ActivePlayback = {
+      item,
+      session: {
+        id: 'prefetch-session',
+        libraryItemId: item.id,
+        duration: item.duration,
+        displayTitle: item.title,
+        displayAuthor: item.author,
+        coverPath: null,
+        chapters: [],
+        audioTracks: [audioTrack],
+      },
+      sources: ['https://books.example.com/stream/ch2.mp3'],
+      trackIndex: 0,
+      duration: item.duration,
+    }
+    storageMocks.getOfflineBook.mockResolvedValue({
+      itemId: item.id,
+      title: item.title,
+      author: item.author,
+      coverPath: null,
+      status: 'downloaded',
+      source: 'cache',
+      totalBytes: trackBlob.size,
+      totalTracks: 1,
+      updatedAt: Date.now(),
+      tracks: [{
+        trackIndex: audioTrack.index,
+        title: audioTrack.title,
+        duration: audioTrack.duration,
+        mimeType: audioTrack.mimeType,
+        blob: trackBlob,
+      }],
+      ebookBlob: null,
+      ebookFormat: null,
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const client = {
+      streamUrl: vi.fn((path: string) => `https://books.example.com${path}`),
+    } as unknown as AudiobookshelfClient
+
+    await expect(cachePlayedTrack(client, activePlayback, 0)).resolves.toBe(trackBlob)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(storageMocks.putOfflineBook).not.toHaveBeenCalled()
   })
 })
