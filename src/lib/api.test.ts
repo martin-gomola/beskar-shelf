@@ -212,6 +212,71 @@ describe('AudiobookshelfClient', () => {
     expect(item.audioTracks[1].startOffset).toBe(900)
   })
 
+  it('uses M4A files as chapters when ABS only exposes one unnamed partial marker', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'book_m4a',
+        libraryId: 'lib_1',
+        media: {
+          duration: 995.5,
+          metadata: { title: 'Cizinec v cizí zemi', authorName: 'Robert A. Heinlein' },
+          chapters: [
+            { id: 0, title: '', start: 0.04644, end: 458.5 },
+          ],
+          audioFiles: [
+            {
+              duration: 458.5,
+              mimeType: 'audio/mp4',
+              metadata: { filename: '01 - Predmluva.m4a' },
+            },
+            {
+              duration: 537,
+              mimeType: 'audio/mp4',
+              metadata: { filename: '02 - Cast prvni Kapitola 1.m4a' },
+            },
+          ],
+        },
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const client = new AudiobookshelfClient(server, session)
+    const item = await client.getItem('book_m4a')
+
+    expect(item.chapters).toEqual([
+      { id: 0, title: '01 - Predmluva.m4a', start: 0, end: 458.5 },
+      { id: 1, title: '02 - Cast prvni Kapitola 1.m4a', start: 458.5, end: 995.5 },
+    ])
+  })
+
+  it('normalizes the same incomplete M4A marker in a playback session', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'session_m4a',
+        libraryItemId: 'book_m4a',
+        duration: 995.5,
+        chapters: [{ id: 0, title: '', start: 0.04644, end: 458.5 }],
+        audioTracks: [
+          { duration: 458.5, mimeType: 'audio/mp4', title: '01 - Predmluva.m4a', contentUrl: '/stream/01' },
+          { duration: 537, mimeType: 'audio/mp4', title: '02 - Cast prvni Kapitola 1.m4a', contentUrl: '/stream/02' },
+        ],
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const client = new AudiobookshelfClient(server, session)
+    const playback = await client.startPlayback('book_m4a')
+
+    expect(playback.chapters).toEqual([
+      { id: 0, title: '01 - Predmluva.m4a', start: 0, end: 458.5 },
+      { id: 1, title: '02 - Cast prvni Kapitola 1.m4a', start: 458.5, end: 995.5 },
+    ])
+  })
+
   it('builds a wss Socket.IO URL routed through the same base as the REST API', () => {
     const client = new AudiobookshelfClient(server, session)
 

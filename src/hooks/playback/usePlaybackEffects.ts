@@ -50,7 +50,6 @@ export function usePlaybackEffects({
   refreshOfflineBooks,
   skipSeconds = 30,
 }: UsePlaybackEffectsOptions) {
-  const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
   const activePlaybackCleanupRef = useRef<ActivePlayback | null>(activePlayback)
   const autoplayPlaybackRef = useRef<ActivePlayback | null>(null)
 
@@ -154,27 +153,6 @@ export function usePlaybackEffects({
     setCurrentTrackDuration,
     setIsPlaying,
   ])
-
-  useEffect(() => {
-    let preloadAudio = preloadAudioRef.current
-    if (!preloadAudio) {
-      preloadAudio = document.createElement('audio')
-      preloadAudio.preload = 'auto'
-      preloadAudioRef.current = preloadAudio
-    }
-    const nextSource = activePlayback?.sources[activePlayback.trackIndex + 1] ?? ''
-
-    if (!nextSource) {
-      preloadAudio.removeAttribute('src')
-      preloadAudio.load()
-      return
-    }
-
-    if (preloadAudio.src !== nextSource) {
-      preloadAudio.src = nextSource
-      preloadAudio.load()
-    }
-  }, [activePlayback?.sources, activePlayback?.trackIndex])
 
   useEffect(() => {
     if (!activePlayback || !audioRef.current) {

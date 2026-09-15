@@ -249,6 +249,46 @@ describe('usePlaybackEffects', () => {
     })
   })
 
+  it('keeps a single audio element as the iOS media-session owner', () => {
+    const activePlayback = buildActivePlayback()
+    const audio = document.createElement('audio')
+    Object.defineProperty(audio, 'play', {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    })
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
+    const createElement = vi.spyOn(document, 'createElement')
+
+    const props = {
+      activePlayback,
+      setActivePlayback: vi.fn(),
+      audioRef: { current: audio },
+      playbackStateRef: { current: null },
+      playbackRate: 1,
+      setPlaybackTime: vi.fn(),
+      setCurrentTrackDuration: vi.fn(),
+      setIsPlaying: vi.fn(),
+      scheduleProgressCommit: vi.fn(),
+      flushProgress: vi.fn(),
+      client: {
+        coverUrl: vi.fn().mockReturnValue('https://example.test/cover.jpg'),
+        getItem: vi.fn(),
+      } as unknown as AudiobookshelfClient,
+      seekBy: vi.fn(),
+      seekTo: vi.fn(),
+      jumpToPreviousTrack: vi.fn(),
+      jumpToNextTrack: vi.fn(),
+      drainProgressQueue: vi.fn().mockResolvedValue(undefined),
+      playbackTimeRef: { current: 42 },
+      setPlaybackState: vi.fn(),
+      refreshOfflineBooks: vi.fn(),
+    }
+
+    renderHook((hookProps) => usePlaybackEffects(hookProps), { initialProps: props })
+
+    expect(createElement.mock.calls.filter(([tagName]) => tagName === 'audio')).toHaveLength(0)
+  })
+
   it('delegates next-track playback to the shared track transition', () => {
     const activePlayback = buildActivePlayback()
     const audio = document.createElement('audio')

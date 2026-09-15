@@ -193,7 +193,7 @@ function PlayerPage() {
     if (!activePlayback) {
       return null
     }
-    const chapter = activePlayback.item.chapters.find(
+    const chapter = activePlayback.session.chapters.find(
       (ch) => playbackTime >= ch.start && playbackTime < ch.end,
     )
     return chapter?.end ?? null
@@ -356,13 +356,14 @@ function PlayerPage() {
     ? client.coverUrl(activePlayback.item.id)
     : null
   const activeTrack = activePlayback.session.audioTracks[activePlayback.trackIndex]
+  const playbackChapters = activePlayback.session.chapters
   const activeTrackStart = activeTrack?.startOffset ?? 0
   const activeTrackDuration = activeTrack?.duration ?? currentTrackDuration
   const localPlaybackTime = clamp(playbackTime - activeTrackStart, 0, activeTrackDuration)
   const localSeekTime = seekPreview ?? localPlaybackTime
   const localSeekPct = activeTrackDuration > 0 ? Math.min(100, (localSeekTime / activeTrackDuration) * 100) : 0
   const bufferedPct = activeTrackDuration > 0 ? Math.min(100, (bufferedTrackTime / activeTrackDuration) * 100) : 0
-  const activeChapter = activePlayback.item.chapters.find(
+  const activeChapter = playbackChapters.find(
     (chapter) => playbackTime >= chapter.start && playbackTime < chapter.end,
   )
   const activeTrackTitle = activeTrack?.title ?? `Track ${activePlayback.trackIndex + 1}`
@@ -558,7 +559,7 @@ function PlayerPage() {
             onClick={() => setShowChapters(!showChapters)}
             aria-label="Chapters"
             aria-expanded={showChapters}
-            disabled={activePlayback.item.chapters.length === 0}
+            disabled={playbackChapters.length === 0}
           >
             <IconList />
             <span>Chapters</span>
@@ -602,7 +603,7 @@ function PlayerPage() {
 
         {showChapters ? (
           <ChapterListPanel
-            chapters={activePlayback.item.chapters}
+            chapters={playbackChapters}
             playbackTime={playbackTime}
             onJump={(start) => {
               seekTo(start)

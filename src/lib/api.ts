@@ -102,6 +102,32 @@ function withTrackOffsets(tracks: AudioTrack[]) {
   })
 }
 
+function chaptersForTracks(chapters: Chapter[], tracks: AudioTrack[]) {
+  if (tracks.length === 0) {
+    return chapters
+  }
+
+  const onlyChapter = chapters.length === 1 ? chapters[0] : null
+  const firstTrackEnd = tracks[0].startOffset + tracks[0].duration
+  const isUnnamedFirstFileMarker = Boolean(
+    onlyChapter
+      && tracks.length > 1
+      && onlyChapter.title.trim() === ''
+      && Math.abs(onlyChapter.end - firstTrackEnd) < 2,
+  )
+
+  if (chapters.length > 0 && !isUnnamedFirstFileMarker) {
+    return chapters
+  }
+
+  return tracks.map((track) => ({
+    id: track.index,
+    title: track.title,
+    start: track.startOffset,
+    end: track.startOffset + track.duration,
+  }))
+}
+
 function bookFromUnknown(value: unknown): BookItem {
   const item = asRecord(value)
   const books = Array.isArray(item.books) ? item.books.map(asRecord) : []
@@ -144,7 +170,7 @@ function bookFromUnknown(value: unknown): BookItem {
     progress: Number(progress.progress ?? progress.ebookProgress ?? 0),
     currentTime: Number(progress.currentTime ?? 0),
     isFinished: Boolean(progress.isFinished),
-    chapters,
+    chapters: chaptersForTracks(chapters, tracks),
     audioTracks: tracks,
     ebookFormat: String(media.ebookFormat ?? asRecord(media.ebookFile).ebookFormat ?? asRecord(ebooks[0]).ebookFormat ?? '') || null,
     ebookLocation: typeof progress.ebookLocation === 'string' ? String(progress.ebookLocation) : null,
@@ -166,6 +192,10 @@ function playbackFromUnknown(value: unknown): PlaybackSession {
   const rawTracks = Array.isArray(session.audioTracks)
     ? session.audioTracks.map(trackFromUnknown)
     : []
+  const tracks = withTrackOffsets(rawTracks)
+  const chapters = Array.isArray(session.chapters)
+    ? session.chapters.map(chapterFromUnknown).sort((a, b) => a.start - b.start)
+    : []
 
   return {
     id: String(session.id ?? ''),
@@ -174,10 +204,8 @@ function playbackFromUnknown(value: unknown): PlaybackSession {
     displayTitle: String(session.displayTitle ?? session.title ?? 'Untitled'),
     displayAuthor: String(session.displayAuthor ?? session.author ?? 'Unknown author'),
     coverPath: typeof session.coverPath === 'string' ? session.coverPath : null,
-    chapters: Array.isArray(session.chapters)
-      ? session.chapters.map(chapterFromUnknown).sort((a, b) => a.start - b.start)
-      : [],
-    audioTracks: withTrackOffsets(rawTracks),
+    chapters: chaptersForTracks(chapters, tracks),
+    audioTracks: tracks,
   }
 }
 

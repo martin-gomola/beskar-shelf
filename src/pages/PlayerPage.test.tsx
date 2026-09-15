@@ -139,6 +139,7 @@ describe('PlayerPage sleep timer', () => {
   afterEach(() => {
     cleanup()
     vi.useRealTimers()
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
   })
 
   it('saves a bookmark when the sleep timer ends', async () => {
@@ -203,5 +204,29 @@ describe('PlayerPage sleep timer', () => {
 
     expect(playerContextValue.jumpToPreviousTrack).toHaveBeenCalledTimes(1)
     expect(playerContextValue.jumpToNextTrack).not.toHaveBeenCalled()
+  })
+
+  it('shows chapters from the authoritative playback session', () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    })
+    const sessionChapters = audioTracks.map((track) => ({
+      id: track.index,
+      title: track.title,
+      start: track.startOffset,
+      end: track.startOffset + track.duration,
+    }))
+    const sessionChapterPlayback: ActivePlayback = {
+      ...activePlayback,
+      item: { ...item, chapters: [] },
+      session: { ...playbackSession, chapters: sessionChapters },
+    }
+
+    renderPlayerPage({ activePlaybackValue: sessionChapterPlayback, playbackTime: 135 })
+    fireEvent.click(screen.getByRole('button', { name: 'Chapters' }))
+
+    expect(screen.getByText('Track 1')).toBeInTheDocument()
+    expect(screen.getAllByText('Track 2')).toHaveLength(2)
   })
 })
