@@ -84,4 +84,14 @@ describe('SettingsPage', () => {
       expect(serviceWorkerUpdateMock.checkForUpdate).toHaveBeenCalledTimes(1)
     })
   })
+
+  it('uses icon-led rows and exposes segmented choices as pressed states', () => {
+    renderSettingsPage()
+
+    expect(document.querySelectorAll('.settings-icon')).toHaveLength(11)
+    expect(document.querySelectorAll('.settings-icon[aria-hidden="true"]')).toHaveLength(11)
+    expect(screen.getByRole('button', { name: 'System' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '30s' })).toHaveAttribute('aria-pressed', 'true')
+    expect(document.querySelectorAll('.settings-chevron')).toHaveLength(2)
+  })
 })
