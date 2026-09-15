@@ -427,19 +427,15 @@ h3 {
   color: var(--text-muted);
 }
 
-.author-line {
+.player-part-line {
   font-size: var(--fs-md);
   color: var(--text-secondary);
-  /* Was 1.65 — way too airy for a single-line label sitting directly under
-     the title. 1.2 keeps it readable while letting .player-meta control
-     the title↔author distance via grid gap. */
   line-height: 1.2;
   margin: 0;
 }
 
-/* Title + author live in a tight grid pair inside the player card so the
-   two labels read as one unit, instead of inheriting the player-card's
-   22px child gap. */
+/* Title + current part live in a tight grid pair inside the player card so
+   the two labels read as one unit instead of inheriting the card gap. */
 .player-meta {
   display: grid;
   gap: 4px;
@@ -1904,7 +1900,7 @@ h3 {
     font-weight: 700;
     letter-spacing: -0.015em;
   }
-  .player-meta .author-line {
+  .player-meta .player-part-line {
     font-size: var(--fs-sm);
   }
   .cover-player {
@@ -1917,15 +1913,6 @@ h3 {
   justify-content: center;
   align-items: center;
   gap: 18px;
-}
-
-/* Inline part label that lives on the author line. Keeps the position
-   metadata visible without spending a whole row of vertical space on it. */
-.player-part-inline,
-.player-part-inline-sep {
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-  font-weight: 400;
 }
 
 .player-play-btn {

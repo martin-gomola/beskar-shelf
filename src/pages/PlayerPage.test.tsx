@@ -166,6 +166,14 @@ describe('PlayerPage sleep timer', () => {
     expect(screen.getByRole('link', { name: 'Beskar Rising' })).toHaveAttribute('href', '/book/audio-1')
   })
 
+  it('shows the current chapter below the book title without the author', () => {
+    renderPlayerPage()
+
+    const currentPart = screen.getByLabelText('Current audiobook part')
+    expect(currentPart).toHaveTextContent('Chapter 1')
+    expect(screen.queryByText('Archivist')).not.toBeInTheDocument()
+  })
+
   it('uses the current track as the scrubber range for precise seeking', () => {
     const secondTrackPlayback: ActivePlayback = {
       ...activePlayback,

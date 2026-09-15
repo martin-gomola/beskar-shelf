@@ -424,22 +424,16 @@ function PlayerPage() {
             ) : null}
           </div>
         </div>
-        {/* Title + author + current part live in one tight meta block so the
-            hero reads as one identity unit instead of three competing rows.
-            Part label is demoted to an inline kicker on the author line
-            because it's positional metadata, not the book's identity. */}
+        {/* Keep the player identity focused on what is playing: the book title
+            followed by the current chapter or track on its own line. */}
         <div className="player-meta">
           <h1>
             <Link className="player-title-link" to={`/book/${activePlayback.item.id}`}>
               {activePlayback.item.title}
             </Link>
           </h1>
-          <p className="author-line">
-            <span>{activePlayback.item.author}</span>
-            <span className="player-part-inline-sep" aria-hidden="true"> · </span>
-            <span className="player-part-inline" aria-label="Current audiobook part">
-              {activePartLabel}
-            </span>
+          <p className="player-part-line" aria-label="Current audiobook part">
+            {activePartLabel}
           </p>
         </div>
 
