@@ -28,6 +28,16 @@ function requirePngSize(relativePath, expected) {
   )
 }
 
+function requireOpaquePng(relativePath) {
+  const buffer = fs.readFileSync(requireFile(relativePath))
+  const colorType = buffer[25]
+  const hasTransparencyChunk = buffer.includes(Buffer.from('tRNS', 'ascii'))
+  requireCondition(
+    (colorType === 0 || colorType === 2) && !hasTransparencyChunk,
+    `${relativePath} must have an opaque background for launcher compatibility`,
+  )
+}
+
 const crawlerDirectives = 'noindex, nofollow, noarchive, nosnippet, noimageindex'
 const manifest = JSON.parse(read('public/manifest.webmanifest'))
 const indexHtml = read('index.html')
@@ -61,6 +71,9 @@ requirePngSize('public/icon-192.png', 192)
 requirePngSize('public/icon-512.png', 512)
 requirePngSize('public/icon-maskable-512.png', 512)
 requirePngSize('public/apple-touch-icon.png', 180)
+for (const icon of ['public/icon-192.png', 'public/icon-512.png', 'public/icon-maskable-512.png', 'public/apple-touch-icon.png']) {
+  requireOpaquePng(icon)
+}
 
 requireCondition(indexHtml.includes('rel="apple-touch-icon" sizes="180x180"'), 'HTML needs the Apple touch icon')
 requireCondition(indexHtml.includes('name="theme-color" content="#f3ede3"'), 'HTML light theme color is missing')
