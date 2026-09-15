@@ -40,6 +40,8 @@ function requireOpaquePng(relativePath) {
 
 const crawlerDirectives = 'noindex, nofollow, noarchive, nosnippet, noimageindex'
 const manifest = JSON.parse(read('public/manifest.webmanifest'))
+const packageJson = JSON.parse(read('package.json'))
+const packageLock = JSON.parse(read('package-lock.json'))
 const indexHtml = read('index.html')
 const sourceWorker = read('public/sw.js')
 const mainSource = read('src/main.tsx')
@@ -60,6 +62,13 @@ requireCondition(manifest.display === 'standalone', 'manifest display must remai
 requireCondition(manifest.id === '/', 'manifest id must remain stable at /')
 requireCondition(manifest.theme_color === '#f3ede3', 'manifest theme color must match the light canvas')
 requireCondition(manifest.background_color === manifest.theme_color, 'manifest background and theme colors must match')
+requireCondition(/^\d+\.\d+\.\d+$/.test(packageJson.version), 'package version must use SemVer')
+requireCondition(packageLock.version === packageJson.version, 'package-lock version must match package.json')
+requireCondition(packageLock.packages?.['']?.version === packageJson.version, 'root lockfile package version must match package.json')
+requireCondition(
+  viteSource.includes('process.env.APP_VERSION || packageVersion'),
+  'Vite app version must default to package.json',
+)
 
 const iconAtSize = (size, purpose = 'any') => manifest.icons?.some((icon) =>
   icon.sizes === `${size}x${size}` && (icon.purpose ?? 'any').split(' ').includes(purpose)

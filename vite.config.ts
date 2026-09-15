@@ -4,6 +4,10 @@ import { loadEnv } from 'vite'
 import fs from 'node:fs'
 import path from 'node:path'
 
+const packageVersion = (JSON.parse(
+  fs.readFileSync(path.resolve('package.json'), 'utf8'),
+) as { version: string }).version
+
 function swVersionPlugin(): Plugin {
   return {
     name: 'sw-version',
@@ -47,7 +51,7 @@ export default defineConfig(({ mode }) => {
       swVersionPlugin(),
     ],
     define: {
-      __APP_VERSION__: JSON.stringify(process.env.APP_VERSION || '0.3.0'),
+      __APP_VERSION__: JSON.stringify(process.env.APP_VERSION || packageVersion),
     },
     build: {
       target: 'es2020',
