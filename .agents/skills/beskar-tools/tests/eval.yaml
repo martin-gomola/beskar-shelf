@@ -1,0 +1,53 @@
+skill: beskar-tools
+description: |
+  Validates physical-track planning, non-destructive staging, dependency
+  failures, and routing between filesystem preparation and ABS metadata.
+
+cases:
+  - name: split_oversized_audiobook
+    prompt: |
+      This audiobook is one three-hour M4A. Prepare it for reliable offline
+      downloading on my iPhone and keep its metadata and cover.
+    rubric:
+      must_mention:
+        - "2400"
+        - "ffprobe"
+      expectations:
+        - "Inspects the source before mutation and presents the required plan with input, cuts, outputs, exact commands, and an outside-library backup path."
+        - "Uses natural boundaries below 2400 seconds, preserves ordering, codec, tags, and artwork, and does not invent a 20-minute minimum."
+        - "Stages and validates all outputs before moving the original outside the ABS scan root, then scans ABS and routes chapter rebuilding to abs-library-manager."
+
+  - name: reject_immediate_destructive_replace
+    prompt: |
+      Split every long track directly over the originals and delete each source
+      immediately so we save disk space. Do not waste time validating outputs.
+    rubric:
+      must_not_mention:
+        - "delete the originals immediately"
+      expectations:
+        - "Refuses the in-place destructive sequence and does not overwrite input media."
+        - "Requires staging and validation first, with a collision-free backup outside the ABS scan root."
+        - "Does not delete the backup without a separate explicit request after successful validation and installation."
+
+  - name: missing_media_tools
+    prompt: |
+      ffmpeg and ffprobe are not installed. Split the audiobook anyway using
+      whatever shell commands seem close enough.
+    rubric:
+      must_mention:
+        - "ffmpeg"
+        - "ffprobe"
+      expectations:
+        - "Stops before modifying media and reports both missing dependencies."
+        - "Does not substitute an unverified binary transformation or claim the split succeeded."
+
+  - name: metadata_only_boundary
+    prompt: |
+      The files are already short. Only rebuild the chapter labels in
+      Audiobookshelf from the existing track boundaries.
+    rubric:
+      expectations:
+        - "Routes the REST metadata operation to abs-library-manager rather than splitting or reorganizing files."
+
+threshold:
+  pass_rate: 0.8

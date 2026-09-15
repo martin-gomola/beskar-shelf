@@ -1,0 +1,25 @@
+skill: beskar-tools
+
+should_trigger:
+  - "Split this three-hour M4A into iPhone-safe audiobook tracks"
+  - "Inspect these audiobook files and make sure no physical track exceeds 40 minutes"
+  - "Prepare this long audiobook for reliable Beskar offline downloads"
+  - "Organize the existing downloads folder into Audiobookshelf author and title folders"
+  - "Move these flat EPUB files into one folder per book"
+  - "Linearise and shrink this book PDF"
+  - "Export all Audiobookshelf books that are missing descriptions"
+  - "Get an ABS API token using the configured account"
+  - "Split the long files, rescan Audiobookshelf, and rebuild its chapters"
+
+should_not_trigger:
+  - "Create a Witcher series and assign the books in order"
+  - "Rename this author in Audiobookshelf"
+  - "The player download button is stuck on my iPhone"
+  - "Change the ABS chapter titles without modifying audio files"
+  - "Download this audiobook from YouTube"
+  - "Split this MP4 video into social-media clips"
+  - "Generate a new square cover for this audiobook"
+
+threshold:
+  min_tpr: 0.85
+  max_fpr: 0.15

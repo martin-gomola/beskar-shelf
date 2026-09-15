@@ -1,0 +1,21 @@
+skill: abs-library-manager
+
+should_trigger:
+  - "Create a Grisham collection in Audiobookshelf"
+  - "Put the Witcher books into the correct series order"
+  - "Fix the wrong title and author shown in ABS"
+  - "Rebuild Audiobookshelf chapter metadata from the existing track boundaries"
+  - "Audit books whose chapters cover less than their complete duration"
+  - "Split the long audio files, rescan Audiobookshelf, and rebuild its chapters"
+
+should_not_trigger:
+  - "Split this three-hour M4A into files under 40 minutes"
+  - "Organize these audiobook folders on disk"
+  - "Compress and linearise this PDF"
+  - "The PWA download indicator is stuck"
+  - "Generate cover art for this book"
+  - "Download an audiobook from YouTube"
+
+threshold:
+  min_tpr: 0.85
+  max_fpr: 0.15

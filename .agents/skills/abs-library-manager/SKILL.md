@@ -8,6 +8,15 @@ description: >-
 
 # ABS Library Manager
 
+## Contents
+
+- [Source of truth](#source-of-truth)
+- [Connection rules](#connection-rules)
+- [Supported tasks](#supported-tasks)
+- [API patterns](#api-patterns)
+- [Workflow](#workflow)
+- [Gotchas](#gotchas)
+
 Repo-local guidance for managing Audiobookshelf metadata from `beskar-shelf`.
 
 ## Source Of Truth
@@ -147,6 +156,12 @@ No library scan is needed afterwards — the write goes straight to ABS's
 metadata DB. PWA clients see the new chapters as soon as their item query
 restales (default `staleTime: 60s` on `BookPage.tsx`).
 
+Chapter metadata does not split the underlying audio. For iOS offline download
+reliability, inspect the physical tracks first. If any track exceeds 40 minutes,
+use the supervised `beskar-tools` audio track sizing workflow to split and
+validate the files. That workflow has no packaged command yet. Trigger an ABS
+library scan and only then rebuild chapters from the new track boundaries.
+
 ## Workflow
 
 1. Read the target library inventory first.
@@ -185,4 +200,8 @@ Recommended process:
   `tracks[]` carries `startOffset`, `duration`, and a usable `title`.
 - Single-track audiobooks (`tracks.length == 1`) cannot be auto-rebuilt from
   this audit — there are no boundaries to derive chapters from. They need
-  embedded ID3 chapter tags or manual chapter editing in the ABS UI.
+  embedded ID3 chapter tags or manual chapter editing in the ABS UI. If the
+  physical file is longer than 40 minutes and iOS offline use is required,
+  split the media first rather than adding metadata-only chapter markers.
+- Skill routing and behavior fixtures live under `tests/`; update them when the
+  REST operations or the filesystem/metadata boundary changes.

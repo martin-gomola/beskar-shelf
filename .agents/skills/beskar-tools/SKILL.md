@@ -1,16 +1,25 @@
 ---
 name: beskar-tools
 description: >-
-  Use the beskar-tools Python package under tools/ for local Audiobookshelf
-  library maintenance in this repo: normalizing existing media folders,
-  fixing ebook folders, filling missing ABS descriptions, fetching an ABS API
-  token, and shrinking/linearising book PDFs. Use when the user asks to
-  organize existing audiobook or ebook files, prep ebooks for ABS, backfill
-  descriptions, obtain an ABS token, or compress a book PDF. Media
-  acquisition, including YouTube downloads, is out of scope for this repo.
+  Maintains local Audiobookshelf media in this repo with beskar-tools: organize
+  audiobook and ebook folders, plan and supervise ffmpeg splitting of oversized
+  audio tracks, fill missing descriptions, fetch an ABS token, and optimize
+  PDFs. Use for filesystem preparation of media already present locally. Track
+  splitting has no packaged command yet; media acquisition and ABS REST
+  metadata curation are handled elsewhere.
 ---
 
 # beskar-tools
+
+## Contents
+
+- [Bootstrap](#bootstrap)
+- [Picking the right tool](#picking-the-right-tool)
+- [Configuration](#configuration)
+- [Commands](#commands)
+- [Package layout](#package-layout-for-debugging--extension)
+- [Common workflows](#common-workflows)
+- [Gotchas](#gotchas)
 
 Python package at `tools/beskar_tools/` that powers every CLI under `tools/`.
 The shell files in `tools/` (`abs-organize`, `fix-ebooks`,
@@ -46,6 +55,7 @@ make tools-lint   # ruff check beskar_tools tests
 | User intent | Tool |
 |---|---|
 | Clean up an existing `downloads/` tree into ABS shape | `tools/abs-organize` |
+| Plan and supervise splitting long audiobook files for reliable iOS offline downloads | follow **Audio track sizing** below |
 | Flat ebook files need per-book subfolders | `tools/fix-ebooks` |
 | Find/backfill books missing ABS descriptions | `tools/fill-abs-descriptions` |
 | Produce an `ABS_TOKEN` from username/password | `tools/get-abs-token` |
@@ -158,6 +168,52 @@ xref is re-encoded once even if used on multiple pages. Exotic colourspaces
 Requires `qpdf` on PATH (`brew install qpdf` on macOS) and `pymupdf` in the
 tools venv (already pinned in `pyproject.toml`).
 
+### Audio track sizing — iOS-safe offline preparation
+
+Beskar downloads and persists physical audio tracks, not ABS chapter labels.
+Changing chapter metadata alone does not reduce download memory use. When the
+user asks to prepare or split an audiobook for reliable iPhone offline use,
+follow this priority order:
+
+1. **Hard duration limit:** produce no physical track longer than 2400 seconds,
+   apart from sub-second audio-packet rounding.
+2. **Boundary quality:** choose the nearest natural chapter, section, or silence
+   below the limit. Shorter tracks are acceptable; do not force a 20-minute
+   minimum.
+3. **Memory guardrail:** prefer output files below roughly 40 MB. Treat this as
+   advisory because bitrate determines size. Do not re-encode solely to meet it
+   without the user's approval.
+4. **Media preservation:** prefer lossless `ffmpeg -c copy`, preserve source
+   ordering, codec, tags, and attached artwork, and use zero-padded filenames.
+   If one logical chapter needs multiple files, name them as numbered parts.
+
+There is no dedicated `beskar-tools` splitting command yet. Use `ffprobe` and
+`ffmpeg` directly only after presenting this preview table:
+
+| Field | Required value |
+|---|---|
+| Input | Exact source file and measured duration |
+| Cuts | Proposed start/end timestamps and chosen natural boundaries |
+| Outputs | Ordered zero-padded filenames and expected durations |
+| Command | Exact non-destructive `ffmpeg` command(s) |
+| Backup | Collision-free path outside the ABS library scan root |
+
+Then execute the following single workflow:
+
+1. Confirm `ffprobe` and `ffmpeg` are available. Inspect duration, streams,
+   codec, tags, attached artwork, and existing chapter markers.
+2. Create outputs in a staging directory outside the source folder. Never write
+   split files over the input.
+3. Validate every staged output with `ffprobe`: duration limit, aggregate
+   duration, ordering, playability, codec, tags, and artwork. Stop without
+   installing anything if an output fails, aggregate duration differs beyond
+   normal timestamp tolerance, or stream copy cannot produce valid media.
+4. Move the original into the declared backup path outside the ABS scan root,
+   then install the validated outputs into the original media folder. Do not
+   delete the backup without a separate explicit request.
+5. Trigger an ABS library scan and verify the new physical track inventory.
+   Route chapter metadata rebuilding to `abs-library-manager` when needed.
+
 Makefile aliases:
 
 ```bash
@@ -200,8 +256,12 @@ logic, add or update a fixture under `tools/tests/` before shipping the fix.
   `make install-tools` first.
 - `optimize-pdf` additionally needs `qpdf` on PATH. macOS:
   `brew install qpdf`; Debian/Ubuntu: `apt install qpdf`.
+- Supervised audio splitting requires `ffmpeg` and `ffprobe`. If either is
+  missing, report the dependency and stop before modifying media.
 - `.env` files are gitignored — never stage them, even during troubleshooting.
 - Ruff config ignores Unicode ambiguity warnings (`RUF001`–`003`) on purpose;
   the library routinely contains en-dashes and diacritics.
 - Never hardcode LAN IPs, hostnames, or tokens into tracked files; use
   `.env` / `ABS_LOCAL_URL` overrides.
+- Skill routing and behavior fixtures live under `tests/`; update them when the
+  supported workflows or safety boundaries change.
