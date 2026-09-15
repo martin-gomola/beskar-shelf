@@ -14,9 +14,7 @@ const cachePutSafe = async (cacheName, request, response) => {
 
 const PRECACHE = [
   '/',
-  '/favicon.svg',
   '/manifest.webmanifest',
-  '/pwa-icon.svg',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable-512.png',

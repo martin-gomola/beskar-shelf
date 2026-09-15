@@ -20,7 +20,7 @@ export function SetupPage() {
         <div className="brand-lockup brand-lockup-compact">
           <img
             className="brand-mark brand-mark-small"
-            src="/pwa-icon.svg"
+            src="/icon-192.png"
             alt=""
             aria-hidden="true"
           />

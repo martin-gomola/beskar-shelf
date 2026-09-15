@@ -44,7 +44,7 @@ export function LoginPage() {
       <section className="card form-card" style={{ width: '100%' }}>
         <div className="auth-intro">
           <div className="brand-lockup brand-lockup-compact">
-            <img className="brand-mark brand-mark-small" src="/pwa-icon.svg" alt="" aria-hidden="true" />
+            <img className="brand-mark brand-mark-small" src="/icon-192.png" alt="" aria-hidden="true" />
             <div>
               <p className="eyebrow">Server</p>
               <h2 className="auth-server-url">{server?.baseUrl}</h2>

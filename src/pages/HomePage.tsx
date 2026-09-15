@@ -95,7 +95,7 @@ export function HomePage() {
       <section className="home-header">
         <div className="home-header-copy">
           <div className="brand-lockup brand-lockup-compact home-brand">
-            <img className="brand-mark brand-mark-small" src="/pwa-icon.svg" alt="" aria-hidden="true" />
+            <img className="brand-mark brand-mark-small" src="/icon-192.png" alt="" aria-hidden="true" />
             <div>
               <p className="eyebrow">Beskar Shelf</p>
               <h1>Discovery</h1>
