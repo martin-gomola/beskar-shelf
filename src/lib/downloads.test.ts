@@ -137,6 +137,51 @@ describe('downloadBook', () => {
     expect(result.tracks).toHaveLength(1)
   })
 
+  it('persists an error state when a download fails before any track is saved', async () => {
+    const client = {
+      startPlayback: vi.fn().mockRejectedValue(new Error('session unavailable')),
+      downloadEbook: vi.fn(),
+      streamUrl: vi.fn(),
+    }
+    const item: BookItem = {
+      id: 'failed-download',
+      libraryId: 'lib-audio',
+      title: 'Interrupted Book',
+      author: 'Archivist',
+      narrator: null,
+      description: '',
+      coverPath: null,
+      duration: 60,
+      size: 0,
+      genres: [],
+      progress: 0,
+      currentTime: 0,
+      isFinished: false,
+      chapters: [],
+      audioTracks: [{
+        index: 0,
+        title: 'Chapter 1',
+        duration: 60,
+        startOffset: 0,
+        mimeType: 'audio/mpeg',
+        contentUrl: '/stream/chapter-1.mp3',
+      }],
+      ebookFormat: null,
+      ebookLocation: null,
+      ebookProgress: 0,
+    }
+
+    await expect(
+      downloadBook(client as unknown as AudiobookshelfClient, item),
+    ).rejects.toThrow('session unavailable')
+
+    expect(storageMocks.putOfflineBook).toHaveBeenLastCalledWith(expect.objectContaining({
+      itemId: item.id,
+      status: 'error',
+      tracks: [],
+    }))
+  })
+
   it('persists completed tracks while an audiobook is still downloading', async () => {
     const firstBlob = new Blob(['first-track'], { type: 'audio/mpeg' })
     const secondBlob = new Blob(['second-track'], { type: 'audio/mpeg' })

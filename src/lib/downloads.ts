@@ -11,6 +11,38 @@ export async function downloadBook(
   options?: DownloadBookOptions,
   onProgress?: (progress: DownloadProgress) => void,
 ) {
+  try {
+    return await downloadBookAttempt(client, item, options, onProgress)
+  } catch (error) {
+    try {
+      const existing = await getOfflineBook(item.id)
+      await putOfflineBook({
+        itemId: item.id,
+        title: existing?.title ?? item.title,
+        author: existing?.author ?? item.author,
+        coverPath: existing?.coverPath ?? item.coverPath,
+        status: 'error',
+        source: existing?.source ?? 'download',
+        totalBytes: existing?.totalBytes ?? 0,
+        totalTracks: existing?.totalTracks ?? item.audioTracks.length,
+        updatedAt: Date.now(),
+        tracks: existing?.tracks ?? [],
+        ebookBlob: existing?.ebookBlob ?? null,
+        ebookFormat: existing?.ebookFormat ?? item.ebookFormat,
+      })
+    } catch {
+      // If IndexedDB itself is unavailable, preserve the original download error.
+    }
+    throw error
+  }
+}
+
+async function downloadBookAttempt(
+  client: AudiobookshelfClient,
+  item: BookItem,
+  options?: DownloadBookOptions,
+  onProgress?: (progress: DownloadProgress) => void,
+) {
   const existing = await getOfflineBook(item.id)
   const savedTracks = new Map<number, OfflineTrack>(
     (existing?.tracks ?? []).map((track) => [track.trackIndex, track]),

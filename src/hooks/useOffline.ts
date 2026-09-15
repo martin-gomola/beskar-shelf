@@ -33,9 +33,10 @@ export function useOffline(client: AudiobookshelfClient) {
           await downloadBook(client, item, undefined, async () => {
             await queryClient.invalidateQueries({ queryKey: ['offline-books'] })
           })
-          await queryClient.invalidateQueries({ queryKey: ['offline-books'] })
         } catch {
-          // best-effort — will be retried next app start
+          // The download service persists a terminal error state for retry.
+        } finally {
+          await queryClient.invalidateQueries({ queryKey: ['offline-books'] })
         }
       }
     })()
@@ -46,10 +47,13 @@ export function useOffline(client: AudiobookshelfClient) {
   }
 
   async function downloadCurrentBook(item: BookItem, options?: DownloadBookOptions) {
-    await downloadBook(client, item, options, async () => {
+    try {
+      await downloadBook(client, item, options, async () => {
+        await refreshOfflineBooks()
+      })
+    } finally {
       await refreshOfflineBooks()
-    })
-    await refreshOfflineBooks()
+    }
   }
 
   async function removeOfflineBook(itemId: string) {
