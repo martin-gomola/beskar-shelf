@@ -3,7 +3,11 @@ import { getOfflineBook, putOfflineBook } from './storage'
 import type { ActivePlayback } from '../hooks/playback/shared'
 import type { BookItem, DownloadBookOptions, DownloadProgress, OfflineBook, OfflineTrack } from './types'
 
-const CONCURRENCY = 3
+// WebKit has to hold a complete response in memory before it can be persisted
+// as an IndexedDB Blob. Keeping this sequential prevents several long audio
+// tracks from exhausting an iPhone PWA's memory at the same time.
+const CONCURRENCY = 1
+const DOWNLOAD_STALL_TIMEOUT_MS = 30_000
 
 export async function downloadBook(
   client: AudiobookshelfClient,
@@ -75,7 +79,9 @@ async function downloadBookAttempt(
     ? Array.from(new Set(options?.selectedTrackIndices?.filter((index) => index >= 0 && index < playback.audioTracks.length) ?? playback.audioTracks.map((_, index) => index)))
     : []
   const totalTracks = playback.audioTracks.length
-  const selectedTracks = selectedTrackIndices.map((selectedIndex) => ({ selectedIndex }))
+  const selectedTracks = selectedTrackIndices
+    .map((selectedIndex) => ({ selectedIndex }))
+    .filter(({ selectedIndex }) => !savedTracks.get(playback.audioTracks[selectedIndex].index)?.blob)
 
   for (const track of savedTracks.values()) {
     if (track.blob) {
@@ -148,34 +154,57 @@ async function downloadBookAttempt(
 
   async function downloadTrack(selectedIndex: number) {
     const track = playback.audioTracks[selectedIndex]
-    const response = await fetch(client.streamUrl(track.contentUrl))
-    if (!response.ok) {
-      throw new Error(`Failed downloading ${track.title}`)
+    const controller = new AbortController()
+    let stallTimer: ReturnType<typeof setTimeout> | undefined
+    const resetStallTimer = () => {
+      if (stallTimer) clearTimeout(stallTimer)
+      stallTimer = setTimeout(() => controller.abort(), DOWNLOAD_STALL_TIMEOUT_MS)
     }
 
-    const contentLength = Number(response.headers?.get('content-length') ?? 0)
-    if (contentLength > 0) {
-      expectedTrackBytes.set(track.index, contentLength)
-      emitProgress()
+    try {
+      resetStallTimer()
+      const response = await fetch(client.streamUrl(track.contentUrl), { signal: controller.signal })
+      if (!response.ok) {
+        throw new Error(`Failed downloading ${track.title}`)
+      }
+
+      const contentLength = Number(response.headers?.get('content-length') ?? 0)
+      if (contentLength > 0) {
+        expectedTrackBytes.set(track.index, contentLength)
+        emitProgress()
+      }
+
+      const blob = await readResponseBlob(response, track.index, track.mimeType, resetStallTimer)
+
+      savedTracks.set(track.index, {
+        trackIndex: track.index,
+        title: track.title,
+        duration: track.duration,
+        mimeType: track.mimeType,
+        blob,
+      })
+      expectedTrackBytes.set(track.index, blob.size)
+      inFlightTrackBytes.delete(track.index)
+
+      await persistProgress('downloading')
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(`${track.title} stopped receiving data. Retry the download.`)
+      }
+      throw error
+    } finally {
+      if (stallTimer) clearTimeout(stallTimer)
     }
-
-    const blob = await readResponseBlob(response, track.index, track.mimeType)
-
-    savedTracks.set(track.index, {
-      trackIndex: track.index,
-      title: track.title,
-      duration: track.duration,
-      mimeType: track.mimeType,
-      blob,
-    })
-    expectedTrackBytes.set(track.index, blob.size)
-    inFlightTrackBytes.delete(track.index)
-
-    await persistProgress('downloading')
   }
 
-  async function readResponseBlob(response: Response, trackIndex: number, mimeType: string) {
+  async function readResponseBlob(
+    response: Response,
+    trackIndex: number,
+    mimeType: string,
+    resetStallTimer: () => void,
+  ) {
     if (!response.body) {
+      resetStallTimer()
       const blob = await response.blob()
       inFlightTrackBytes.set(trackIndex, blob.size)
       emitProgress()
@@ -187,6 +216,7 @@ async function downloadBookAttempt(
     let receivedBytes = 0
 
     while (true) {
+      resetStallTimer()
       const { done, value } = await reader.read()
       if (done) {
         break

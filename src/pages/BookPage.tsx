@@ -65,7 +65,7 @@ export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
   const navigate = useNavigate()
-  const { startBook, downloadCurrentBook, removeOfflineTracks, offlineBooks, isOnline } = useAppContext()
+  const { startBook, downloadCurrentBook, removeOfflineTracks, offlineBooks, downloadingItemIds, isOnline } = useAppContext()
   const { activePlayback, seekTo } = usePlayerContext()
   const [descExpanded, setDescExpanded] = useState(false)
   const [showDownloadPicker, setShowDownloadPicker] = useState(false)
@@ -74,6 +74,7 @@ export function BookPage() {
   const [downloadPending, setDownloadPending] = useState(false)
   const [pendingDownloadTrackCount, setPendingDownloadTrackCount] = useState<number | null>(null)
   const [downloadProgress, setDownloadProgress] = useState<(DownloadProgress & { speedBytesPerSecond: number }) | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
   const downloadSpeedRef = useRef<{ bytes: number, time: number, speedBytesPerSecond: number } | null>(null)
   const query = useQuery({
     queryKey: ['item', itemId],
@@ -116,7 +117,9 @@ export function BookPage() {
   const offlineProgressPct = progressTrackCount > 0
     ? Math.min(100, Math.round((downloadedTrackCount / progressTrackCount) * 100))
     : isDownloaded ? 100 : 0
-  const isDownloadInProgress = downloadPending || offline?.status === 'downloading'
+  const isDownloadInProgress = downloadPending || downloadingItemIds.includes(itemId)
+  const isInterruptedDownload = offline?.status === 'error'
+    || offline?.status === 'downloading' && !isDownloadInProgress
   const hasOfflineProgress = canPlay && (Boolean(offline) || downloadPending) && (isDownloadInProgress || downloadedTrackCount > 0)
   const downloadUnit = progressTrackCount === currentItem.chapters.length ? 'chapters' : 'tracks'
   const offlineProgressLabel = isDownloadInProgress
@@ -143,6 +146,7 @@ export function BookPage() {
   }
 
   async function handleDownload() {
+    setDownloadError(null)
     if (!canPlay) {
       await downloadCurrentBook(currentItem)
       return
@@ -162,6 +166,7 @@ export function BookPage() {
     setDownloadPending(true)
     setPendingDownloadTrackCount(tracksToDownload.length)
     setDownloadProgress(null)
+    setDownloadError(null)
     downloadSpeedRef.current = null
     setShowDownloadPicker(false)
     setSelectedTrackIndices([])
@@ -171,6 +176,8 @@ export function BookPage() {
         selectedTrackIndices: tracksToDownload,
         onProgress: handleDownloadProgress,
       })
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'The download was interrupted.')
     } finally {
       setDownloadPending(false)
       setPendingDownloadTrackCount(null)
@@ -289,11 +296,19 @@ export function BookPage() {
             >
               {isDownloadInProgress
                 ? 'Downloading…'
-                : offline?.status === 'downloaded' ? <><IconRefresh /> Redownload</> : <><IconDownload /> Download</>}
+                : offline?.status === 'downloaded' ? <><IconRefresh /> Redownload</>
+                  : isInterruptedDownload ? <><IconRefresh /> Retry download</>
+                    : <><IconDownload /> Download</>}
             </button>
           )
         ) : null}
       </div>
+
+      {downloadError || isInterruptedDownload ? (
+        <p className="bd-download-error" role="status">
+          {downloadError ?? 'The previous download was interrupted. Choose tracks to retry.'}
+        </p>
+      ) : null}
 
       {canPlay && showDownloadPicker ? (
         <div className="bd-track-picker">

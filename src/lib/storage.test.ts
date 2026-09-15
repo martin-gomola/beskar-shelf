@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { removeOfflineTracksFromBook, summarizeOfflineBook } from './storage'
+import {
+  removeOfflineTracksFromBook,
+  restoreOfflineBlob,
+  serializeOfflineBlob,
+  summarizeOfflineBook,
+} from './storage'
 import type { OfflineBook } from './types'
 
 function buildOfflineBook(trackIndices: number[], ebookBlob: Blob | null = null): OfflineBook {
@@ -72,5 +77,19 @@ describe('summarizeOfflineBook', () => {
     })
     expect(summary.tracks.map((track) => track.trackIndex)).toEqual([0, 1])
     expect(summary.tracks[0]).not.toHaveProperty('blob')
+  })
+})
+
+describe('WebKit-compatible offline binary storage', () => {
+  it('serializes media without storing a raw Blob and restores its MIME type', async () => {
+    const source = new Blob(['audio-bytes'], { type: 'audio/mp4' })
+
+    const stored = await serializeOfflineBlob(source)
+    const restored = restoreOfflineBlob(stored.data, stored.mimeType)
+
+    expect(stored.data).toBeInstanceOf(ArrayBuffer)
+    expect(stored).not.toHaveProperty('blob')
+    expect(restored.type).toBe('audio/mp4')
+    expect(await restored.text()).toBe('audio-bytes')
   })
 })

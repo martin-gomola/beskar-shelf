@@ -126,7 +126,10 @@ describe('downloadBook', () => {
     const result = await downloadBook(client as unknown as AudiobookshelfClient, item)
 
     expect(client.startPlayback).toHaveBeenCalledWith('audio-1')
-    expect(fetchMock).toHaveBeenCalledWith('https://books.example.com/stream/chapter-1.mp3')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://books.example.com/stream/chapter-1.mp3',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
     expect(client.downloadEbook).not.toHaveBeenCalled()
     expect(result).toMatchObject({
       itemId: 'audio-1',
@@ -180,6 +183,73 @@ describe('downloadBook', () => {
       status: 'error',
       tracks: [],
     }))
+  })
+
+  it('aborts a transfer that stops receiving data and makes it retryable', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => (
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'))
+        })
+      })
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+    const client = {
+      startPlayback: vi.fn().mockResolvedValue({
+        audioTracks: [{
+          index: 0,
+          title: 'Stalled chapter',
+          duration: 60,
+          mimeType: 'audio/mpeg',
+          contentUrl: '/stream/stalled.mp3',
+        }],
+      }),
+      downloadEbook: vi.fn(),
+      streamUrl: vi.fn((path: string) => `https://books.example.com${path}`),
+    }
+    const item: BookItem = {
+      id: 'stalled-download',
+      libraryId: 'lib-audio',
+      title: 'Stalled Download',
+      author: 'Archivist',
+      narrator: null,
+      description: '',
+      coverPath: null,
+      duration: 60,
+      size: 0,
+      genres: [],
+      progress: 0,
+      currentTime: 0,
+      isFinished: false,
+      chapters: [],
+      audioTracks: [{
+        index: 0,
+        title: 'Stalled chapter',
+        duration: 60,
+        startOffset: 0,
+        mimeType: 'audio/mpeg',
+        contentUrl: '/stream/stalled.mp3',
+      }],
+      ebookFormat: null,
+      ebookLocation: null,
+      ebookProgress: 0,
+    }
+
+    try {
+      const result = expect(
+        downloadBook(client as unknown as AudiobookshelfClient, item),
+      ).rejects.toThrow('stopped receiving data')
+      await vi.advanceTimersByTimeAsync(30_000)
+      await result
+
+      expect(storageMocks.putOfflineBook).toHaveBeenLastCalledWith(expect.objectContaining({
+        itemId: item.id,
+        status: 'error',
+      }))
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('persists completed tracks while an audiobook is still downloading', async () => {
@@ -316,8 +386,16 @@ describe('downloadBook', () => {
 
     const result = await downloadBook(client as unknown as AudiobookshelfClient, item, { selectedTrackIndices: [1, 2] })
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://books.example.com/stream/ch2.mp3')
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://books.example.com/stream/ch3.mp3')
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'https://books.example.com/stream/ch2.mp3',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://books.example.com/stream/ch3.mp3',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
     expect(result.tracks.map((track) => track.trackIndex)).toEqual([1, 2])
   })
 

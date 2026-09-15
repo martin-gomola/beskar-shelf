@@ -120,6 +120,7 @@
 
 html {
   min-height: calc(100% + env(safe-area-inset-top, 0px));
+  scrollbar-gutter: stable;
 }
 
 * {
@@ -1854,6 +1855,8 @@ h3 {
 
 .player-card {
   display: grid;
+  width: min(100%, 680px);
+  margin-inline: auto;
   gap: 20px;
   text-align: center;
   background: transparent;
@@ -2035,12 +2038,14 @@ h3 {
 }
 
 .player-stat-inline select {
+  appearance: auto;
   background: transparent;
   border: none;
   color: var(--text);
   font-weight: 700;
   font-size: var(--fs-base);
   padding: 0;
+  padding-inline-end: var(--sp-4);
   cursor: pointer;
   outline: none;
 }

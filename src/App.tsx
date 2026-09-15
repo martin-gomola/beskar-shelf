@@ -58,6 +58,7 @@ function App() {
 
   const {
     offlineBooks,
+    downloadingItemIds,
     refreshOfflineBooks,
     downloadCurrentBook,
     removeOfflineBook,
@@ -100,6 +101,7 @@ function App() {
     setSession,
     isOnline,
     offlineBooks,
+    downloadingItemIds,
     refreshBooks,
     refreshOfflineBooks,
     playbackState,
@@ -109,7 +111,7 @@ function App() {
     removeOfflineTracks,
     clearCachedBooks,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [server, session, isOnline, offlineBooks, playbackState])
+  }), [server, session, isOnline, offlineBooks, downloadingItemIds, playbackState])
 
   const playerContextValue = useMemo(() => ({
     activePlayback,

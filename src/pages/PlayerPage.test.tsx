@@ -98,6 +98,7 @@ function renderPlayerPage({
     setSession: vi.fn(),
     isOnline: true,
     offlineBooks: [],
+    downloadingItemIds: [],
     refreshBooks: vi.fn().mockResolvedValue(undefined),
     refreshOfflineBooks: vi.fn().mockResolvedValue(undefined),
     playbackState: null,

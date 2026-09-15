@@ -105,6 +105,7 @@ function renderBookPage({
     setSession: vi.fn(),
     isOnline: true,
     offlineBooks: [],
+    downloadingItemIds: [],
     refreshBooks: vi.fn().mockResolvedValue(undefined),
     refreshOfflineBooks: vi.fn().mockResolvedValue(undefined),
     playbackState: null,
@@ -323,6 +324,52 @@ describe('BookPage', () => {
     expect(await screen.findByLabelText(/offline download progress/i)).toHaveTextContent('33% offline')
     expect(screen.getByLabelText(/offline download progress/i)).toHaveTextContent('1 of 3 chapters saved')
     expect(screen.getByRole('button', { name: /chapter 2.*downloaded/i })).toBeInTheDocument()
+  })
+
+  it('allows retrying a persisted download when no transfer is active', async () => {
+    const interruptedBook: OfflineBook = {
+      itemId: 'audio-1',
+      title: 'Beskar Rising',
+      author: 'Archivist',
+      coverPath: null,
+      status: 'downloading',
+      totalBytes: 0,
+      totalTracks: 3,
+      updatedAt: Date.now(),
+      tracks: [],
+    }
+
+    renderBookPage({
+      item: audiobookItem,
+      appOverrides: { offlineBooks: [interruptedBook] },
+    })
+
+    expect(await screen.findByRole('button', { name: /retry download/i })).toBeEnabled()
+    expect(screen.getByRole('status')).toHaveTextContent(/previous download was interrupted/i)
+  })
+
+  it('disables retry only while a real transfer is active', async () => {
+    const interruptedBook: OfflineBook = {
+      itemId: 'audio-1',
+      title: 'Beskar Rising',
+      author: 'Archivist',
+      coverPath: null,
+      status: 'downloading',
+      totalBytes: 0,
+      totalTracks: 3,
+      updatedAt: Date.now(),
+      tracks: [],
+    }
+
+    renderBookPage({
+      item: audiobookItem,
+      appOverrides: {
+        offlineBooks: [interruptedBook],
+        downloadingItemIds: ['audio-1'],
+      },
+    })
+
+    expect(await screen.findByRole('button', { name: /downloading/i })).toBeDisabled()
   })
 
   it('removes a downloaded track from the download picker', async () => {
