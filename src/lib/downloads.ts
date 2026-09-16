@@ -1,13 +1,29 @@
 import type { AudiobookshelfClient } from './api'
-import { getOfflineBook, putOfflineBook } from './storage'
+import {
+  getOfflineBookSummary,
+  getOfflineTrackBlob,
+  putOfflineBookSummary,
+  putOfflineEbook,
+  putOfflineTrack,
+} from './storage'
 import type { ActivePlayback } from '../hooks/playback/shared'
 import type { BookItem, DownloadBookOptions, DownloadProgress, OfflineBook, OfflineTrack } from './types'
 
-// WebKit has to hold a complete response in memory before it can be persisted
-// as an IndexedDB Blob. Keeping this sequential prevents several long audio
-// tracks from exhausting an iPhone PWA's memory at the same time.
+// WebKit holds a complete response while IndexedDB prepares its binary value.
+// Keep one track in memory, persist it, then retain metadata only before the
+// next transfer starts.
 const CONCURRENCY = 1
 const DOWNLOAD_STALL_TIMEOUT_MS = 30_000
+
+function stoppedDownloadError() {
+  const error = new Error('Download stopped. Completed tracks were kept.')
+  error.name = 'AbortError'
+  return error
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === 'AbortError'
+}
 
 export async function downloadBook(
   client: AudiobookshelfClient,
@@ -19,19 +35,20 @@ export async function downloadBook(
     return await downloadBookAttempt(client, item, options, onProgress)
   } catch (error) {
     try {
-      const existing = await getOfflineBook(item.id)
-      await putOfflineBook({
+      const existing = await getOfflineBookSummary(item.id)
+      await putOfflineBookSummary({
         itemId: item.id,
         title: existing?.title ?? item.title,
         author: existing?.author ?? item.author,
         coverPath: existing?.coverPath ?? item.coverPath,
-        status: 'error',
+        status: isAbortError(error) ? 'idle' : 'error',
         source: existing?.source ?? 'download',
         totalBytes: existing?.totalBytes ?? 0,
         totalTracks: existing?.totalTracks ?? item.audioTracks.length,
         updatedAt: Date.now(),
         tracks: existing?.tracks ?? [],
-        ebookBlob: existing?.ebookBlob ?? null,
+        ebookBlob: null,
+        ebookSize: existing?.ebookSize,
         ebookFormat: existing?.ebookFormat ?? item.ebookFormat,
       })
     } catch {
@@ -47,10 +64,11 @@ async function downloadBookAttempt(
   options?: DownloadBookOptions,
   onProgress?: (progress: DownloadProgress) => void,
 ) {
-  const existing = await getOfflineBook(item.id)
+  const existing = await getOfflineBookSummary(item.id)
   const savedTracks = new Map<number, OfflineTrack>(
     (existing?.tracks ?? []).map((track) => [track.trackIndex, track]),
   )
+  const downloadedTrackBytes = new Map<number, number>()
   const inFlightTrackBytes = new Map<number, number>()
   const expectedTrackBytes = new Map<number, number>()
 
@@ -65,11 +83,12 @@ async function downloadBookAttempt(
     totalTracks: existing?.totalTracks,
     updatedAt: Date.now(),
     tracks: existing?.tracks ?? [],
-    ebookBlob: existing?.ebookBlob ?? null,
+    ebookBlob: null,
+    ebookSize: existing?.ebookSize,
     ebookFormat: item.ebookFormat,
   }
 
-  await putOfflineBook(shell)
+  await putOfflineBookSummary(shell)
 
   const shouldDownloadAudio = item.audioTracks.length > 0 || !item.ebookFormat
   const playback = shouldDownloadAudio
@@ -81,11 +100,11 @@ async function downloadBookAttempt(
   const totalTracks = playback.audioTracks.length
   const selectedTracks = selectedTrackIndices
     .map((selectedIndex) => ({ selectedIndex }))
-    .filter(({ selectedIndex }) => !savedTracks.get(playback.audioTracks[selectedIndex].index)?.blob)
+    .filter(({ selectedIndex }) => !savedTracks.has(playback.audioTracks[selectedIndex].index))
 
   for (const track of savedTracks.values()) {
-    if (track.blob) {
-      expectedTrackBytes.set(track.trackIndex, track.blob.size)
+    if (track.size) {
+      expectedTrackBytes.set(track.trackIndex, track.size)
     }
   }
 
@@ -101,22 +120,22 @@ async function downloadBookAttempt(
     return [...playbackOrder, ...legacyTracks]
   }
 
-  function currentBytes(ebookBlob: Blob | null = shell.ebookBlob ?? null) {
-    const trackBytes = orderedTracks().reduce((total, track) => total + (track.blob?.size ?? 0), 0)
-    return trackBytes + (ebookBlob?.size ?? 0)
+  function currentBytes(ebookBlob: Blob | null = null) {
+    const downloadedBytes = Array.from(downloadedTrackBytes.values()).reduce((total, bytes) => total + bytes, 0)
+    return (existing?.totalBytes ?? 0) + downloadedBytes + (ebookBlob?.size ?? 0)
   }
 
-  function currentProgressBytes(ebookBlob: Blob | null = shell.ebookBlob ?? null) {
+  function currentProgressBytes(ebookBlob: Blob | null = null) {
     const inFlightBytes = Array.from(inFlightTrackBytes.values()).reduce((total, bytes) => total + bytes, 0)
     return currentBytes(ebookBlob) + inFlightBytes
   }
 
-  function knownTotalBytes(ebookBlob: Blob | null = shell.ebookBlob ?? null) {
+  function knownTotalBytes(ebookBlob: Blob | null = null) {
     const expectedBytes = Array.from(expectedTrackBytes.values()).reduce((total, bytes) => total + bytes, 0) + (ebookBlob?.size ?? 0)
     return Math.max(expectedBytes, currentProgressBytes(ebookBlob), selectedTrackIndices.length === totalTracks ? item.size : 0)
   }
 
-  function buildProgress(ebookBlob: Blob | null = shell.ebookBlob ?? null): DownloadProgress {
+  function buildProgress(ebookBlob: Blob | null = null): DownloadProgress {
     return {
       completedTracks: orderedTracks().length,
       totalTracks,
@@ -126,7 +145,7 @@ async function downloadBookAttempt(
     }
   }
 
-  function emitProgress(ebookBlob: Blob | null = shell.ebookBlob ?? null, persisted = false) {
+  function emitProgress(ebookBlob: Blob | null = null, persisted = false) {
     const progress = buildProgress(ebookBlob)
     options?.onProgress?.(progress)
     if (persisted) {
@@ -134,7 +153,7 @@ async function downloadBookAttempt(
     }
   }
 
-  async function persistProgress(status: OfflineBook['status'], ebookBlob: Blob | null = shell.ebookBlob ?? null) {
+  async function persistProgress(status: OfflineBook['status'], ebookBlob: Blob | null = null) {
     const partial: OfflineBook = {
       ...shell,
       status,
@@ -142,11 +161,12 @@ async function downloadBookAttempt(
       totalTracks,
       updatedAt: Date.now(),
       tracks: orderedTracks(),
-      ebookBlob,
+      ebookBlob: null,
+      ebookSize: ebookBlob?.size ?? existing?.ebookSize,
       ebookFormat: item.ebookFormat,
     }
 
-    await putOfflineBook(partial)
+    await putOfflineBookSummary(partial)
     emitProgress(ebookBlob, true)
   }
 
@@ -155,6 +175,7 @@ async function downloadBookAttempt(
   async function downloadTrack(selectedIndex: number) {
     const track = playback.audioTracks[selectedIndex]
     const controller = new AbortController()
+    const stopRequested = () => controller.abort()
     let stallTimer: ReturnType<typeof setTimeout> | undefined
     const resetStallTimer = () => {
       if (stallTimer) clearTimeout(stallTimer)
@@ -162,6 +183,10 @@ async function downloadBookAttempt(
     }
 
     try {
+      if (options?.signal?.aborted) {
+        throw stoppedDownloadError()
+      }
+      options?.signal?.addEventListener('abort', stopRequested, { once: true })
       resetStallTimer()
       const response = await fetch(client.streamUrl(track.contentUrl), { signal: controller.signal })
       if (!response.ok) {
@@ -176,24 +201,38 @@ async function downloadBookAttempt(
 
       const blob = await readResponseBlob(response, track.index, track.mimeType, resetStallTimer)
 
-      savedTracks.set(track.index, {
+      const offlineTrack: OfflineTrack = {
         trackIndex: track.index,
         title: track.title,
         duration: track.duration,
         mimeType: track.mimeType,
+        size: blob.size,
         blob,
+      }
+      await putOfflineTrack(item.id, offlineTrack)
+      savedTracks.set(track.index, {
+        trackIndex: offlineTrack.trackIndex,
+        title: offlineTrack.title,
+        duration: offlineTrack.duration,
+        mimeType: offlineTrack.mimeType,
+        size: blob.size,
       })
+      downloadedTrackBytes.set(track.index, blob.size)
       expectedTrackBytes.set(track.index, blob.size)
       inFlightTrackBytes.delete(track.index)
 
       await persistProgress('downloading')
     } catch (error) {
+      if (options?.signal?.aborted) {
+        throw stoppedDownloadError()
+      }
       if (controller.signal.aborted) {
         throw new Error(`${track.title} stopped receiving data. Retry the download.`)
       }
       throw error
     } finally {
       if (stallTimer) clearTimeout(stallTimer)
+      options?.signal?.removeEventListener('abort', stopRequested)
     }
   }
 
@@ -238,6 +277,9 @@ async function downloadBookAttempt(
   let nextTrack = 0
   async function worker() {
     while (nextTrack < selectedTracks.length) {
+      if (options?.signal?.aborted) {
+        throw stoppedDownloadError()
+      }
       const task = selectedTracks[nextTrack]
       nextTrack++
       await downloadTrack(task.selectedIndex)
@@ -249,12 +291,19 @@ async function downloadBookAttempt(
   )
 
   // Optionally download ebook
-  let ebookBlob: Blob | null = shell.ebookBlob ?? null
+  let ebookBlob: Blob | null = null
   if (item.ebookFormat) {
     try {
-      ebookBlob = await client.downloadEbook(item.id)
+      if (options?.signal?.aborted) {
+        throw stoppedDownloadError()
+      }
+      ebookBlob = await client.downloadEbook(item.id, options?.signal)
+      await putOfflineEbook(item.id, ebookBlob)
       await persistProgress('downloading', ebookBlob)
-    } catch {
+    } catch (error) {
+      if (options?.signal?.aborted || isAbortError(error)) {
+        throw stoppedDownloadError()
+      }
       // ebook download is best-effort
     }
   }
@@ -273,10 +322,11 @@ async function downloadBookAttempt(
     updatedAt: Date.now(),
     tracks: finalTracks,
     ebookBlob,
+    ebookSize: ebookBlob?.size ?? existing?.ebookSize,
     ebookFormat: item.ebookFormat,
   }
 
-  await putOfflineBook(result)
+  await putOfflineBookSummary(result)
   return result
 }
 
@@ -315,10 +365,13 @@ async function cachePlayedTrackNow(
     return null
   }
 
-  const existing = await getOfflineBook(activePlayback.item.id)
-  const cachedTrack = existing?.tracks.find((t) => t.trackIndex === track.index && t.blob)
-  if (cachedTrack?.blob) {
-    return cachedTrack.blob
+  const existing = await getOfflineBookSummary(activePlayback.item.id)
+  const cachedTrack = existing?.tracks.find((t) => t.trackIndex === track.index)
+  if (cachedTrack) {
+    const cachedBlob = await getOfflineTrackBlob(activePlayback.item.id, track.index)
+    if (cachedBlob) {
+      return cachedBlob
+    }
   }
 
   const response = await fetch(client.streamUrl(track.contentUrl))
@@ -332,12 +385,24 @@ async function cachePlayedTrackNow(
     title: track.title,
     duration: track.duration,
     mimeType: track.mimeType,
+    size: blob.size,
     blob,
   }
 
+  await putOfflineTrack(activePlayback.item.id, offlineTrack)
+
   const item = activePlayback.item
-  const tracks = [...(existing?.tracks ?? []).filter((t) => t.trackIndex !== track.index), offlineTrack]
-  const totalBytes = tracks.reduce((sum, t) => sum + (t.blob?.size ?? 0), 0)
+  const tracks = [
+    ...(existing?.tracks ?? []).filter((t) => t.trackIndex !== track.index),
+    {
+      trackIndex: offlineTrack.trackIndex,
+      title: offlineTrack.title,
+      duration: offlineTrack.duration,
+      mimeType: offlineTrack.mimeType,
+      size: blob.size,
+    },
+  ]
+  const totalBytes = Math.max(0, (existing?.totalBytes ?? 0) - (cachedTrack?.size ?? 0)) + blob.size
 
   const book: OfflineBook = {
     itemId: item.id,
@@ -350,10 +415,11 @@ async function cachePlayedTrackNow(
     totalTracks: existing?.totalTracks ?? activePlayback.session.audioTracks.length,
     updatedAt: Date.now(),
     tracks,
-    ebookBlob: existing?.ebookBlob ?? null,
+    ebookBlob: null,
+    ebookSize: existing?.ebookSize,
     ebookFormat: item.ebookFormat,
   }
 
-  await putOfflineBook(book)
+  await putOfflineBookSummary(book)
   return blob
 }

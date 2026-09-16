@@ -27,6 +27,7 @@ interface OfflineTrackBlobRecord {
   id: string
   itemId: string
   trackIndex: number
+  size?: number
   data?: ArrayBuffer
   mimeType?: string
   // Compatibility with records written before 0.4.3.
@@ -35,6 +36,7 @@ interface OfflineTrackBlobRecord {
 
 interface OfflineEbookBlobRecord {
   itemId: string
+  size?: number
   data?: ArrayBuffer
   mimeType?: string
   // Compatibility with records written before 0.4.3.
@@ -199,6 +201,47 @@ export async function listOfflineBooks() {
   return db.getAll(BOOK_STORE) as Promise<OfflineBook[]>
 }
 
+export async function getOfflineBookSummary(itemId: string) {
+  const db = await openOfflineDb()
+  return db.get(BOOK_STORE, itemId) as Promise<OfflineBook | undefined>
+}
+
+export async function putOfflineBookSummary(book: OfflineBook) {
+  const db = await openOfflineDb()
+  await db.put(BOOK_STORE, summarizeOfflineBook(book))
+}
+
+export async function getOfflineTrackBlob(itemId: string, trackIndex: number) {
+  const db = await openOfflineDb()
+  const record = await db.get(TRACK_BLOB_STORE, trackBlobKey(itemId, trackIndex)) as OfflineTrackBlobRecord | undefined
+  return restoreStoredBinary(record)
+}
+
+export async function putOfflineTrack(itemId: string, track: OfflineBook['tracks'][number]) {
+  if (!track.blob) {
+    throw new Error(`Cannot persist track ${track.trackIndex} without audio data.`)
+  }
+  const db = await openOfflineDb()
+  const stored = await serializeOfflineBlob(track.blob)
+  await db.put(TRACK_BLOB_STORE, {
+    id: trackBlobKey(itemId, track.trackIndex),
+    itemId,
+    trackIndex: track.trackIndex,
+    size: track.blob.size,
+    ...stored,
+  } satisfies OfflineTrackBlobRecord)
+}
+
+export async function putOfflineEbook(itemId: string, blob: Blob) {
+  const db = await openOfflineDb()
+  const stored = await serializeOfflineBlob(blob)
+  await db.put(EBOOK_BLOB_STORE, {
+    itemId,
+    size: blob.size,
+    ...stored,
+  } satisfies OfflineEbookBlobRecord)
+}
+
 export async function getOfflineBook(itemId: string) {
   const db = await openOfflineDb()
   const book = await db.get(BOOK_STORE, itemId) as OfflineBook | undefined
@@ -231,49 +274,10 @@ export function summarizeOfflineBook(book: OfflineBook): OfflineBook {
       title: track.title,
       duration: track.duration,
       mimeType: track.mimeType,
+      size: track.size ?? track.blob?.size,
     })),
     ebookBlob: book.ebookBlob ? null : book.ebookBlob,
   }
-}
-
-export async function putOfflineBook(book: OfflineBook) {
-  const trackRecordsToWrite = await Promise.all(book.tracks.flatMap((track) => (
-    track.blob
-      ? [serializeOfflineBlob(track.blob).then((stored) => ({
-          id: trackBlobKey(book.itemId, track.trackIndex),
-          itemId: book.itemId,
-          trackIndex: track.trackIndex,
-          ...stored,
-        } satisfies OfflineTrackBlobRecord))]
-      : []
-  )))
-  const ebookRecordToWrite = book.ebookBlob
-    ? {
-        itemId: book.itemId,
-        ...await serializeOfflineBlob(book.ebookBlob),
-      } satisfies OfflineEbookBlobRecord
-    : null
-  const db = await openOfflineDb()
-  const existingTrackRecords = await getTrackBlobRecords(db, book.itemId)
-  const nextTrackIndices = new Set(book.tracks.map((track) => track.trackIndex))
-  const tx = db.transaction([BOOK_STORE, TRACK_BLOB_STORE, EBOOK_BLOB_STORE], 'readwrite')
-  const metadata = summarizeOfflineBook(book)
-  const bookStore = tx.objectStore(BOOK_STORE)
-  const trackStore = tx.objectStore(TRACK_BLOB_STORE)
-  const ebookStore = tx.objectStore(EBOOK_BLOB_STORE)
-  const writes = [
-    bookStore.put(metadata),
-    ...existingTrackRecords
-      .filter((track) => !nextTrackIndices.has(track.trackIndex))
-      .map((track) => trackStore.delete(track.id)),
-    ...trackRecordsToWrite.map((record) => trackStore.put(record)),
-    ebookRecordToWrite
-      ? ebookStore.put(ebookRecordToWrite)
-      : ebookStore.delete(book.itemId),
-  ]
-
-  await Promise.all(writes)
-  await tx.done
 }
 
 export function removeOfflineTracksFromBook(book: OfflineBook, trackIndices: number[]) {
@@ -285,22 +289,24 @@ export function removeOfflineTracksFromBook(book: OfflineBook, trackIndices: num
   }
 
   const ebookBlob = book.ebookBlob ?? null
-  if (tracks.length === 0 && !ebookBlob) {
+  const ebookSize = book.ebookSize ?? ebookBlob?.size ?? 0
+  if (tracks.length === 0 && ebookSize === 0) {
     return null
   }
 
   return {
     ...book,
-    totalBytes: tracks.reduce((total, track) => total + (track.blob?.size ?? 0), 0) + (ebookBlob?.size ?? 0),
+    totalBytes: tracks.reduce((total, track) => total + (track.size ?? track.blob?.size ?? 0), 0) + ebookSize,
     updatedAt: Date.now(),
     tracks,
     ebookBlob,
+    ebookSize,
   } satisfies OfflineBook
 }
 
 export async function removeOfflineTracks(itemId: string, trackIndices: number[]) {
   const db = await openOfflineDb()
-  const book = await getOfflineBook(itemId)
+  const book = await getOfflineBookSummary(itemId)
   if (!book) {
     return
   }
@@ -322,7 +328,7 @@ export async function removeOfflineTracks(itemId: string, trackIndices: number[]
 
 export async function deleteOfflineBook(itemId: string) {
   const db = await openOfflineDb()
-  const trackRecords = await getTrackBlobRecords(db, itemId)
+  const trackKeys = await getTrackBlobKeys(db, itemId)
   const tx = db.transaction([BOOK_STORE, TRACK_BLOB_STORE, EBOOK_BLOB_STORE], 'readwrite')
   const bookStore = tx.objectStore(BOOK_STORE)
   const trackStore = tx.objectStore(TRACK_BLOB_STORE)
@@ -330,7 +336,7 @@ export async function deleteOfflineBook(itemId: string) {
   await Promise.all([
     bookStore.delete(itemId),
     ebookStore.delete(itemId),
-    ...trackRecords.map((track) => trackStore.delete(track.id)),
+    ...trackKeys.map((key) => trackStore.delete(key)),
   ])
   await tx.done
 }
@@ -343,6 +349,12 @@ async function getTrackBlobRecords(db: Awaited<ReturnType<typeof openDB>>, itemI
   const tx = db.transaction(TRACK_BLOB_STORE, 'readonly')
   const index = tx.objectStore(TRACK_BLOB_STORE).index('itemId')
   return index.getAll(itemId) as Promise<OfflineTrackBlobRecord[]>
+}
+
+async function getTrackBlobKeys(db: Awaited<ReturnType<typeof openDB>>, itemId: string) {
+  const tx = db.transaction(TRACK_BLOB_STORE, 'readonly')
+  const index = tx.objectStore(TRACK_BLOB_STORE).index('itemId')
+  return index.getAllKeys(itemId)
 }
 
 /**
@@ -387,6 +399,7 @@ async function migrateLegacyOfflineMedia(db: Awaited<ReturnType<typeof openDB>>)
             id: trackBlobKey(book.itemId, track.trackIndex),
             itemId: book.itemId,
             trackIndex: track.trackIndex,
+            size: track.size ?? stored.data.byteLength,
             ...stored,
           } satisfies OfflineTrackBlobRecord))]
         : []
@@ -394,6 +407,7 @@ async function migrateLegacyOfflineMedia(db: Awaited<ReturnType<typeof openDB>>)
     const ebookRecord = book.ebookBlob
       ? {
           itemId: book.itemId,
+          size: book.ebookBlob.size,
           ...await serializeOfflineBlob(book.ebookBlob),
         } satisfies OfflineEbookBlobRecord
       : null

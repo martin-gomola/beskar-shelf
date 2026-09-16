@@ -87,6 +87,7 @@ export interface OfflineTrack {
   title: string
   duration: number
   mimeType: string
+  size?: number
   blob?: Blob
 }
 
@@ -101,6 +102,7 @@ export interface DownloadProgress {
 export interface DownloadBookOptions {
   selectedTrackIndices?: number[]
   onProgress?: (progress: DownloadProgress) => void
+  signal?: AbortSignal
 }
 
 export interface OfflineBook {
@@ -115,6 +117,7 @@ export interface OfflineBook {
   updatedAt: number
   tracks: OfflineTrack[]
   ebookBlob?: Blob | null
+  ebookSize?: number
   ebookFormat?: string | null
 }
 

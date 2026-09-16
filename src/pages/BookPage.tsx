@@ -65,7 +65,7 @@ export function BookPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
   const navigate = useNavigate()
-  const { startBook, downloadCurrentBook, removeOfflineTracks, offlineBooks, downloadingItemIds, isOnline } = useAppContext()
+  const { startBook, downloadCurrentBook, cancelDownload, removeOfflineTracks, offlineBooks, downloadingItemIds, isOnline } = useAppContext()
   const { activePlayback, seekTo } = usePlayerContext()
   const [descExpanded, setDescExpanded] = useState(false)
   const [showDownloadPicker, setShowDownloadPicker] = useState(false)
@@ -290,12 +290,17 @@ export function BookPage() {
             </div>
           ) : (
             <button
-              className="ghost-button bd-action-secondary"
-              onClick={() => void handleDownload()}
-              disabled={isDownloadInProgress}
+              className={clsx('ghost-button', 'bd-action-secondary', { 'danger-button': isDownloadInProgress })}
+              onClick={() => {
+                if (isDownloadInProgress) {
+                  cancelDownload(itemId)
+                } else {
+                  void handleDownload()
+                }
+              }}
             >
               {isDownloadInProgress
-                ? 'Downloading…'
+                ? <><IconSquare /> Stop download</>
                 : offline?.status === 'downloaded' ? <><IconRefresh /> Redownload</>
                   : isInterruptedDownload ? <><IconRefresh /> Retry download</>
                     : <><IconDownload /> Download</>}

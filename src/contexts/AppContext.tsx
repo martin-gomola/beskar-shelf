@@ -15,6 +15,7 @@ export interface AppContextValue {
   playbackState: PersistedPlaybackState | null
   startBook: (item: BookItem, startTime?: number) => Promise<void>
   downloadCurrentBook: (item: BookItem, options?: DownloadBookOptions) => Promise<void>
+  cancelDownload: (itemId: string) => void
   removeOfflineBook: (itemId: string) => Promise<void>
   removeOfflineTracks: (itemId: string, trackIndices: number[]) => Promise<void>
   clearCachedBooks: () => Promise<void>

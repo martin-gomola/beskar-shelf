@@ -297,8 +297,8 @@ export class AudiobookshelfClient {
     return this.streamUrl(`/api/items/${itemId}/ebook`)
   }
 
-  async downloadEbook(itemId: string) {
-    const response = await fetch(this.ebookUrl(itemId))
+  async downloadEbook(itemId: string, signal?: AbortSignal) {
+    const response = await fetch(this.ebookUrl(itemId), { signal })
     if (!response.ok) {
       const message = await response.text().catch(() => '')
       throw new Error(message || `Failed downloading ebook (${response.status})`)

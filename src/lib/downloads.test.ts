@@ -7,7 +7,11 @@ import type { BookItem } from './types'
 
 const storageMocks = vi.hoisted(() => ({
   getOfflineBook: vi.fn(),
-  putOfflineBook: vi.fn(),
+  getOfflineBookSummary: vi.fn(),
+  getOfflineTrackBlob: vi.fn(),
+  putOfflineBookSummary: vi.fn(),
+  putOfflineTrack: vi.fn(),
+  putOfflineEbook: vi.fn(),
 }))
 
 vi.mock('./storage', () => storageMocks)
@@ -16,8 +20,14 @@ describe('downloadBook', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     storageMocks.getOfflineBook.mockReset()
-    storageMocks.putOfflineBook.mockReset()
+    storageMocks.getOfflineBookSummary.mockReset()
+    storageMocks.getOfflineTrackBlob.mockReset()
+    storageMocks.putOfflineBookSummary.mockReset()
+    storageMocks.putOfflineTrack.mockReset()
+    storageMocks.putOfflineEbook.mockReset()
     storageMocks.getOfflineBook.mockResolvedValue(undefined)
+    storageMocks.getOfflineBookSummary.mockResolvedValue(undefined)
+    storageMocks.getOfflineTrackBlob.mockResolvedValue(undefined)
   })
 
   it('downloads ebook-only items without starting audio playback', async () => {
@@ -52,7 +62,7 @@ describe('downloadBook', () => {
     const result = await downloadBook(client as unknown as AudiobookshelfClient, item)
 
     expect(client.startPlayback).not.toHaveBeenCalled()
-    expect(client.downloadEbook).toHaveBeenCalledWith('ebook-1')
+    expect(client.downloadEbook).toHaveBeenCalledWith('ebook-1', undefined)
     expect(result).toMatchObject({
       itemId: 'ebook-1',
       status: 'downloaded',
@@ -61,7 +71,8 @@ describe('downloadBook', () => {
       ebookFormat: 'epub',
       ebookBlob,
     })
-    expect(storageMocks.putOfflineBook).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(storageMocks.putOfflineEbook).toHaveBeenCalledWith(item.id, ebookBlob)
+    expect(storageMocks.putOfflineBookSummary).toHaveBeenLastCalledWith(expect.objectContaining({
       itemId: 'ebook-1',
       status: 'downloaded',
       tracks: [],
@@ -178,7 +189,7 @@ describe('downloadBook', () => {
       downloadBook(client as unknown as AudiobookshelfClient, item),
     ).rejects.toThrow('session unavailable')
 
-    expect(storageMocks.putOfflineBook).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(storageMocks.putOfflineBookSummary).toHaveBeenLastCalledWith(expect.objectContaining({
       itemId: item.id,
       status: 'error',
       tracks: [],
@@ -243,13 +254,80 @@ describe('downloadBook', () => {
       await vi.advanceTimersByTimeAsync(30_000)
       await result
 
-      expect(storageMocks.putOfflineBook).toHaveBeenLastCalledWith(expect.objectContaining({
+      expect(storageMocks.putOfflineBookSummary).toHaveBeenLastCalledWith(expect.objectContaining({
         itemId: item.id,
         status: 'error',
       }))
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('stops on request and preserves completed progress as idle', async () => {
+    const controller = new AbortController()
+    const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => (
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'))
+        }, { once: true })
+      })
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+    const client = {
+      startPlayback: vi.fn().mockResolvedValue({
+        audioTracks: [{
+          index: 0,
+          title: 'Chapter 1',
+          duration: 60,
+          mimeType: 'audio/mpeg',
+          contentUrl: '/stream/ch1.mp3',
+        }],
+      }),
+      downloadEbook: vi.fn(),
+      streamUrl: vi.fn((path: string) => `https://books.example.com${path}`),
+    }
+    const item: BookItem = {
+      id: 'cancelled-download',
+      libraryId: 'lib-audio',
+      title: 'Cancelled Download',
+      author: 'Archivist',
+      narrator: null,
+      description: '',
+      coverPath: null,
+      duration: 60,
+      size: 0,
+      genres: [],
+      progress: 0,
+      currentTime: 0,
+      isFinished: false,
+      chapters: [],
+      audioTracks: [{
+        index: 0,
+        title: 'Chapter 1',
+        duration: 60,
+        startOffset: 0,
+        mimeType: 'audio/mpeg',
+        contentUrl: '/stream/ch1.mp3',
+      }],
+      ebookFormat: null,
+      ebookLocation: null,
+      ebookProgress: 0,
+    }
+
+    const promise = downloadBook(
+      client as unknown as AudiobookshelfClient,
+      item,
+      { signal: controller.signal },
+    )
+    void promise.catch(() => undefined)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    controller.abort()
+
+    await expect(promise).rejects.toThrow('Download stopped')
+    expect(storageMocks.putOfflineBookSummary).toHaveBeenLastCalledWith(expect.objectContaining({
+      itemId: item.id,
+      status: 'idle',
+    }))
   })
 
   it('persists completed tracks while an audiobook is still downloading', async () => {
@@ -303,7 +381,7 @@ describe('downloadBook', () => {
 
     const progressSpy = vi.fn()
     const result = await downloadBook(client as unknown as AudiobookshelfClient, item, undefined, progressSpy)
-    const storedBooks = storageMocks.putOfflineBook.mock.calls.map(([book]) => book)
+    const storedBooks = storageMocks.putOfflineBookSummary.mock.calls.map(([book]) => book)
 
     expect(storedBooks).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -331,6 +409,8 @@ describe('downloadBook', () => {
       totalTracks: 2,
       completedTrackIndices: [0, 1],
     }))
+    expect(storageMocks.putOfflineTrack).toHaveBeenCalledTimes(2)
+    expect(storedBooks.flatMap((book) => book.tracks).every((track) => !track.blob)).toBe(true)
   })
 
   it('downloads only the selected audiobook tracks', async () => {
@@ -399,6 +479,87 @@ describe('downloadBook', () => {
     expect(result.tracks.map((track) => track.trackIndex)).toEqual([1, 2])
   })
 
+  it('resumes after many tracks without hydrating or rewriting their binary data', async () => {
+    const existingTracks = Array.from({ length: 10 }, (_, index) => ({
+      trackIndex: index,
+      title: `Chapter ${index + 1}`,
+      duration: 60,
+      mimeType: 'audio/mpeg',
+      size: 20_000_000,
+    }))
+    storageMocks.getOfflineBookSummary.mockResolvedValue({
+      itemId: 'large-book',
+      title: 'Large Book',
+      author: 'Archivist',
+      coverPath: null,
+      status: 'error',
+      source: 'download',
+      totalBytes: 200_000_000,
+      totalTracks: 11,
+      updatedAt: Date.now(),
+      tracks: existingTracks,
+      ebookBlob: null,
+      ebookFormat: null,
+    })
+    const playbackTracks = Array.from({ length: 11 }, (_, index) => ({
+      index,
+      title: `Chapter ${index + 1}`,
+      duration: 60,
+      mimeType: 'audio/mpeg',
+      contentUrl: `/stream/ch${index + 1}.mp3`,
+    }))
+    const trackBlob = new Blob(['last-track'], { type: 'audio/mpeg' })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => trackBlob,
+    }))
+    const client = {
+      startPlayback: vi.fn().mockResolvedValue({ audioTracks: playbackTracks }),
+      downloadEbook: vi.fn(),
+      streamUrl: vi.fn((path: string) => `https://books.example.com${path}`),
+    }
+    const item: BookItem = {
+      id: 'large-book',
+      libraryId: 'lib-audio',
+      title: 'Large Book',
+      author: 'Archivist',
+      narrator: null,
+      description: '',
+      coverPath: null,
+      duration: 660,
+      size: 200_000_000 + trackBlob.size,
+      genres: [],
+      progress: 0,
+      currentTime: 0,
+      isFinished: false,
+      chapters: [],
+      audioTracks: playbackTracks.map((track, index) => ({ ...track, startOffset: index * 60 })),
+      ebookFormat: null,
+      ebookLocation: null,
+      ebookProgress: 0,
+    }
+
+    const result = await downloadBook(
+      client as unknown as AudiobookshelfClient,
+      item,
+      { selectedTrackIndices: [10] },
+    )
+
+    expect(storageMocks.getOfflineBook).not.toHaveBeenCalled()
+    expect(storageMocks.getOfflineBookSummary).toHaveBeenCalledWith(item.id)
+    expect(storageMocks.putOfflineTrack).toHaveBeenCalledTimes(1)
+    expect(storageMocks.putOfflineTrack).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({ trackIndex: 10, blob: trackBlob }),
+    )
+    expect(storageMocks.putOfflineBookSummary).toHaveBeenLastCalledWith(expect.objectContaining({
+      status: 'downloaded',
+      totalBytes: 200_000_000 + trackBlob.size,
+    }))
+    expect(result.tracks).toHaveLength(11)
+    expect(result.tracks.every((track) => !track.blob)).toBe(true)
+  })
+
   it('returns persisted track bytes for ahead-of-playback prefetching', async () => {
     const trackBlob = new Blob(['cached-chapter'], { type: 'audio/mpeg' })
     const audioTrack = {
@@ -445,7 +606,7 @@ describe('downloadBook', () => {
       trackIndex: 0,
       duration: item.duration,
     }
-    storageMocks.getOfflineBook.mockResolvedValue({
+    storageMocks.getOfflineBookSummary.mockResolvedValue({
       itemId: item.id,
       title: item.title,
       author: item.author,
@@ -460,11 +621,12 @@ describe('downloadBook', () => {
         title: audioTrack.title,
         duration: audioTrack.duration,
         mimeType: audioTrack.mimeType,
-        blob: trackBlob,
+        size: trackBlob.size,
       }],
       ebookBlob: null,
       ebookFormat: null,
     })
+    storageMocks.getOfflineTrackBlob.mockResolvedValue(trackBlob)
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     const client = {
@@ -473,6 +635,7 @@ describe('downloadBook', () => {
 
     await expect(cachePlayedTrack(client, activePlayback, 0)).resolves.toBe(trackBlob)
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(storageMocks.putOfflineBook).not.toHaveBeenCalled()
+    expect(storageMocks.putOfflineTrack).not.toHaveBeenCalled()
+    expect(storageMocks.putOfflineBookSummary).not.toHaveBeenCalled()
   })
 })

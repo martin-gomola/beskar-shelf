@@ -36,6 +36,7 @@ function renderSettingsPage(appOverrides: Partial<AppContextValue> = {}) {
     playbackState: null,
     startBook: vi.fn().mockResolvedValue(undefined),
     downloadCurrentBook: vi.fn().mockResolvedValue(undefined),
+    cancelDownload: vi.fn(),
     removeOfflineBook: vi.fn().mockResolvedValue(undefined),
     removeOfflineTracks: vi.fn().mockResolvedValue(undefined),
     clearCachedBooks: vi.fn().mockResolvedValue(undefined),

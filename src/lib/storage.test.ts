@@ -23,6 +23,7 @@ function buildOfflineBook(trackIndices: number[], ebookBlob: Blob | null = null)
       title: `Track ${trackIndex}`,
       duration: 60,
       mimeType: 'audio/mpeg',
+      size: 1,
       blob: new Blob([String(trackIndex)], { type: 'audio/mpeg' }),
     })),
     ebookBlob,
@@ -47,6 +48,26 @@ describe('removeOfflineTracksFromBook', () => {
 
   it('deletes the offline record when the last track is removed and no ebook remains', () => {
     expect(removeOfflineTracksFromBook(buildOfflineBook([1]), [1])).toBeNull()
+  })
+
+  it('recomputes bytes from metadata without hydrating stored track blobs', () => {
+    const book = buildOfflineBook([0, 1, 2])
+    const metadataOnlyBook = {
+      ...book,
+      tracks: book.tracks.map((track) => ({
+        trackIndex: track.trackIndex,
+        title: track.title,
+        duration: track.duration,
+        mimeType: track.mimeType,
+        size: track.size,
+      })),
+    }
+
+    const next = removeOfflineTracksFromBook(metadataOnlyBook, [1])
+
+    expect(next?.totalBytes).toBe(2)
+    expect(next?.tracks.map((track) => track.trackIndex)).toEqual([0, 2])
+    expect(next?.tracks.every((track) => !track.blob)).toBe(true)
   })
 
   it('keeps ebook-only offline data when the last audio track is removed', () => {
@@ -77,6 +98,7 @@ describe('summarizeOfflineBook', () => {
     })
     expect(summary.tracks.map((track) => track.trackIndex)).toEqual([0, 1])
     expect(summary.tracks[0]).not.toHaveProperty('blob')
+    expect(summary.tracks[0].size).toBe(1)
   })
 })
 

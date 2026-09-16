@@ -3,13 +3,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { AudiobookshelfClient } from '../lib/api'
 import { downloadBook } from '../lib/downloads'
-import { deleteOfflineBook, listOfflineBooks, removeOfflineTracks as removeStoredOfflineTracks } from '../lib/storage'
+import {
+  deleteOfflineBook,
+  listOfflineBooks,
+  putOfflineBookSummary,
+  removeOfflineTracks as removeStoredOfflineTracks,
+} from '../lib/storage'
 import type { BookItem, DownloadBookOptions, OfflineBook } from '../lib/types'
 
 export function useOffline(client: AudiobookshelfClient) {
   const queryClient = useQueryClient()
   const resumedRef = useRef(false)
-  const activeDownloadsRef = useRef(new Map<string, Promise<void>>())
+  const activeDownloadsRef = useRef(new Map<string, { controller: AbortController, promise: Promise<void> }>())
   const [downloadingItemIds, setDownloadingItemIds] = useState<string[]>([])
 
   const offlineBooksQuery = useQuery({
@@ -27,15 +32,16 @@ export function useOffline(client: AudiobookshelfClient) {
   const downloadCurrentBook = useCallback(async (item: BookItem, options?: DownloadBookOptions) => {
     const activeDownload = activeDownloadsRef.current.get(item.id)
     if (activeDownload) {
-      return activeDownload
+      return activeDownload.promise
     }
 
+    const controller = new AbortController()
     const task = (async () => {
       setDownloadingItemIds((current) => (
         current.includes(item.id) ? current : [...current, item.id]
       ))
       try {
-        await downloadBook(client, item, options, async () => {
+        await downloadBook(client, item, { ...options, signal: controller.signal }, async () => {
           await refreshOfflineBooks()
         })
       } finally {
@@ -45,15 +51,19 @@ export function useOffline(client: AudiobookshelfClient) {
       }
     })()
 
-    activeDownloadsRef.current.set(item.id, task)
+    activeDownloadsRef.current.set(item.id, { controller, promise: task })
     return task
   }, [client, refreshOfflineBooks])
 
-  // On first load, resume downloads that iOS interrupted while backgrounded.
-  // The in-memory registry, rather than the persisted status, is the source of
-  // truth for whether a transfer is currently active.
+  const cancelDownload = useCallback((itemId: string) => {
+    activeDownloadsRef.current.get(itemId)?.controller.abort()
+  }, [])
+
+  // A persisted "downloading" state cannot prove that WebKit still owns a
+  // live request. Convert interrupted work to a manual retry so a crash cannot
+  // create an automatic resume loop.
   useEffect(() => {
-    if (resumedRef.current || !offlineBooksQuery.data || !client.hasSession()) return
+    if (resumedRef.current || !offlineBooksQuery.data) return
     resumedRef.current = true
 
     const interrupted = offlineBooksQuery.data.filter((book) => book.status === 'downloading')
@@ -61,15 +71,11 @@ export function useOffline(client: AudiobookshelfClient) {
 
     void (async () => {
       for (const book of interrupted) {
-        try {
-          const item = await client.getItem(book.itemId)
-          await downloadCurrentBook(item)
-        } catch {
-          // downloadBook persists a terminal error state that remains retryable.
-        }
+        await putOfflineBookSummary({ ...book, status: 'error', updatedAt: Date.now() })
       }
+      await refreshOfflineBooks()
     })()
-  }, [client, downloadCurrentBook, offlineBooksQuery.data])
+  }, [offlineBooksQuery.data, refreshOfflineBooks])
 
   async function removeOfflineBook(itemId: string) {
     await deleteOfflineBook(itemId)
@@ -94,6 +100,7 @@ export function useOffline(client: AudiobookshelfClient) {
     downloadingItemIds,
     refreshOfflineBooks,
     downloadCurrentBook,
+    cancelDownload,
     removeOfflineBook,
     removeOfflineTracks,
     clearCachedBooks,

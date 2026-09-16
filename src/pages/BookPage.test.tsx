@@ -111,6 +111,7 @@ function renderBookPage({
     playbackState: null,
     startBook: vi.fn().mockResolvedValue(undefined),
     downloadCurrentBook: vi.fn().mockResolvedValue(undefined),
+    cancelDownload: vi.fn(),
     removeOfflineBook: vi.fn().mockResolvedValue(undefined),
     removeOfflineTracks: vi.fn().mockResolvedValue(undefined),
     clearCachedBooks: vi.fn().mockResolvedValue(undefined),
@@ -210,6 +211,7 @@ describe('BookPage', () => {
   it('shows selected download progress immediately while the download runs', async () => {
     const user = userEvent.setup()
     let finishDownload!: () => void
+    const cancelDownload = vi.fn()
     const downloadCurrentBook = vi.fn().mockImplementation((_item: BookItem, options?: DownloadBookOptions) => new Promise<void>((resolve) => {
       options?.onProgress?.({
         completedTracks: 0,
@@ -232,6 +234,7 @@ describe('BookPage', () => {
       item: audiobookItem,
       appOverrides: {
         downloadCurrentBook,
+        cancelDownload,
       },
     })
 
@@ -245,7 +248,10 @@ describe('BookPage', () => {
     expect(progress).toHaveTextContent('3.0 KB of 4.0 KB')
     expect(progress.textContent).toMatch(/\/s/)
     expect(screen.queryByText(/select tracks to download/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /downloading/i })).toBeDisabled()
+    const stopButton = screen.getByRole('button', { name: /stop download/i })
+    expect(stopButton).toBeEnabled()
+    await user.click(stopButton)
+    expect(cancelDownload).toHaveBeenCalledWith(audiobookItem.id)
 
     finishDownload()
     await waitFor(() => {
@@ -348,7 +354,8 @@ describe('BookPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/previous download was interrupted/i)
   })
 
-  it('disables retry only while a real transfer is active', async () => {
+  it('shows a working stop action only while a real transfer is active', async () => {
+    const user = userEvent.setup()
     const interruptedBook: OfflineBook = {
       itemId: 'audio-1',
       title: 'Beskar Rising',
@@ -361,7 +368,7 @@ describe('BookPage', () => {
       tracks: [],
     }
 
-    renderBookPage({
+    const { appContextValue } = renderBookPage({
       item: audiobookItem,
       appOverrides: {
         offlineBooks: [interruptedBook],
@@ -369,7 +376,10 @@ describe('BookPage', () => {
       },
     })
 
-    expect(await screen.findByRole('button', { name: /downloading/i })).toBeDisabled()
+    const stopButton = await screen.findByRole('button', { name: /stop download/i })
+    expect(stopButton).toBeEnabled()
+    await user.click(stopButton)
+    expect(appContextValue.cancelDownload).toHaveBeenCalledWith('audio-1')
   })
 
   it('removes a downloaded track from the download picker', async () => {

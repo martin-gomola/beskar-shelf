@@ -4,12 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AudiobookshelfClient } from '../lib/api'
-import type { BookItem, OfflineBook } from '../lib/types'
+import type { BookItem, DownloadBookOptions, OfflineBook } from '../lib/types'
 import { useOffline } from './useOffline'
 
 const mocks = vi.hoisted(() => ({
   downloadBook: vi.fn(),
   listOfflineBooks: vi.fn(),
+  putOfflineBookSummary: vi.fn(),
   deleteOfflineBook: vi.fn(),
   removeOfflineTracks: vi.fn(),
 }))
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../lib/downloads', () => ({ downloadBook: mocks.downloadBook }))
 vi.mock('../lib/storage', () => ({
   listOfflineBooks: mocks.listOfflineBooks,
+  putOfflineBookSummary: mocks.putOfflineBookSummary,
   deleteOfflineBook: mocks.deleteOfflineBook,
   removeOfflineTracks: mocks.removeOfflineTracks,
 }))
@@ -79,24 +81,21 @@ describe('useOffline', () => {
     mocks.listOfflineBooks.mockResolvedValue([interruptedBook])
   })
 
-  it('tracks an automatically resumed download only while its promise is active', async () => {
-    let finishDownload!: () => void
-    mocks.downloadBook.mockImplementation(() => new Promise<void>((resolve) => {
-      finishDownload = resolve
-    }))
+  it('makes interrupted downloads retryable without automatically restarting them', async () => {
     const client = {
       hasSession: vi.fn().mockReturnValue(true),
-      getItem: vi.fn().mockResolvedValue(item),
+      getItem: vi.fn(),
     } as unknown as AudiobookshelfClient
 
     const { result } = renderHook(() => useOffline(client), { wrapper: createWrapper() })
 
-    await waitFor(() => expect(mocks.downloadBook).toHaveBeenCalledTimes(1))
-    expect(result.current.downloadingItemIds).toEqual([item.id])
-
-    await act(async () => finishDownload())
-
-    await waitFor(() => expect(result.current.downloadingItemIds).toEqual([]))
+    await waitFor(() => expect(mocks.putOfflineBookSummary).toHaveBeenCalledWith(expect.objectContaining({
+      itemId: item.id,
+      status: 'error',
+    })))
+    expect(mocks.downloadBook).not.toHaveBeenCalled()
+    expect(client.getItem).not.toHaveBeenCalled()
+    expect(result.current.downloadingItemIds).toEqual([])
   })
 
   it('deduplicates attempts to download the same book concurrently', async () => {
@@ -121,6 +120,41 @@ describe('useOffline', () => {
     expect(result.current.downloadingItemIds).toEqual([item.id])
 
     await act(async () => finishDownload())
+    await waitFor(() => expect(result.current.downloadingItemIds).toEqual([]))
+  })
+
+  it('aborts an active download and removes it from the active registry', async () => {
+    mocks.listOfflineBooks.mockResolvedValue([])
+    let receivedSignal: AbortSignal | undefined
+    mocks.downloadBook.mockImplementation((
+      _client: AudiobookshelfClient,
+      _item: BookItem,
+      options?: DownloadBookOptions,
+    ) => new Promise<void>((_resolve, reject) => {
+      receivedSignal = options?.signal
+      options?.signal?.addEventListener('abort', () => {
+        const error = new Error('Download stopped.')
+        error.name = 'AbortError'
+        reject(error)
+      }, { once: true })
+    }))
+    const client = {
+      hasSession: vi.fn().mockReturnValue(true),
+      getItem: vi.fn(),
+    } as unknown as AudiobookshelfClient
+    const { result } = renderHook(() => useOffline(client), { wrapper: createWrapper() })
+    let downloadPromise!: Promise<void>
+
+    act(() => {
+      downloadPromise = result.current.downloadCurrentBook(item)
+      void downloadPromise.catch(() => undefined)
+    })
+    await waitFor(() => expect(result.current.downloadingItemIds).toEqual([item.id]))
+
+    act(() => result.current.cancelDownload(item.id))
+
+    expect(receivedSignal?.aborted).toBe(true)
+    await expect(downloadPromise).rejects.toThrow('Download stopped')
     await waitFor(() => expect(result.current.downloadingItemIds).toEqual([]))
   })
 })
