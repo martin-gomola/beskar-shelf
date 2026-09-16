@@ -110,6 +110,12 @@ make check      # all app, PWA, and Compose checks
 
 `make dev` proxies browser requests to `ABS_URL` under `/abs`, sidestepping CORS when your Audiobookshelf server sits on a different origin.
 
+### Architecture plans
+
+- [Reusable PWA offline media library](docs/OFFLINE_MEDIA_LIBRARY_PLAN.md) —
+  phased extraction of download, IndexedDB and namespaced localStorage handling
+  into a repository-local package that can serve Beskar and another PWA.
+
 ## Deploy
 
 This repo now owns the Beskar Shelf app only. Manage the Audiobookshelf
