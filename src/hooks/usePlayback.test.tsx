@@ -6,11 +6,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { usePlayback } from './usePlayback'
 import type { AudiobookshelfClient } from '../lib/api'
-import { getOfflineBook } from '../lib/storage'
+import { getOfflineBook } from '../lib/offlineMedia'
 import type { AudioTrack, BookItem, PlaybackSession, PersistedPlaybackState } from '../lib/types'
 
-vi.mock('../lib/storage', () => ({
+vi.mock('../lib/offlineMedia', () => ({
+  cachePlayedTrack: vi.fn().mockResolvedValue(null),
   getOfflineBook: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('../lib/appStorage', () => ({
   savePlaybackState: vi.fn(),
   enqueueProgress: vi.fn(),
   loadProgressQueue: vi.fn().mockReturnValue([]),

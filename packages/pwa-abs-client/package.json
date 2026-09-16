@@ -1,0 +1,13 @@
+{
+  "name": "@mgomola/pwa-abs-client",
+  "version": "0.1.0",
+  "description": "Small framework-agnostic Audiobookshelf client contract",
+  "type": "module",
+  "files": ["src"],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

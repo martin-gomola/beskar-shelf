@@ -9,13 +9,14 @@ import pytest
 from click.testing import CliRunner
 
 from beskar_tools.cli import optimize_pdf as opt
+from beskar_tools.media import human_size
 
 
 def test_human_size_formats_each_unit() -> None:
-    assert opt.human_size(0) == "0.0 B"
-    assert opt.human_size(2_048) == "2.0 KB"
-    assert opt.human_size(5 * 1024**2) == "5.0 MB"
-    assert opt.human_size(3 * 1024**3) == "3.0 GB"
+    assert human_size(0) == "0.0 B"
+    assert human_size(2_048) == "2.0 KB"
+    assert human_size(5 * 1024**2) == "5.0 MB"
+    assert human_size(3 * 1024**3) == "3.0 GB"
 
 
 def test_cli_rejects_non_pdf_input(tmp_path: Path) -> None:

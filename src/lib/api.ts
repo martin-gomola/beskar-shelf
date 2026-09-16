@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AudiobookshelfClientBase, AudiobookshelfSessionExpiredError, type AudiobookshelfClientPort } from '@mgomola/pwa-abs-client'
 
 import type {
   AudioTrack,
@@ -39,7 +40,7 @@ const loginSchema = z.object({
     .optional(),
 })
 
-export class SessionExpiredError extends Error {
+export class SessionExpiredError extends AudiobookshelfSessionExpiredError {
   constructor(message: string) {
     super(message)
     this.name = 'SessionExpiredError'
@@ -209,92 +210,10 @@ function playbackFromUnknown(value: unknown): PlaybackSession {
   }
 }
 
-export class AudiobookshelfClient {
-  private readonly baseUrl: string
-  private readonly session: UserSession | null
-  private readonly server: ServerConfig | null
+export class AudiobookshelfClient extends AudiobookshelfClientBase implements AudiobookshelfClientPort {
 
   constructor(server: ServerConfig | null, session: UserSession | null) {
-    this.server = server
-    this.session = session
-    this.baseUrl = normalizeBaseUrl(server?.baseUrl ?? '')
-  }
-
-  hasServer() {
-    return Boolean(this.baseUrl)
-  }
-
-  hasSession() {
-    return Boolean(this.session?.token)
-  }
-
-  private requestBase() {
-    if (this.server?.mode === 'proxy' && proxyBase) {
-      return `${window.location.origin}${proxyBase}`
-    }
-
-    if (this.server?.mode === 'dynamic-proxy' && dynamicProxyEnabled) {
-      return `${window.location.origin}/proxy/${this.baseUrl}`
-    }
-
-    if (this.server?.mode === 'dynamic-proxy' && proxyBase) {
-      return `${window.location.origin}${proxyBase}`
-    }
-
-    return this.baseUrl
-  }
-
-  absoluteUrl(path: string) {
-    if (/^https?:\/\//.test(path)) {
-      return path
-    }
-
-    const base = this.requestBase()
-    return `${base}${path.startsWith('/') ? '' : '/'}${path}`
-  }
-
-  coverUrl(itemId: string) {
-    const url = new URL(this.absoluteUrl(`/api/items/${itemId}/cover`))
-    if (this.session?.token) {
-      url.searchParams.set('token', this.session.token)
-    }
-    return url.toString()
-  }
-
-  assetUrl(path: string | null) {
-    if (!path) {
-      return null
-    }
-
-    const url = new URL(this.absoluteUrl(path))
-    if (this.session?.token) {
-      url.searchParams.set('token', this.session.token)
-    }
-    return url.toString()
-  }
-
-  streamUrl(path: string) {
-    const url = new URL(this.absoluteUrl(path))
-    if (this.session?.token) {
-      url.searchParams.set('token', this.session.token)
-    }
-    return url.toString()
-  }
-
-  // Build a Socket.IO v4 WebSocket URL that routes through the same base as
-  // the REST API. In proxy mode this means /abs/socket.io/, so that nginx
-  // forwards to ABS instead of the SPA falling back to index.html.
-  socketIoUrl(token: string) {
-    const httpUrl = new URL(this.absoluteUrl('/socket.io/'))
-    httpUrl.protocol = httpUrl.protocol === 'https:' ? 'wss:' : 'ws:'
-    httpUrl.searchParams.set('EIO', '4')
-    httpUrl.searchParams.set('transport', 'websocket')
-    httpUrl.searchParams.set('token', token)
-    return httpUrl.toString()
-  }
-
-  ebookUrl(itemId: string) {
-    return this.streamUrl(`/api/items/${itemId}/ebook`)
+    super(server, session, { proxyBase, dynamicProxyEnabled })
   }
 
   async downloadEbook(itemId: string, signal?: AbortSignal) {

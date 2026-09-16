@@ -9,6 +9,7 @@ export interface AppContextValue {
   setSession: (session: UserSession | null) => void
   isOnline: boolean
   offlineBooks: OfflineBook[]
+  offlineBooksLoaded: boolean
   downloadingItemIds: string[]
   refreshBooks: () => Promise<void>
   refreshOfflineBooks: () => Promise<void>

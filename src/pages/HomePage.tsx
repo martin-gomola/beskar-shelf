@@ -66,7 +66,7 @@ function ShelfSection({ shelves }: { shelves: { id: string; label: string; entit
 export function HomePage() {
   const { librariesQuery, primary } = usePrimaryLibrary()
   const client = useClient()
-  const { playbackState } = useAppContext()
+  const { playbackState, offlineBooks, isOnline, session } = useAppContext()
   const resumeItemId = playbackState?.itemId ?? null
   const personalizedQuery = useQuery({
     queryKey: ['personalized', primary?.id],
@@ -89,6 +89,7 @@ export function HomePage() {
   const resumeRemaining = Math.max(resumeDuration - resumeTime, 0)
   const loadError = librariesQuery.error ?? personalizedQuery.error
   const isPending = librariesQuery.isPending || personalizedQuery.isPending && !personalizedQuery.isError
+  const offlineOnly = offlineBooks.length > 0 && (!isOnline || !session)
 
   return (
     <main className="screen home-screen">
@@ -130,7 +131,15 @@ export function HomePage() {
         </section>
       ) : null}
 
-      {isPending ? (
+      {offlineOnly || loadError && offlineBooks.length > 0 ? (
+        <section className="card">
+          <h2>Offline library</h2>
+          <p className="muted">
+            The Audiobookshelf server is unavailable. Your downloaded books are still ready on this device.
+          </p>
+          <Link className="primary-button" to="/downloads">Open downloads</Link>
+        </section>
+      ) : isPending ? (
         <ShelfSkeleton />
       ) : loadError ? (
         <section className="card">

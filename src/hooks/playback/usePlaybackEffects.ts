@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import type { PersistedPlaybackState } from '../../lib/types'
 import type { AudiobookshelfClient } from '../../lib/api'
-import { cachePlayedTrack } from '../../lib/downloads'
+import { cachePlayedTrack } from '../../lib/offlineMedia'
 import { enableBackgroundAudio, revokePlaybackSources, totalTimeFromTrack, type ActivePlayback } from './shared'
 
 interface UsePlaybackEffectsOptions {

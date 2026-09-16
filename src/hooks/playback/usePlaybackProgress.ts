@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 
-import { enqueueProgress, loadProgressQueue, savePlaybackState, saveProgressQueue } from '../../lib/storage'
+import { enqueueProgress, loadProgressQueue, savePlaybackState, saveProgressQueue } from '../../lib/appStorage'
 import type { PersistedPlaybackState, ProgressPayload } from '../../lib/types'
 import { clamp } from '../../lib/utils'
 import type { AudiobookshelfClient } from '../../lib/api'

@@ -58,6 +58,7 @@ function renderDownloadsPage(
     removeOfflineTracks: vi.fn().mockResolvedValue(undefined),
     clearCachedBooks: vi.fn().mockResolvedValue(undefined),
     ...appOverrides,
+    offlineBooksLoaded: appOverrides.offlineBooksLoaded ?? true,
   }
 
   render(

@@ -1,8 +1,11 @@
 {
   "name": "beskar-shelf",
   "private": true,
-  "version": "0.5.1",
+  "version": "0.6.0",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && npm run check:pwa",
@@ -10,9 +13,15 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck:offline-media": "tsc -p packages/pwa-offline-media/tsconfig.json",
+    "typecheck:packages": "npm run typecheck:offline-media && tsc -p packages/pwa-abs-client/tsconfig.json && tsc -p packages/pwa-playback/tsconfig.json && tsc -p packages/pwa-runtime/tsconfig.json"
   },
   "dependencies": {
+    "@mgomola/pwa-abs-client": "file:packages/pwa-abs-client",
+    "@mgomola/pwa-offline-media": "file:packages/pwa-offline-media",
+    "@mgomola/pwa-playback": "file:packages/pwa-playback",
+    "@mgomola/pwa-runtime": "file:packages/pwa-runtime",
     "@mgomola/shelf-pdf-reader": "git+https://github.com/martin-gomola/shelf-pdf-reader.git#main",
     "@tanstack/react-query": "^5.99.0",
     "clsx": "^2.1.1",

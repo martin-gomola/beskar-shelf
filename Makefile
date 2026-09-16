@@ -1,4 +1,4 @@
-.PHONY: help setup extraction-setup install install-tools tools-test tools-lint dev down stop kill build test lint check deploy deploy-down deploy-logs abs-token abs-descriptions screenshots download download-dry-run doctor
+.PHONY: help setup extraction-setup install install-tools tools-test tools-lint dev down stop kill build test lint typecheck-packages check deploy deploy-down deploy-logs abs-token abs-descriptions screenshots download download-dry-run doctor
 DATA_EXTRACTION_REPO ?= ../data-extraction
 DATA_EXTRACTION_PY := $(DATA_EXTRACTION_REPO)/.venv/bin/python
 DATA_EXTRACTION_LINKS ?= $(DATA_EXTRACTION_REPO)/inputs/book-yt-links.txt
@@ -70,7 +70,10 @@ test:
 lint:
 	@npm run lint
 
-check: lint test build
+typecheck-packages:
+	@npm run typecheck:packages
+
+check: lint test typecheck-packages build
 	@docker compose config --quiet
 
 install-tools:

@@ -18,5 +18,7 @@ describe('service worker media routing', () => {
     expect(mediaBypass).toBeGreaterThan(fetchHandler)
     expect(mediaBypass).toBeLessThan(absInterception)
     expect(workerSource).toContain("request.headers.has('range')")
+    expect(workerSource).toContain("'/index.html'")
+    expect(workerSource).toContain("caches.match('/index.html')")
   })
 })

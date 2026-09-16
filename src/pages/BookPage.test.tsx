@@ -11,6 +11,14 @@ import { PlayerContext, type PlayerContextValue } from '../contexts/PlayerContex
 import type { AudiobookshelfClient } from '../lib/api'
 import type { BookItem, DownloadBookOptions, OfflineBook } from '../lib/types'
 
+vi.mock('../lib/offlineMedia', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/offlineMedia')>()
+  return {
+    ...actual,
+    getOfflineBook: vi.fn().mockResolvedValue(undefined),
+  }
+})
+
 const ebookOnlyItem: BookItem = {
   id: 'ebook-1',
   libraryId: 'lib-ebooks',
@@ -116,6 +124,7 @@ function renderBookPage({
     removeOfflineTracks: vi.fn().mockResolvedValue(undefined),
     clearCachedBooks: vi.fn().mockResolvedValue(undefined),
     ...appOverrides,
+    offlineBooksLoaded: appOverrides.offlineBooksLoaded ?? true,
   }
 
   const playerContextValue: PlayerContextValue = {
@@ -330,6 +339,39 @@ describe('BookPage', () => {
     expect(await screen.findByLabelText(/offline download progress/i)).toHaveTextContent('33% offline')
     expect(screen.getByLabelText(/offline download progress/i)).toHaveTextContent('1 of 3 chapters saved')
     expect(screen.getByRole('button', { name: /chapter 2.*downloaded/i })).toBeInTheDocument()
+  })
+
+  it('renders a downloaded book from local metadata while offline', async () => {
+    const offlineBook: OfflineBook = {
+      itemId: audiobookItem.id,
+      title: audiobookItem.title,
+      author: audiobookItem.author,
+      coverPath: null,
+      status: 'downloaded',
+      source: 'download',
+      totalBytes: 6,
+      totalTracks: 1,
+      updatedAt: Date.now(),
+      tracks: [{
+        trackIndex: 0,
+        title: 'Chapter 1',
+        duration: 60,
+        mimeType: 'audio/mpeg',
+        size: 6,
+        blob: new Blob(['audio'], { type: 'audio/mpeg' }),
+      }],
+      ebookBlob: null,
+      ebookFormat: null,
+    }
+
+    const { client } = renderBookPage({
+      item: audiobookItem,
+      appOverrides: { offlineBooks: [offlineBook], isOnline: false },
+    })
+
+    expect(await screen.findByRole('button', { name: /^play$/i })).toBeEnabled()
+    expect(screen.getByText('Beskar Rising')).toBeInTheDocument()
+    expect(client.getItem).not.toHaveBeenCalled()
   })
 
   it('allows retrying a persisted download when no transfer is active', async () => {

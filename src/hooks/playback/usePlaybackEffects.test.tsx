@@ -10,7 +10,7 @@ const downloadMocks = vi.hoisted(() => ({
   cachePlayedTrack: vi.fn(),
 }))
 
-vi.mock('../../lib/downloads', () => downloadMocks)
+vi.mock('../../lib/offlineMedia', () => downloadMocks)
 
 function buildTrack(index: number, startOffset: number, duration: number): AudioTrack {
   return {

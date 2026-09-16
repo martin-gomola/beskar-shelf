@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { AudiobookshelfClient } from '../lib/api'
-import { downloadBook } from '../lib/downloads'
 import {
   deleteOfflineBook,
+  downloadBook,
   listOfflineBooks,
-  putOfflineBookSummary,
+  recoverOfflineMedia,
   removeOfflineTracks as removeStoredOfflineTracks,
-} from '../lib/storage'
+} from '../lib/offlineMedia'
 import type { BookItem, DownloadBookOptions, OfflineBook } from '../lib/types'
 
 export function useOffline(client: AudiobookshelfClient) {
@@ -70,9 +70,7 @@ export function useOffline(client: AudiobookshelfClient) {
     if (interrupted.length === 0) return
 
     void (async () => {
-      for (const book of interrupted) {
-        await putOfflineBookSummary({ ...book, status: 'error', updatedAt: Date.now() })
-      }
+      await recoverOfflineMedia()
       await refreshOfflineBooks()
     })()
   }, [offlineBooksQuery.data, refreshOfflineBooks])
@@ -97,6 +95,7 @@ export function useOffline(client: AudiobookshelfClient) {
 
   return {
     offlineBooks,
+    offlineBooksLoaded: offlineBooksQuery.isSuccess || offlineBooksQuery.isError,
     downloadingItemIds,
     refreshOfflineBooks,
     downloadCurrentBook,

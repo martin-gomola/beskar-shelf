@@ -8,7 +8,7 @@ import {
   loadUserSession,
   saveServerConfig,
   saveUserSession,
-} from './lib/storage'
+} from './lib/appStorage'
 import type { PersistedPlaybackState, ServerConfig, UserSession } from './lib/types'
 
 import { AppContext } from './contexts/AppContext'
@@ -58,6 +58,7 @@ function App() {
 
   const {
     offlineBooks,
+    offlineBooksLoaded,
     downloadingItemIds,
     refreshOfflineBooks,
     downloadCurrentBook,
@@ -102,6 +103,7 @@ function App() {
     setSession,
     isOnline,
     offlineBooks,
+    offlineBooksLoaded,
     downloadingItemIds,
     refreshBooks,
     refreshOfflineBooks,
@@ -113,7 +115,7 @@ function App() {
     removeOfflineTracks,
     clearCachedBooks,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [server, session, isOnline, offlineBooks, downloadingItemIds, playbackState])
+  }), [server, session, isOnline, offlineBooks, offlineBooksLoaded, downloadingItemIds, playbackState])
 
   const playerContextValue = useMemo(() => ({
     activePlayback,

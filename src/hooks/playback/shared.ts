@@ -1,3 +1,4 @@
+import { revokeObjectUrls, totalTimeFromTrack as totalTimeFromTrackCore, trackForTime as trackForTimeCore } from '@mgomola/pwa-playback'
 import type { AudioTrack, BookItem, OfflineBook, PlaybackSession } from '../../lib/types'
 
 export interface ActivePlayback {
@@ -9,24 +10,14 @@ export interface ActivePlayback {
 }
 
 export function trackForTime(tracks: AudioTrack[], currentTime: number) {
-  if (tracks.length === 0) {
-    return 0
-  }
-
-  const target = Math.max(0, currentTime)
-  const found = tracks.findIndex((track) => {
-    const end = track.startOffset + track.duration
-    return target >= track.startOffset && target < end
-  })
-  return found === -1 ? tracks.length - 1 : found
+  return trackForTimeCore(tracks, currentTime)
 }
 
 export function totalTimeFromTrack(activePlayback: ActivePlayback | null, audioTime: number) {
   if (!activePlayback) {
     return 0
   }
-  const track = activePlayback.session.audioTracks[activePlayback.trackIndex]
-  return (track?.startOffset ?? 0) + audioTime
+  return totalTimeFromTrackCore(activePlayback.session.audioTracks, activePlayback.trackIndex, audioTime)
 }
 
 export function enableBackgroundAudio() {
@@ -81,9 +72,5 @@ export function buildOfflineSession(item: BookItem, offline: OfflineBook): Playb
 }
 
 export function revokePlaybackSources(activePlayback: ActivePlayback | null) {
-  activePlayback?.sources.forEach((source) => {
-    if (source.startsWith('blob:')) {
-      URL.revokeObjectURL(source)
-    }
-  })
+  if (activePlayback) revokeObjectUrls(activePlayback.sources)
 }

@@ -9,8 +9,9 @@ import '@mgomola/shelf-pdf-reader/styles.css'
 // keeps ~700 kB of pdf.js out of the initial app bundle.
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
+import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
-import { getOfflineBook } from '../lib/storage'
+import { bookItemFromOffline, getOfflineBook } from '../lib/offlineMedia'
 import type { BookItem } from '../lib/types'
 import { formatProgress } from '../lib/utils'
 
@@ -33,6 +34,7 @@ const DEFAULT_FONT_SIZE = 18
 function ReaderPage() {
   const { itemId } = useParams() as { itemId: string }
   const client = useClient()
+  const { offlineBooks, isOnline } = useAppContext()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -53,10 +55,24 @@ function ReaderPage() {
   const [pdfSrc, setPdfSrc] = useState<string | null>(null)
   const [toc, setToc] = useState<TocItem[]>([])
   const [activeTocHref, setActiveTocHref] = useState<string | null>(null)
+  const offline = offlineBooks.find((book) => book.itemId === itemId)
+  const offlineItem = offline ? bookItemFromOffline(offline) : undefined
 
   const query = useQuery({
     queryKey: ['item', itemId],
-    queryFn: () => client.getItem(itemId),
+    queryFn: async () => {
+      const localBook = offlineItem ? undefined : await getOfflineBook(itemId)
+      const localItem = offlineItem ?? (localBook ? bookItemFromOffline(localBook) : undefined)
+      if (localItem && !isOnline) return localItem
+      try {
+        return await client.getItem(itemId)
+      } catch (error) {
+        if (localItem) return localItem
+        throw error
+      }
+    },
+    initialData: !isOnline ? offlineItem : undefined,
+    initialDataUpdatedAt: !isOnline && offlineItem ? Date.now() : undefined,
     staleTime: 60 * 1000,
   })
   const item = query.data

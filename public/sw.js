@@ -14,6 +14,7 @@ const cachePutSafe = async (cacheName, request, response) => {
 
 const PRECACHE = [
   '/',
+  '/index.html',
   '/manifest.webmanifest',
   '/icon-192.png',
   '/icon-512.png',
@@ -102,6 +103,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() =>
           caches.match(request)
+            .then((cached) => cached || caches.match('/index.html'))
             .then((cached) => cached || caches.match('/'))
             .then((r) => r || new Response('Offline', { status: 503, statusText: 'Service Unavailable' }))
         )

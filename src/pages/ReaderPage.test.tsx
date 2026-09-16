@@ -4,22 +4,27 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
 import ReaderPage from './ReaderPage'
+import { AppContext, type AppContextValue } from '../contexts/AppContext'
 import { ClientContext } from '../contexts/ClientContext'
 import type { AudiobookshelfClient } from '../lib/api'
 
 vi.mock('foliate-js/view.js', () => ({}))
 
-const storageMocks = vi.hoisted(() => ({
+const offlineMediaMocks = vi.hoisted(() => ({
   getOfflineBook: vi.fn(),
 }))
 
-vi.mock('../lib/storage', async () => {
-  const actual = await vi.importActual<typeof import('../lib/storage')>('../lib/storage')
-  return {
-    ...actual,
-    getOfflineBook: storageMocks.getOfflineBook,
-  }
-})
+vi.mock('../lib/offlineMedia', () => offlineMediaMocks)
+
+const appContextValue = {
+  server: { baseUrl: 'https://example.test', mode: 'direct' },
+  setServer: vi.fn(),
+  session: { token: 'token', user: { id: 'user-1', username: 'reader' } },
+  setSession: vi.fn(),
+  isOnline: true,
+  offlineBooks: [],
+  offlineBooksLoaded: true,
+} as unknown as AppContextValue
 
 function renderReaderPage() {
   const queryClient = new QueryClient()
@@ -52,11 +57,13 @@ function renderReaderPage() {
   render(
     <QueryClientProvider client={queryClient}>
       <ClientContext.Provider value={client}>
-        <MemoryRouter initialEntries={['/read/ebook-1']}>
-          <Routes>
-            <Route path="/read/:itemId" element={<ReaderPage />} />
-          </Routes>
-        </MemoryRouter>
+        <AppContext.Provider value={appContextValue}>
+          <MemoryRouter initialEntries={['/read/ebook-1']}>
+            <Routes>
+              <Route path="/read/:itemId" element={<ReaderPage />} />
+            </Routes>
+          </MemoryRouter>
+        </AppContext.Provider>
       </ClientContext.Provider>
     </QueryClientProvider>,
   )
@@ -66,7 +73,7 @@ function renderReaderPage() {
 
 describe('ReaderPage', () => {
   it('shows bottom loading progress while an epub is opening', async () => {
-    storageMocks.getOfflineBook.mockResolvedValue(undefined)
+    offlineMediaMocks.getOfflineBook.mockResolvedValue(undefined)
 
     renderReaderPage()
 

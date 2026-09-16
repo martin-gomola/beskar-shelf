@@ -1,0 +1,13 @@
+{
+  "name": "@mgomola/pwa-playback",
+  "version": "0.1.0",
+  "description": "Framework-agnostic playback timeline and object URL helpers",
+  "type": "module",
+  "files": ["src"],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

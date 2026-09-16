@@ -39,6 +39,8 @@ from pathlib import Path
 
 import click
 
+from beskar_tools.media import human_size
+
 MIN_IMAGE_BYTES = 50_000  # below this, JPEG overhead can grow the file
 MIN_SAVING_RATIO = 0.90  # only swap if new size < 90% of original
 
@@ -196,14 +198,6 @@ def lossy_optimise(src: Path, dst: Path, quality: int) -> tuple[int, int, int]:
 
     linearise_in_place(dst)
     return total, recompressed, raw_saved
-
-
-def human_size(n: float) -> str:
-    for unit in ("B", "KB", "MB", "GB"):
-        if n < 1024:
-            return f"{n:.1f} {unit}"
-        n /= 1024
-    return f"{n:.1f} TB"
 
 
 @click.command(

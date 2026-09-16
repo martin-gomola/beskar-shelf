@@ -6,6 +6,7 @@ import clsx from 'clsx'
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext } from '../contexts/PlayerContext'
+import { bookItemFromOffline, getOfflineBook } from '../lib/offlineMedia'
 import type { AudioTrack, DownloadProgress } from '../lib/types'
 import { formatDuration, formatProgress, formatBytes } from '../lib/utils'
 
@@ -76,13 +77,26 @@ export function BookPage() {
   const [downloadProgress, setDownloadProgress] = useState<(DownloadProgress & { speedBytesPerSecond: number }) | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const downloadSpeedRef = useRef<{ bytes: number, time: number, speedBytesPerSecond: number } | null>(null)
+  const offline = offlineBooks.find((book) => book.itemId === itemId)
+  const offlineItem = offline ? bookItemFromOffline(offline) : undefined
   const query = useQuery({
     queryKey: ['item', itemId],
-    queryFn: () => client.getItem(itemId),
+    queryFn: async () => {
+      const localBook = offlineItem ? undefined : await getOfflineBook(itemId)
+      const localItem = offlineItem ?? (localBook ? bookItemFromOffline(localBook) : undefined)
+      if (localItem && !isOnline) return localItem
+      try {
+        return await client.getItem(itemId)
+      } catch (error) {
+        if (localItem) return localItem
+        throw error
+      }
+    },
+    initialData: !isOnline ? offlineItem : undefined,
+    initialDataUpdatedAt: !isOnline && offlineItem ? Date.now() : undefined,
     staleTime: 60 * 1000,
   })
   const item = query.data
-  const offline = offlineBooks.find((book) => book.itemId === itemId)
   const isDownloaded = offline?.status === 'downloaded'
   const canPlay = item ? item.audioTracks.length > 0 || item.duration > 0 : false
   const canRead = item ? Boolean(item.ebookFormat) : false

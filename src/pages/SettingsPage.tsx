@@ -6,7 +6,7 @@ import { useSkipSeconds } from '../hooks/usePlaybackPrefs'
 import { useServiceWorkerUpdate } from '../hooks/useServiceWorkerUpdate'
 import { useTheme } from '../hooks/useTheme'
 import { SKIP_SECONDS_OPTIONS } from '../lib/preferences'
-import { clearNetworkCaches } from '../lib/storage'
+import { clearNetworkCaches } from '../lib/appStorage'
 import { formatBytes, getOfflineBookBytes } from '../lib/utils'
 import { APP_VERSION } from '../utils/version'
 

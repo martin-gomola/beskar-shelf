@@ -10,15 +10,15 @@ import { useOffline } from './useOffline'
 const mocks = vi.hoisted(() => ({
   downloadBook: vi.fn(),
   listOfflineBooks: vi.fn(),
-  putOfflineBookSummary: vi.fn(),
+  recoverOfflineMedia: vi.fn(),
   deleteOfflineBook: vi.fn(),
   removeOfflineTracks: vi.fn(),
 }))
 
-vi.mock('../lib/downloads', () => ({ downloadBook: mocks.downloadBook }))
-vi.mock('../lib/storage', () => ({
+vi.mock('../lib/offlineMedia', () => ({
+  downloadBook: mocks.downloadBook,
   listOfflineBooks: mocks.listOfflineBooks,
-  putOfflineBookSummary: mocks.putOfflineBookSummary,
+  recoverOfflineMedia: mocks.recoverOfflineMedia,
   deleteOfflineBook: mocks.deleteOfflineBook,
   removeOfflineTracks: mocks.removeOfflineTracks,
 }))
@@ -89,10 +89,7 @@ describe('useOffline', () => {
 
     const { result } = renderHook(() => useOffline(client), { wrapper: createWrapper() })
 
-    await waitFor(() => expect(mocks.putOfflineBookSummary).toHaveBeenCalledWith(expect.objectContaining({
-      itemId: item.id,
-      status: 'error',
-    })))
+    await waitFor(() => expect(mocks.recoverOfflineMedia).toHaveBeenCalledTimes(1))
     expect(mocks.downloadBook).not.toHaveBeenCalled()
     expect(client.getItem).not.toHaveBeenCalled()
     expect(result.current.downloadingItemIds).toEqual([])

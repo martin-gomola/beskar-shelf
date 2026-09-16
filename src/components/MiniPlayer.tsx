@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAppContext } from '../contexts/AppContext'
 import { useClient } from '../contexts/ClientContext'
 import { usePlayerContext, usePlayerTime } from '../contexts/PlayerContext'
+import { bookItemFromOffline, getOfflineBook } from '../lib/offlineMedia'
 
 function IconPlay() {
   return (
@@ -36,7 +37,7 @@ export function MiniPlayer() {
   const client = useClient()
   const { activePlayback, isPlaying, togglePlayback, stopPlayback } = usePlayerContext()
   const { playbackTime } = usePlayerTime()
-  const { playbackState, startBook } = useAppContext()
+  const { playbackState, startBook, offlineBooks } = useAppContext()
   const [dismissedItemId, setDismissedItemId] = useState<string | null>(null)
   const [lastSeenItemId, setLastSeenItemId] = useState<string | null>(null)
 
@@ -45,6 +46,9 @@ export function MiniPlayer() {
   // startBook runs, but activePlayback is authoritative for time/progress).
   const resumeItemId = !activePlayback ? playbackState?.itemId ?? null : null
   const currentItemId = activePlayback?.item.id ?? resumeItemId
+  const offlineItem = resumeItemId
+    ? offlineBooks.find((book) => book.itemId === resumeItemId)
+    : undefined
 
   // Reset dismissal when the underlying item changes (new session or different
   // saved book). Uses the "update state during render" pattern from the React
@@ -84,6 +88,7 @@ export function MiniPlayer() {
       itemId={resumeItemId as string}
       savedTime={playbackState?.currentTime ?? 0}
       savedDuration={playbackState?.duration ?? 0}
+      offlineItem={offlineItem ? bookItemFromOffline(offlineItem) : undefined}
       onResume={(item) => {
         void startBook(item, playbackState?.currentTime)
       }}
@@ -156,6 +161,7 @@ interface ResumeMiniPlayerProps {
   itemId: string
   savedTime: number
   savedDuration: number
+  offlineItem?: import('../lib/types').BookItem
   onResume: (item: import('../lib/types').BookItem) => void
   onDismiss: () => void
 }
@@ -164,14 +170,26 @@ function ResumeMiniPlayer({
   itemId,
   savedTime,
   savedDuration,
+  offlineItem,
   onResume,
   onDismiss,
 }: ResumeMiniPlayerProps) {
   const client = useClient()
   const itemQuery = useQuery({
     queryKey: ['item', itemId],
-    queryFn: () => client.getItem(itemId),
-    enabled: Boolean(itemId) && client.hasSession(),
+    queryFn: async () => {
+      const localBook = offlineItem ? undefined : await getOfflineBook(itemId)
+      const localItem = offlineItem ?? (localBook ? bookItemFromOffline(localBook) : undefined)
+      if (localItem && !navigator.onLine) return localItem
+      try {
+        return await client.getItem(itemId)
+      } catch (error) {
+        if (localItem) return localItem
+        throw error
+      }
+    },
+    initialData: !navigator.onLine ? offlineItem : undefined,
+    enabled: Boolean(itemId) && (client.hasSession() || Boolean(offlineItem)),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   })

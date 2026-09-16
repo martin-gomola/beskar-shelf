@@ -21,12 +21,12 @@ const DownloadsPage = lazy(() => import('../pages/DownloadsPage'))
 const SettingsPage = lazy(() => import('../pages/SettingsPage'))
 const StatsPage = lazy(() => import('../pages/StatsPage'))
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, allowOffline = false }: { children: React.ReactNode, allowOffline?: boolean }) {
   const { server, session } = useAppContext()
-  if (!server?.baseUrl) {
+  if (!server?.baseUrl && !allowOffline) {
     return <Navigate to="/" replace />
   }
-  if (!session) {
+  if (!session && !allowOffline) {
     return <Navigate to="/login" replace />
   }
   return <>{children}</>
@@ -41,14 +41,23 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function Shell() {
-  const { server, session, playbackState, refreshBooks, refreshOfflineBooks } = useAppContext()
+  const { server, session, playbackState, offlineBooks, offlineBooksLoaded, refreshBooks, refreshOfflineBooks } = useAppContext()
   const { activePlayback, isPlaying } = usePlayerContext()
   const { updateAvailable, applyUpdate, checkForUpdate } = useServiceWorkerUpdate()
   useTheme()
   const location = useLocation()
 
-  const needsSetup = !server?.baseUrl
-  const needsLogin = Boolean(server?.baseUrl) && !session
+  const offlineItemId = location.pathname.match(/^\/(?:book|read)\/([^/]+)$/)?.[1]
+  const offlineRoute = location.pathname === '/downloads'
+    || location.pathname === '/player'
+    || location.pathname === '/home' && !session
+    || Boolean(offlineItemId)
+  const hasOfflineRouteData = offlineBooks.some((book) => book.itemId === offlineItemId)
+    || (location.pathname === '/player' && Boolean(playbackState))
+  const offlineRoutePending = offlineRoute && !offlineBooksLoaded && !session
+  const canUseOffline = offlineRoutePending || hasOfflineRouteData || location.pathname === '/downloads' || offlineBooks.length > 0
+  const needsSetup = !server?.baseUrl && !canUseOffline
+  const needsLogin = Boolean(server?.baseUrl) && !session && !canUseOffline
   const publicRoute = location.pathname === '/' || location.pathname === '/login'
   const pullRefreshDisabled = publicRoute || location.pathname.startsWith('/read/')
 
@@ -99,12 +108,12 @@ export function Shell() {
       <Routes>
         <Route path="/" element={needsSetup ? <SetupPage /> : <Navigate to="/home" replace />} />
         <Route path="/login" element={needsLogin ? <LoginPage /> : <Navigate to="/home" replace />} />
-        <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+        <Route path="/home" element={<ProtectedRoute allowOffline={canUseOffline}><HomePage /></ProtectedRoute>} />
         <Route path="/library/:libraryId" element={<ProtectedRoute><LazyRoute><LibraryPage /></LazyRoute></ProtectedRoute>} />
-        <Route path="/book/:itemId" element={<ProtectedRoute><LazyRoute><BookPage /></LazyRoute></ProtectedRoute>} />
-        <Route path="/read/:itemId" element={<ProtectedRoute><LazyRoute><ReaderPage /></LazyRoute></ProtectedRoute>} />
-        <Route path="/player" element={<ProtectedRoute><LazyRoute><PlayerPage /></LazyRoute></ProtectedRoute>} />
-        <Route path="/downloads" element={<ProtectedRoute><LazyRoute><DownloadsPage /></LazyRoute></ProtectedRoute>} />
+        <Route path="/book/:itemId" element={<ProtectedRoute allowOffline={canUseOffline}><LazyRoute><BookPage /></LazyRoute></ProtectedRoute>} />
+        <Route path="/read/:itemId" element={<ProtectedRoute allowOffline={canUseOffline}><LazyRoute><ReaderPage /></LazyRoute></ProtectedRoute>} />
+        <Route path="/player" element={<ProtectedRoute allowOffline={canUseOffline}><LazyRoute><PlayerPage /></LazyRoute></ProtectedRoute>} />
+        <Route path="/downloads" element={<ProtectedRoute allowOffline><LazyRoute><DownloadsPage /></LazyRoute></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><LazyRoute><SettingsPage /></LazyRoute></ProtectedRoute>} />
         <Route path="/stats" element={<ProtectedRoute><LazyRoute><StatsPage /></LazyRoute></ProtectedRoute>} />
       </Routes>
