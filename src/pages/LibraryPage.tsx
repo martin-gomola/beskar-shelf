@@ -8,6 +8,7 @@ import { useClient } from '../contexts/ClientContext'
 import { useCollections } from '../hooks/useCollections'
 import { usePrimaryLibrary } from '../hooks/useLibraries'
 import { BookCard } from '../components/BookCard'
+import { orderItemsByIds } from '../lib/libraryOrdering'
 
 function IconGrid() {
   return (
@@ -107,8 +108,12 @@ export function LibraryPage() {
   const collectionBookIds = useMemo(() => {
     if (!activeCollection) return null
     const col = collectionsQuery.data?.find((c) => c.id === activeCollection)
-    return col ? new Set(col.bookIds) : null
+    return col?.bookIds ?? null
   }, [activeCollection, collectionsQuery.data])
+  const collectionBookIdSet = useMemo(
+    () => collectionBookIds ? new Set(collectionBookIds) : null,
+    [collectionBookIds],
+  )
 
   const offlineBookIds = useMemo(
     () => new Set(offlineBooks.filter((b) => b.status === 'downloaded').map((b) => b.itemId)),
@@ -117,8 +122,9 @@ export function LibraryPage() {
 
   const filtered = useMemo(() => {
     let items = allItems
-    if (collectionBookIds) {
-      items = items.filter((item) => collectionBookIds.has(item.id))
+    if (collectionBookIdSet) {
+      items = items.filter((item) => collectionBookIdSet.has(item.id))
+      items = orderItemsByIds(items, collectionBookIds ?? [])
     }
     if (offlineOnly) {
       items = items.filter((item) => offlineBookIds.has(item.id))
@@ -130,7 +136,7 @@ export function LibraryPage() {
       )
     }
     return items
-  }, [allItems, collectionBookIds, offlineOnly, offlineBookIds, deferredSearch])
+  }, [allItems, collectionBookIdSet, collectionBookIds, offlineOnly, offlineBookIds, deferredSearch])
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
 
